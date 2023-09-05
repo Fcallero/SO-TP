@@ -37,18 +37,18 @@ int main(int argc, char* argv[]) {
 
 	// Carga de datos de config en variable y archivo
 	ip_memoria = config_get_string_value(config, "IP_MEMORIA");
-	puerto_memoria = config_get_string_value(config, "PUERTO_MEMORIA");
+	puerto_memoria = config_get_int_value(config, "PUERTO_MEMORIA");
 
 	ip_filesystem = config_get_string_value(config, "IP_FILESYSTEM");
-	puerto_filesystem = config_get_string_value(config, "PUERTO_FILESYSTEM");
+	puerto_filesystem = config_get_int_value(config, "PUERTO_FILESYSTEM");
 
 	ip_cpu = config_get_string_value(config, "IP_CPU");
-	puerto_cpu_dispatch = config_get_string_value(config, "PUERTO_CPU");
-	puerto_cpu_interrupt = config_get_string_value(config, "PUERTO_CPU");
+	puerto_cpu_dispatch = config_get_int_value(config, "PUERTO_CPU_DISPATCH");
+	puerto_cpu_interrupt = config_get_int_value(config, "PUERTO_CPU_INTERRUPT");
 
 	algoritmo_planificacion = config_get_string_value(config, "ALGORITMO_PLANIFICACION");
-	quantum = config_get_int_value(config, "ESTIMACION_INICIAL");
-	grado_multiprogramacion = config_get_int_value(config, "GRADO_MAX_MULTIPROGRAMACION");
+	quantum = config_get_int_value(config, "QUANTUM");
+	grado_multiprogramacion = config_get_int_value(config, "GRADO_MULTIPROGRAMACION_INI");
 
 	recursos = config_get_array_value(config, "RECURSOS");
 	instancias_recursos = config_get_array_value(config, "INSTANCIAS_RECURSOS");
@@ -90,7 +90,7 @@ int main(int argc, char* argv[]) {
 	log_info(logger, "El Kernel se conecto con el dispatch de la CPU correctamente");
 
 
-	int result_conexion_cpu_dispatch = conectar_cpu(ip_cpu, puerto_cpu_interrupt);
+	int result_conexion_cpu_interrupt = conectar_cpu(ip_cpu, puerto_cpu_interrupt);
 
 	if(result_conexion_cpu_dispatch == -1){
 		log_error(logger, "No se pudo conectar con el interrupt de la CPU !!");
@@ -135,16 +135,14 @@ int conectar_memoria(char* ip, char* puerto){
 
 	op_code cod_op = recibir_operacion(socket_memoria);
 	if(cod_op != HANDSHAKE){
-		return -1;
-	}
+		return -1;	}
 
 	int size;
 	char* buffer = recibir_buffer(&size, socket_memoria);
 
 
 	if(strcmp(buffer, "OK") != 0){
-		return -1;
-	}
+		return -1;	}
 
 	return 0;
 }
@@ -179,21 +177,16 @@ int conectar_cpu(char* ip, char* puerto){
 
 	//enviar handshake
 	enviar_mensaje("OK", socket_cpu, HANDSHAKE);
-
 	op_code cod_op = recibir_operacion(socket_cpu);
 
 	if(cod_op != HANDSHAKE){
-		return -1;
-	}
+		return -1;	}
 
 	int size;
 	char* buffer = recibir_buffer(&size, socket_cpu);
 
-
 	if(strcmp(buffer, "OK") != 0){
-		return -1;
-	}
-
+		return -1;	}
 
 	return 0;
 }
