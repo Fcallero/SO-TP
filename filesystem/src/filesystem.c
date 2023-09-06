@@ -1,7 +1,110 @@
-#include <stdlib.h>
-#include <stdio.h>
+#include "filesystem.h"
 
 int main(int argc, char* argv[]) {
-    puts("Hello world!!");
+	//Declaraciones de variables para config:
+
+		char* ip_memoria;
+		int puerto_memoria;
+		int puerto_escucha;
+		char* path_fat;
+		char* path_bloques;
+		char* path_fcb;
+		int cant_bloques_total;
+		int cant_bloques_swap;
+		int tam_bloque;
+		int retardo_acceso_bloque;
+		int retardo_acceso_fat;
+
+	/*------------------------------LOGGER Y CONFIG--------------------------------------------------*/
+
+		// Iniciar archivos de log y configuracion:
+		t_config* config = iniciar_config();
+		logger = iniciar_logger();
+
+		// Verificacion de creacion archivo config
+		if(config == NULL){
+			log_error(logger, "No fue posible iniciar el archivo de configuracion !!");
+			terminar_programa(logger, config);
+		}
+
+		// Carga de datos de config en variable y archivo
+		ip_memoria = config_get_string_value(config, "IP_MEMORIA");
+		puerto_memoria = config_get_int_value(config, "PUERTO_MEMORIA");
+
+		puerto_escucha = config_get_string_value(config, "PUERTO_ESCUCHA");
+
+		path_fat = config_get_string_value(config, "PATH_FAT");
+		path_bloques = config_get_string_value(config, "PATH_BLOQUES");
+		path_fcb = config_get_string_value(config, "PATH_FCB");
+
+		cant_bloques_total = config_get_int_value(config, "CANT_BLOQUES_TOTAL");
+		cant_bloques_swap = config_get_int_value(config, "CANT_BLOQUES_SWAP	");
+		tam_bloque = config_get_int_value(config, "TAM_BLOQUE");
+
+		retardo_acceso_bloque = config_get_int_value(config, "RETARDO_ACCESO_BLOQUE");
+		retardo_acceso_fat = config_get_int_value(config, "	RETARDO_ACCESO_FAT");
+
+		// Control archivo configuracion
+		if(!ip_memoria || !puerto_memoria || !puerto_escucha || !path_fat || !path_bloques || !path_fcb || !cant_bloques_total || !cant_bloques_swap || !tam_bloque || !retardo_acceso_bloque || !retardo_acceso_fat){
+			log_error(logger, "Error al recibir los datos del archivo de configuracion del Filesystem");
+			terminar_programa(logger, config);
+		}
+
+	/*-------------------------------CONEXIONES KERNEL---------------------------------------------------------------*/
+
+		// Realizar las conexiones y probarlas
+		int result_conexion_memoria = conectar_memoria(ip_memoria, puerto_memoria);
+
+		if(result_conexion_memoria  == -1){
+			log_error(logger, "No se pudo conectar con el modulo Memoria !!");
+			terminar_programa(logger, config);}
+
+		log_info(logger, "El Filesystem se conecto con el modulo Memoria correctamente");
+
+
+
     return 0;
+}
+
+//Iniciar archivo de log y de config
+
+t_log* iniciar_logger(void){
+	t_log* nuevo_logger = log_create("kernel.log", "Kernel", true, LOG_LEVEL_INFO);
+	return nuevo_logger;}
+
+t_config* iniciar_config(void){
+	t_config* nueva_config = config_create("kernel.config");
+	return nueva_config;}
+
+
+//Finalizar el programa
+
+ void terminar_programa(t_log* logger, t_config* config){
+	log_destroy(logger);
+	config_destroy(config);
+	close(socket_cpu);
+	close(socket_fs);
+	close(socket_memoria);}
+
+
+ // conexiones
+int conectar_memoria(char* ip, char* puerto){
+
+	socket_memoria = crear_conexion(ip, puerto);
+
+	//enviar handshake
+	enviar_mensaje("OK", socket_memoria, HANDSHAKE);
+
+	op_code cod_op = recibir_operacion(socket_memoria);
+	if(cod_op != HANDSHAKE){
+		return -1;	}
+
+	int size;
+	char* buffer = recibir_buffer(&size, socket_memoria);
+
+
+	if(strcmp(buffer, "OK") != 0){
+		return -1;	}
+
+	return 0;
 }
