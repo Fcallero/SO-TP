@@ -1,6 +1,7 @@
 #include "kernel.h"
 
-int socket_cpu;
+int socket_cpu_dispatch;
+int socket_cpu_interrupt;
 int socket_kernel;
 int socket_memoria;
 int socket_fs;
@@ -11,12 +12,12 @@ int main(int argc, char* argv[]) {
 	//Declaraciones de variables para config:
 
 	char* ip_memoria;
-	int puerto_memoria;
+	char* puerto_memoria;
 	char* ip_filesystem;
-	int puerto_filesystem;
+	char* puerto_filesystem;
 	char* ip_cpu;
-	int puerto_cpu_dispatch;
-	int puerto_cpu_interrupt;
+	char* puerto_cpu_dispatch;
+	char* puerto_cpu_interrupt;
 	char* algoritmo_planificacion;
 	int quantum;
 	char** recursos;
@@ -37,14 +38,14 @@ int main(int argc, char* argv[]) {
 
 	// Carga de datos de config en variable y archivo
 	ip_memoria = config_get_string_value(config, "IP_MEMORIA");
-	puerto_memoria = config_get_int_value(config, "PUERTO_MEMORIA");
+	puerto_memoria = config_get_string_value(config, "PUERTO_MEMORIA");
 
 	ip_filesystem = config_get_string_value(config, "IP_FILESYSTEM");
-	puerto_filesystem = config_get_int_value(config, "PUERTO_FILESYSTEM");
+	puerto_filesystem = config_get_string_value(config, "PUERTO_FILESYSTEM");
 
 	ip_cpu = config_get_string_value(config, "IP_CPU");
-	puerto_cpu_dispatch = config_get_int_value(config, "PUERTO_CPU_DISPATCH");
-	puerto_cpu_interrupt = config_get_int_value(config, "PUERTO_CPU_INTERRUPT");
+	puerto_cpu_dispatch = config_get_string_value(config, "PUERTO_CPU_DISPATCH");
+	puerto_cpu_interrupt = config_get_string_value(config, "PUERTO_CPU_INTERRUPT");
 
 	algoritmo_planificacion = config_get_string_value(config, "ALGORITMO_PLANIFICACION");
 	quantum = config_get_int_value(config, "QUANTUM");
@@ -66,7 +67,8 @@ int main(int argc, char* argv[]) {
 
 	if(result_conexion_memoria  == -1){
 		log_error(logger, "No se pudo conectar con el modulo Memoria !!");
-		terminar_programa(logger, config);}
+		terminar_programa(logger, config);
+	}
 
 	log_info(logger, "El Kernel se conecto con el modulo Memoria correctamente");
 
@@ -76,28 +78,37 @@ int main(int argc, char* argv[]) {
 
 	if(result_conexion_filesystem == -1){
 		log_error(logger, "No se pudo conectar con el modulo filesystem !!");
-		terminar_programa(logger, config);}
+		terminar_programa(logger, config);
+	}
 
 	log_info(logger, "El Kernel se conecto con el modulo Filesystem correctamente");
 
 
-	int result_conexion_cpu_dispatch = conectar_cpu(ip_cpu, puerto_cpu_dispatch);
+	//PUERTO INTERRUPT
+	int result_conexion_cpu_interrupt = conectar_cpu_interrupt(ip_cpu, puerto_cpu_interrupt);
+
+	if(result_conexion_cpu_interrupt == -1){
+		log_error(logger, "No se pudo conectar con el interrupt de la CPU !!");
+		terminar_programa(logger, config);
+	}
+
+	log_info(logger, "El Kernel se conecto con el interrupt de la CPU correctamente");
+
+	//PUERTO DISPATCH
+	int result_conexion_cpu_dispatch = conectar_cpu_dispatch(ip_cpu, puerto_cpu_dispatch);
 
 	if(result_conexion_cpu_dispatch == -1){
 		log_error(logger, "No se pudo conectar con el dispatch de la CPU !!");
-		terminar_programa(logger, config);}
+		terminar_programa(logger, config);
+	}
 
 	log_info(logger, "El Kernel se conecto con el dispatch de la CPU correctamente");
 
 
-	int result_conexion_cpu_interrupt = conectar_cpu(ip_cpu, puerto_cpu_interrupt);
+	//espero peticiones por consola
+	levantar_consola();
 
-	if(result_conexion_cpu_dispatch == -1){
-		log_error(logger, "No se pudo conectar con el interrupt de la CPU !!");
-		terminar_programa(logger, config);}
-
-	log_info(logger, "El Kernel se conecto con el interrupt de la CPU correctamente");
-
+	terminar_programa(logger, config);
 
 } //Fin del main
 
@@ -106,12 +117,15 @@ int main(int argc, char* argv[]) {
 //Iniciar archivo de log y de config
 
 t_log* iniciar_logger(void){
-	t_log* nuevo_logger = log_create("kernel.log", "Kernel", true, LOG_LEVEL_INFO);
-	return nuevo_logger;}
+	// con "false" le decis que no muestres log logs por stdout
+	t_log* nuevo_logger = log_create("kernel.log", "Kernel", false, LOG_LEVEL_INFO);
+	return nuevo_logger;
+}
 
 t_config* iniciar_config(void){
 	t_config* nueva_config = config_create("kernel.config");
-	return nueva_config;}
+	return nueva_config;
+}
 
 
 //Finalizar el programa
@@ -119,9 +133,11 @@ t_config* iniciar_config(void){
  void terminar_programa(t_log* logger, t_config* config){
 	log_destroy(logger);
 	config_destroy(config);
-	close(socket_cpu);
+	close(socket_cpu_dispatch);
+	close(socket_cpu_interrupt);
 	close(socket_fs);
-	close(socket_memoria);}
+	close(socket_memoria);
+ }
 
 
 // CREAR CONEXIONES --------------------------------------------------------------------
@@ -135,14 +151,16 @@ int conectar_memoria(char* ip, char* puerto){
 
 	op_code cod_op = recibir_operacion(socket_memoria);
 	if(cod_op != HANDSHAKE){
-		return -1;	}
+		return -1;
+	}
 
 	int size;
 	char* buffer = recibir_buffer(&size, socket_memoria);
 
 
 	if(strcmp(buffer, "OK") != 0){
-		return -1;	}
+		return -1;
+	}
 
 	return 0;
 }
@@ -171,24 +189,48 @@ int conectar_fs(char* ip, char* puerto){
 	return 0;
 }
 
-int conectar_cpu(char* ip, char* puerto){
+int conectar_cpu_dispatch(char* ip, char* puerto){
 
-	socket_cpu = crear_conexion(ip, puerto);
+	socket_cpu_dispatch = crear_conexion(ip, puerto);
 
 	//enviar handshake
-	enviar_mensaje("OK", socket_cpu, HANDSHAKE);
-	op_code cod_op = recibir_operacion(socket_cpu);
+	enviar_mensaje("OK", socket_cpu_dispatch, HANDSHAKE);
+	op_code cod_op = recibir_operacion(socket_cpu_dispatch);
 
 	if(cod_op != HANDSHAKE){
 		return -1;	}
 
 	int size;
-	char* buffer = recibir_buffer(&size, socket_cpu);
+	char* buffer = recibir_buffer(&size, socket_cpu_dispatch);
 
 	if(strcmp(buffer, "OK") != 0){
 		return -1;	}
 
 	return 0;
+}
+
+int conectar_cpu_interrupt(char* ip, char* puerto){
+
+	socket_cpu_interrupt = crear_conexion(ip, puerto);
+
+	//enviar handshake
+	enviar_mensaje("OK", socket_cpu_interrupt, HANDSHAKE);
+	op_code cod_op = recibir_operacion(socket_cpu_interrupt);
+
+	if(cod_op != HANDSHAKE){
+		return -1;	}
+
+	int size;
+	char* buffer = recibir_buffer(&size, socket_cpu_interrupt);
+
+	if(strcmp(buffer, "OK") != 0){
+		return -1;	}
+
+	return 0;
+}
+
+void levantar_consola(){
+	//TODO crear consola interactiva
 }
 
 

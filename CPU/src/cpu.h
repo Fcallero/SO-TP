@@ -15,19 +15,20 @@
 #include <commons/collections/queue.h>
 #include <pthread.h>
 
-#include <utils/utils_cliente.h>
-#include <utils/utils_server.h>
-#include <global.h>
+#include <global/utils_cliente.h>
+#include <global/utils_server.h>
+#include <global/global.h>
 
 
-extern int socket_cpu;
+extern int socket_cpu_dispatch;
+extern int socket_cpu_interrupt;
 extern int socket_kernel;
 extern int socket_memoria;
-extern int socket_fs;
-extern int grado_max_multiprogramacion;
 
 t_config* iniciar_config(void);
 t_log* iniciar_logger(void);
 void terminar_programa(t_log* logger, t_config* config);
-
+int conectar_memoria(char* ip, char* puerto);
+void* manejar_interrupciones(void* args);
+void manejar_peticiones_instruccion();
 #endif /* CPU_H_ */

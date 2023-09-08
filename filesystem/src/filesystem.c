@@ -1,11 +1,14 @@
 #include "filesystem.h"
 
+int socket_memoria;
+int socket_fs;
+
 int main(int argc, char* argv[]) {
 	//Declaraciones de variables para config:
 
 		char* ip_memoria;
-		int puerto_memoria;
-		int puerto_escucha;
+		char* puerto_memoria;
+		char* puerto_escucha;
 		char* path_fat;
 		char* path_bloques;
 		char* path_fcb;
@@ -29,7 +32,7 @@ int main(int argc, char* argv[]) {
 
 		// Carga de datos de config en variable y archivo
 		ip_memoria = config_get_string_value(config, "IP_MEMORIA");
-		puerto_memoria = config_get_int_value(config, "PUERTO_MEMORIA");
+		puerto_memoria = config_get_string_value(config, "PUERTO_MEMORIA");
 
 		puerto_escucha = config_get_string_value(config, "PUERTO_ESCUCHA");
 
@@ -38,11 +41,11 @@ int main(int argc, char* argv[]) {
 		path_fcb = config_get_string_value(config, "PATH_FCB");
 
 		cant_bloques_total = config_get_int_value(config, "CANT_BLOQUES_TOTAL");
-		cant_bloques_swap = config_get_int_value(config, "CANT_BLOQUES_SWAP	");
+		cant_bloques_swap = config_get_int_value(config, "CANT_BLOQUES_SWAP");
 		tam_bloque = config_get_int_value(config, "TAM_BLOQUE");
 
 		retardo_acceso_bloque = config_get_int_value(config, "RETARDO_ACCESO_BLOQUE");
-		retardo_acceso_fat = config_get_int_value(config, "	RETARDO_ACCESO_FAT");
+		retardo_acceso_fat = config_get_int_value(config, "RETARDO_ACCESO_FAT");
 
 		// Control archivo configuracion
 		if(!ip_memoria || !puerto_memoria || !puerto_escucha || !path_fat || !path_bloques || !path_fcb || !cant_bloques_total || !cant_bloques_swap || !tam_bloque || !retardo_acceso_bloque || !retardo_acceso_fat){
@@ -53,28 +56,37 @@ int main(int argc, char* argv[]) {
 	/*-------------------------------CONEXIONES KERNEL---------------------------------------------------------------*/
 
 		// Realizar las conexiones y probarlas
-		int result_conexion_memoria = conectar_memoria(ip_memoria, puerto_memoria);
+//		int result_conexion_memoria = conectar_memoria(ip_memoria, puerto_memoria);
+//
+//		if(result_conexion_memoria  == -1){
+//			log_error(logger, "No se pudo conectar con el modulo Memoria !!");
+//			terminar_programa(logger, config);
+//		}
+//
+//		log_info(logger, "El Filesystem se conecto con el modulo Memoria correctamente");
 
-		if(result_conexion_memoria  == -1){
-			log_error(logger, "No se pudo conectar con el modulo Memoria !!");
-			terminar_programa(logger, config);}
+		//Esperar conexion de Kernel
+		socket_fs = iniciar_servidor(puerto_escucha);
 
-		log_info(logger, "El Filesystem se conecto con el modulo Memoria correctamente");
+		log_info(logger, "Filesystem esta listo para recibir peticiones");
 
+		manejar_peticiones();
 
-
+	terminar_programa(logger, config);
     return 0;
 }
 
 //Iniciar archivo de log y de config
 
 t_log* iniciar_logger(void){
-	t_log* nuevo_logger = log_create("kernel.log", "Kernel", true, LOG_LEVEL_INFO);
-	return nuevo_logger;}
+	t_log* nuevo_logger = log_create("filesystem.log", "Filesystem", true, LOG_LEVEL_INFO);
+	return nuevo_logger;
+}
 
 t_config* iniciar_config(void){
-	t_config* nueva_config = config_create("kernel.config");
-	return nueva_config;}
+	t_config* nueva_config = config_create("filesystem.config");
+	return nueva_config;
+}
 
 
 //Finalizar el programa
@@ -82,9 +94,9 @@ t_config* iniciar_config(void){
  void terminar_programa(t_log* logger, t_config* config){
 	log_destroy(logger);
 	config_destroy(config);
-	close(socket_cpu);
+	close(socket_memoria);
 	close(socket_fs);
-	close(socket_memoria);}
+ }
 
 
  // conexiones
@@ -104,7 +116,54 @@ int conectar_memoria(char* ip, char* puerto){
 
 
 	if(strcmp(buffer, "OK") != 0){
-		return -1;	}
+		return -1;
+	}
 
 	return 0;
+}
+
+// atiende las peticiones de kernel y memoria de forma concurrente
+void manejar_peticiones(){
+	while(1){
+			pthread_t thread;
+			uint64_t cliente_fd = (uint64_t) esperar_cliente(socket_fs);
+
+			t_arg_atender_cliente* argumentos_atender_cliente = malloc(sizeof(t_arg_atender_cliente));
+			argumentos_atender_cliente->cliente_fd = cliente_fd;
+
+
+			pthread_create(&thread, NULL, atender_cliente, (void*) argumentos_atender_cliente);
+
+			pthread_detach(thread);
+		}
+}
+
+
+
+void *atender_cliente(void* args){
+	t_arg_atender_cliente* argumentos = (t_arg_atender_cliente*) args;
+
+	uint64_t cliente_fd = argumentos->cliente_fd;
+
+	while(1){
+		int cod_op = recibir_operacion(cliente_fd);
+
+		switch(cod_op){
+			case MENSAJE:
+				recibir_mensaje(cliente_fd);
+				break;
+			case HANDSHAKE:
+				recibir_handshake(cliente_fd);
+				break;
+
+			case -1:
+				log_error(logger, "El cliente se desconecto. Terminando servidor");
+				return NULL;
+			default:
+				log_warning(logger, "Operacion desconocida. No quieras meter la pata");
+				break;
+		}
+	}
+
+	return NULL;
 }

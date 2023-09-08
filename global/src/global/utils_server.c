@@ -144,7 +144,7 @@ void recibir_handshake(int socket_cliente)
 	char* buffer = recibir_buffer(&size, socket_cliente);
 
 	if(strcmp(buffer, "OK") == 0)
-		enviar_mensaje("OK", socket_cliente, HANDSHAKE);// 1 es el codigo de operacion del HANDSHAKE
+		enviar_mensaje("OK", socket_cliente, HANDSHAKE);
 	else
 		enviar_mensaje("ERROR", socket_cliente, HANDSHAKE);
 
@@ -173,8 +173,6 @@ t_contexto_ejec* recibir_contexto_de_ejecucion(int socket_cliente)
 	int desplazamiento = 0;
 	void * buffer;
 	int program_counter;
-	t_list* lista_instrucciones = list_create();
-	int tamanio_lista;
 
 	t_contexto_ejec* contexto_ejecucion = malloc(sizeof(t_contexto_ejec));
 	contexto_ejecucion->registros_CPU = malloc(sizeof(registros_CPU));
@@ -188,129 +186,54 @@ t_contexto_ejec* recibir_contexto_de_ejecucion(int socket_cliente)
 		memcpy(&(contexto_ejecucion->pid), buffer+desplazamiento, sizeof(int));
 		desplazamiento+=sizeof(int);
 
-		memcpy(&tamanio_lista, buffer + desplazamiento, sizeof(int));
+		contexto_ejecucion->instruccion = malloc(sizeof(t_instruccion));
+
+		memcpy(&(contexto_ejecucion->instruccion->opcode_lenght), buffer + desplazamiento, sizeof(int));
 		desplazamiento+=sizeof(int);
+		contexto_ejecucion->instruccion->opcode = malloc(contexto_ejecucion->instruccion->opcode_lenght);
+		memcpy(contexto_ejecucion->instruccion->opcode, buffer+desplazamiento, contexto_ejecucion->instruccion->opcode_lenght);
+		desplazamiento+=contexto_ejecucion->instruccion->opcode_lenght;
+
+		memcpy(&(contexto_ejecucion->instruccion->parametro1_lenght), buffer+desplazamiento, sizeof(int));
+		desplazamiento+=sizeof(int);
+		contexto_ejecucion->instruccion->parametros[0] = malloc(contexto_ejecucion->instruccion->parametro1_lenght);
+		memcpy(contexto_ejecucion->instruccion->parametros[0], buffer + desplazamiento, contexto_ejecucion->instruccion->parametro1_lenght);
+		desplazamiento += contexto_ejecucion->instruccion->parametro1_lenght;
+
+		memcpy(&(contexto_ejecucion->instruccion->parametro2_lenght), buffer+desplazamiento, sizeof(int));
+		desplazamiento+=sizeof(int);
+		contexto_ejecucion->instruccion->parametros[1] = malloc(contexto_ejecucion->instruccion->parametro2_lenght);
+		memcpy(contexto_ejecucion->instruccion->parametros[1], buffer + desplazamiento, contexto_ejecucion->instruccion->parametro2_lenght);
+		desplazamiento += contexto_ejecucion->instruccion->parametro2_lenght;
 
 
-		for(int i = 0; i< tamanio_lista; i++){
-			t_instruccion* instruccion = malloc(sizeof(t_instruccion));
+		memcpy(&(contexto_ejecucion->instruccion->parametro3_lenght), buffer+desplazamiento, sizeof(int));
+		desplazamiento+=sizeof(int);
+		contexto_ejecucion->instruccion->parametros[2] = malloc(contexto_ejecucion->instruccion->parametro3_lenght);
+		memcpy(contexto_ejecucion->instruccion->parametros[2], buffer + desplazamiento, contexto_ejecucion->instruccion->parametro3_lenght);
+		desplazamiento += contexto_ejecucion->instruccion->parametro3_lenght;
 
 
-			memcpy(&(instruccion->opcode_lenght), buffer + desplazamiento, sizeof(int));
-			desplazamiento+=sizeof(int);
-			instruccion->opcode = malloc(instruccion->opcode_lenght);
-			memcpy(instruccion->opcode, buffer+desplazamiento, instruccion->opcode_lenght);
-			desplazamiento+=instruccion->opcode_lenght;
-
-			memcpy(&(instruccion->parametro1_lenght), buffer+desplazamiento, sizeof(int));
-			desplazamiento+=sizeof(int);
-			instruccion->parametros[0] = malloc(instruccion->parametro1_lenght);
-			memcpy(instruccion->parametros[0], buffer + desplazamiento, instruccion->parametro1_lenght);
-			desplazamiento += instruccion->parametro1_lenght;
-
-			memcpy(&(instruccion->parametro2_lenght), buffer+desplazamiento, sizeof(int));
-			desplazamiento+=sizeof(int);
-			instruccion->parametros[1] = malloc(instruccion->parametro2_lenght);
-			memcpy(instruccion->parametros[1], buffer + desplazamiento, instruccion->parametro2_lenght);
-			desplazamiento += instruccion->parametro2_lenght;
-
-
-			memcpy(&(instruccion->parametro3_lenght), buffer+desplazamiento, sizeof(int));
-			desplazamiento+=sizeof(int);
-			instruccion->parametros[2] = malloc(instruccion->parametro3_lenght);
-			memcpy(instruccion->parametros[2], buffer + desplazamiento, instruccion->parametro3_lenght);
-			desplazamiento += instruccion->parametro3_lenght;
-
-
-			list_add(lista_instrucciones, instruccion);
-		}
 
 		memcpy(&program_counter, buffer + desplazamiento, sizeof(int));
 		desplazamiento+=sizeof(int);
 
-		int tamanio_registro;
-		memcpy(&tamanio_registro, buffer+desplazamiento, sizeof(int));
-		desplazamiento+=sizeof(int);
-		memcpy(contexto_ejecucion->registros_CPU->AX, buffer + desplazamiento,tamanio_registro);
-		desplazamiento+=tamanio_registro;
-		memcpy(&tamanio_registro, buffer+desplazamiento, sizeof(int));
-		desplazamiento+=sizeof(int);
-		memcpy(contexto_ejecucion->registros_CPU->BX, buffer + desplazamiento,tamanio_registro);
-		desplazamiento+=tamanio_registro;
-		memcpy(&tamanio_registro, buffer+desplazamiento, sizeof(int));
-		desplazamiento+=sizeof(int);
-		memcpy(contexto_ejecucion->registros_CPU->CX, buffer + desplazamiento,tamanio_registro);
-		desplazamiento+=tamanio_registro;
-		memcpy(&tamanio_registro, buffer+desplazamiento, sizeof(int));
-		desplazamiento+=sizeof(int);
-		memcpy(contexto_ejecucion->registros_CPU->DX, buffer + desplazamiento,tamanio_registro);
-		desplazamiento+=tamanio_registro;
-
-
-		memcpy(&tamanio_registro, buffer+desplazamiento, sizeof(int));
-		desplazamiento+=sizeof(int);
-		memcpy(contexto_ejecucion->registros_CPU->EAX, buffer + desplazamiento,tamanio_registro);
-		desplazamiento+=tamanio_registro;
-		memcpy(&tamanio_registro, buffer+desplazamiento, sizeof(int));
-		desplazamiento+=sizeof(int);
-		memcpy(contexto_ejecucion->registros_CPU->EBX, buffer + desplazamiento,tamanio_registro);
-		desplazamiento+=tamanio_registro;
-		memcpy(&tamanio_registro, buffer+desplazamiento, sizeof(int));
-		desplazamiento+=sizeof(int);
-		memcpy(contexto_ejecucion->registros_CPU->ECX, buffer + desplazamiento,tamanio_registro);
-		desplazamiento+=tamanio_registro;
-		memcpy(&tamanio_registro, buffer+desplazamiento, sizeof(int));
-		desplazamiento+=sizeof(int);
-		memcpy(contexto_ejecucion->registros_CPU->EDX, buffer + desplazamiento,tamanio_registro);
-		desplazamiento+=tamanio_registro;
-
-		memcpy(&tamanio_registro, buffer+desplazamiento, sizeof(int));
-		desplazamiento+=sizeof(int);
-		memcpy(contexto_ejecucion->registros_CPU->RAX, buffer + desplazamiento,tamanio_registro);
-		desplazamiento+=tamanio_registro;
-		memcpy(&tamanio_registro, buffer+desplazamiento, sizeof(int));
-		desplazamiento+=sizeof(int);
-		memcpy(contexto_ejecucion->registros_CPU->RBX, buffer + desplazamiento,tamanio_registro);
-		desplazamiento+=tamanio_registro;
-		memcpy(&tamanio_registro, buffer+desplazamiento, sizeof(int));
-		desplazamiento+=sizeof(int);
-		memcpy(contexto_ejecucion->registros_CPU->RCX, buffer + desplazamiento,tamanio_registro);
-		desplazamiento+=tamanio_registro;
-		memcpy(&tamanio_registro, buffer+desplazamiento, sizeof(int));
-		desplazamiento+=sizeof(int);
-		memcpy(contexto_ejecucion->registros_CPU->RDX, buffer + desplazamiento,tamanio_registro);
-		desplazamiento+=tamanio_registro;
-
-		// recibo tabla de segmentos
-
-		contexto_ejecucion->tabla_de_segmentos = malloc(sizeof(t_tabla_de_segmento));
-		memcpy(&(contexto_ejecucion->tabla_de_segmentos->pid), buffer+desplazamiento, sizeof(uint32_t));
-		desplazamiento+=sizeof(uint32_t);
-		memcpy(&(contexto_ejecucion->tabla_de_segmentos->cantidad_segmentos), buffer+desplazamiento, sizeof(uint32_t));
+		memcpy(&(contexto_ejecucion->registros_CPU->AX), buffer + desplazamiento,sizeof(uint32_t));
 		desplazamiento+=sizeof(uint32_t);
 
-		int tamanio_sementos;
-		memcpy(&(tamanio_sementos), buffer+desplazamiento, sizeof(int));
-		desplazamiento+=sizeof(int);
+		memcpy(&(contexto_ejecucion->registros_CPU->BX), buffer + desplazamiento,sizeof(uint32_t));
+		desplazamiento+=sizeof(uint32_t);
 
-		contexto_ejecucion->tabla_de_segmentos->segmentos = list_create();
-		for(int i =0; i<tamanio_sementos; i++){
-			t_segmento* segmento = malloc(sizeof(t_segmento));
 
-			memcpy(&(segmento->direccion_base), buffer+desplazamiento, sizeof(uint32_t));
-			desplazamiento+=sizeof(uint32_t);
-			memcpy(&(segmento->id_segmento), buffer+desplazamiento, sizeof(uint32_t));
-			desplazamiento+=sizeof(uint32_t);
-			memcpy(&(segmento->tamano), buffer+desplazamiento, sizeof(uint32_t));
-			desplazamiento+=sizeof(uint32_t);
+		memcpy(&(contexto_ejecucion->registros_CPU->CX), buffer + desplazamiento,sizeof(uint32_t));
+		desplazamiento+=sizeof(uint32_t);
 
-			list_add(contexto_ejecucion->tabla_de_segmentos->segmentos, segmento);
-		}
+		memcpy(&(contexto_ejecucion->registros_CPU->DX), buffer + desplazamiento,sizeof(uint32_t));
+		desplazamiento+=sizeof(uint32_t);
+
 
 	}
 
-	contexto_ejecucion->lista_instrucciones = lista_instrucciones;
-	contexto_ejecucion->tamanio_lista = tamanio_lista;
 	contexto_ejecucion->program_counter = program_counter;
 
 
@@ -446,31 +369,7 @@ void contexto_ejecucion_destroy(t_contexto_ejec* contexto_ejecucion){
 	free(contexto_ejecucion);
 }
 
-void destroy_tabla_de_segmentos(t_tabla_de_segmento* tabla_a_borrar){
-	int segmentos_count = list_size(tabla_a_borrar->segmentos);
-	if(segmentos_count > 0){
-		int i = 0;
-		void _destroy_segmentos(void* segmento){
-			t_segmento* segmento_a_borrar = (t_segmento*)segmento;
 
-			//ignoro el segmento  0
-			if(i == 0){
-				return;
-			}
-			i ++;
-			log_info(logger, "borrando segmento %d", segmento_a_borrar->id_segmento);
-
-			free(segmento_a_borrar);
-		}
-
-		list_clean_and_destroy_elements(tabla_a_borrar->segmentos, _destroy_segmentos);
-	} else {
-		list_destroy(tabla_a_borrar->segmentos);
-	}
-
-	free(tabla_a_borrar);
-	tabla_a_borrar=NULL;
-}
 
 void registro_cpu_destroy(registros_CPU* registro){
 	// no es necesario hacer free de los char[n] porque tienen un tamaño fijo a diferencia de char*

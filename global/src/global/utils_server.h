@@ -2,10 +2,10 @@
 #define UTILS_SERVER_H_
 
 
-#include "../global.h"
+#include "global.h"
 #include "utils_cliente.h"
 
-#define IP "192.168.0.109"
+#define IP "127.0.0.1"
 
 void* recibir_buffer(int*, int);
 
@@ -26,6 +26,5 @@ void deserializar_instruccion_con_dos_parametros_de(void* buffer, t_instruccion*
 void registro_cpu_destroy(registros_CPU* registro);
 void contexto_ejecucion_destroy(t_contexto_ejec* contexto_ejecucion);
 void instruccion_destroy(t_instruccion* instruccion);
-void destroy_tabla_de_segmentos(t_tabla_de_segmento* tabla_a_borrar);
 
 #endif /* UTILS_SERVER_H_ */

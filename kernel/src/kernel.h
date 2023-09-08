@@ -15,13 +15,15 @@
 #include <commons/collections/list.h>
 #include <commons/collections/queue.h>
 #include <pthread.h>
+#include <readline/readline.h>
 
-#include <utils/utils_cliente.h>
-#include <utils/utils_server.h>
-#include <global.h>
+#include <global/global.h>
+#include <global/utils_cliente.h>
+#include <global/utils_server.h>
 
 
-extern int socket_cpu;
+extern int socket_cpu_dispatch;
+extern int socket_cpu_interrupt;
 extern int socket_kernel;
 extern int socket_memoria;
 extern int socket_fs;
@@ -32,6 +34,8 @@ t_log* iniciar_logger(void);
 void terminar_programa(t_log* logger, t_config* config);
 int conectar_memoria(char* ip, char* puerto);
 int conectar_fs(char* ip, char* puerto);
-int conectar_cpu(char* ip, char* puerto);
+int conectar_cpu_dispatch(char* ip, char* puerto);
+int conectar_cpu_interrupt(char* ip, char* puerto);
+void levantar_consola();
 
 #endif /* KERNEL_H_ */

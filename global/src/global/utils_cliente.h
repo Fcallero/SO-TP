@@ -3,7 +3,8 @@
 
 
 #include<signal.h>
-#include "../global.h"
+
+#include "global.h"
 
 typedef struct
 {

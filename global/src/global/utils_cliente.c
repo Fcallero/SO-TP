@@ -1,4 +1,4 @@
-#include "utils_cliente.h"
+#include <global/utils_cliente.h>
 
 
 void* serializar_paquete(t_paquete* paquete, int bytes)
@@ -129,15 +129,7 @@ char* pasar_a_string(char** string_array){
 }
 
 void esperar_por(int milisegundos_a_esperar){
-	int tiempo_transcurrido = 0;
-
-	t_temporal* temp = temporal_create();
-
-	while(milisegundos_a_esperar > tiempo_transcurrido){
-		tiempo_transcurrido = temporal_gettime(temp);
-	}
-
-	temporal_stop(temp);
-	temporal_destroy(temp);
+	// el * 1000 es para pasarlo a microsegundos
+	usleep(milisegundos_a_esperar*1000);
 }
 
