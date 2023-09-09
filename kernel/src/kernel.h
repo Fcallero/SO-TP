@@ -29,6 +29,12 @@ extern int socket_memoria;
 extern int socket_fs;
 extern int grado_max_multiprogramacion;
 
+typedef struct{
+	uint64_t cliente_fd;
+}t_args_manejar_peticiones_modulos;
+
+void* manejar_peticiones_modulos(void* args);
+
 t_config* iniciar_config(void);
 t_log* iniciar_logger(void);
 void terminar_programa(t_log* logger, t_config* config);

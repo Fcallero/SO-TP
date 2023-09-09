@@ -105,10 +105,39 @@ int main(int argc, char* argv[]) {
 	log_info(logger, "El Kernel se conecto con el dispatch de la CPU correctamente");
 
 
+	//levanto 4 hilos para recibir peticiones de forma concurrente de los modulos
+
+	pthread_t hilo_peticiones_cpu_dispatch, hilo_peticiones_cpu_interrupt, hilo_peticiones_memoria, hilo_peticiones_filesystem;
+
+	t_args_manejar_peticiones_modulos* args_dispatch = malloc(sizeof(t_args_manejar_peticiones_modulos));
+	t_args_manejar_peticiones_modulos* args_interrupt = malloc(sizeof(t_args_manejar_peticiones_modulos));
+	t_args_manejar_peticiones_modulos* args_memoria = malloc(sizeof(t_args_manejar_peticiones_modulos));
+	t_args_manejar_peticiones_modulos* args_filesystem = malloc(sizeof(t_args_manejar_peticiones_modulos));
+
+	args_dispatch->cliente_fd = socket_cpu_dispatch;
+	args_interrupt->cliente_fd = socket_cpu_interrupt;
+	args_memoria->cliente_fd = socket_memoria;
+	args_filesystem->cliente_fd = socket_fs;
+
+	pthread_create(&hilo_peticiones_cpu_dispatch, NULL, manejar_peticiones_modulos, args_dispatch);
+	pthread_create(&hilo_peticiones_cpu_interrupt, NULL, manejar_peticiones_modulos, args_interrupt);
+	pthread_create(&hilo_peticiones_memoria, NULL, manejar_peticiones_modulos, args_memoria);
+	pthread_create(&hilo_peticiones_filesystem, NULL, manejar_peticiones_modulos, args_filesystem);
+
+
+	pthread_detach(hilo_peticiones_cpu_dispatch);
+	pthread_detach(hilo_peticiones_cpu_interrupt);
+	pthread_detach(hilo_peticiones_memoria);
+	pthread_detach(hilo_peticiones_filesystem);
+
 	//espero peticiones por consola
 	levantar_consola();
 
 	terminar_programa(logger, config);
+	free(args_dispatch);
+	free(args_interrupt);
+	free(args_memoria);
+	free(args_filesystem);
 
 } //Fin del main
 
@@ -233,4 +262,29 @@ void levantar_consola(){
 	//TODO crear consola interactiva
 }
 
+//aca se maneja las peticiones de todos los modulos
+void* manejar_peticiones_modulos(void* args){
 
+	uint64_t cliente_fd = (uint64_t) args;
+
+	while(1){
+
+		int cod_op = recibir_operacion(cliente_fd);
+
+		switch(cod_op){
+			case MENSAJE:
+				recibir_mensaje(cliente_fd);
+				break;
+			case HANDSHAKE:
+				recibir_handshake(cliente_fd);
+				break;
+
+			case -1:
+				log_error(logger, "El cliente se desconecto. Terminando servidor");
+				return NULL;
+			default:
+				log_warning(logger, "Operacion desconocida. No quieras meter la pata");
+				break;
+		}
+	}
+}
