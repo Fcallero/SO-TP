@@ -62,11 +62,12 @@ typedef struct {
 }t_instruccion;
 
 
+// Registros de 4 bytes
 typedef struct {
-    uint32_t AX;   // Registro de 4 bytes
-    uint32_t BX;   // Registro de 4 bytes
-    uint32_t CX;   // Registro de 4 bytes
-    uint32_t DX;   // Registro de 4 bytes
+    uint32_t AX;
+    uint32_t BX;
+    uint32_t CX;
+    uint32_t DX;
 } registros_CPU;
 
 
@@ -103,6 +104,7 @@ typedef struct
 {
 	int PID;
 	int program_counter;
+	char* proceso_estado; // pueden ser "NEW", "READY", "EXEC", "BLOCKED" y "EXIT"
 
 	registros_CPU* registros_CPU;
 
