@@ -129,6 +129,7 @@ t_config* iniciar_config(void){
  	return 0;
  }
 
+ //interrupciones
 void* manejar_interrupciones(void* args){
 	uint64_t cliente_fd = (uint64_t) args;
 
@@ -142,7 +143,6 @@ void* manejar_interrupciones(void* args){
 				case HANDSHAKE:
 					recibir_handshake(cliente_fd);
 					break;
-
 				case -1:
 					log_error(logger, "El cliente se desconecto. Terminando servidor");
 					return NULL;
@@ -155,6 +155,7 @@ void* manejar_interrupciones(void* args){
 		return NULL;
 }
 
+//DISPATCH
 void manejar_peticiones_instruccion(){
 	uint64_t cliente_fd = (uint64_t) esperar_cliente(socket_cpu_dispatch);
 
@@ -168,7 +169,10 @@ void manejar_peticiones_instruccion(){
 			case HANDSHAKE:
 				recibir_handshake(cliente_fd);
 				break;
-
+			case PETICION_CPU:
+				//no confundir con el del tp anterior
+				//ahora hay un manejo de interrupciones arriba
+				manejar_peticion_al_cpu();
 			case -1:
 				log_error(logger, "El cliente se desconecto. Terminando servidor");
 				return;
@@ -177,5 +181,125 @@ void manejar_peticiones_instruccion(){
 				break;
 		}
 	}
+
+}
+
+
+/**
+ * Fetch y Decode
+ * aca ir agregando las funciones necesarias
+ * ------comentar si se necesita compilar-------
+ */
+void manejar_peticion_al_cpu()
+{
+
+	bool continuar_con_el_ciclo_instruccion = true;
+
+	while(continuar_con_el_ciclo_instruccion){
+
+
+		//DECODE y EXECUTE
+
+		if(strcmp(,"SET")==0)
+		{
+			continuar_con_el_ciclo_instruccion = false;
+		}
+
+		if(strcmp(,"SUM")==0)
+		{
+
+				continuar_con_el_ciclo_instruccion = false;
+
+		}
+
+
+		if(strcmp(,"SUB")==0)
+		{
+
+			continuar_con_el_ciclo_instruccion = false;
+		}
+
+
+
+		if(strcmp(,"JNZ")==0)
+		{
+
+		continuar_con_el_ciclo_instruccion = false;
+
+		}
+
+
+		if(strcmp(,"SLEEP")==0)
+		{
+
+		continuar_con_el_ciclo_instruccion = false;
+
+		}
+
+		if(strcmp(,"MOV_IN")==0)
+		{
+
+				continuar_con_el_ciclo_instruccion = false;
+
+		}
+
+		if(strcmp(,"MOV_OUT")==0)
+		{
+
+				continuar_con_el_ciclo_instruccion = false;
+
+		}
+
+
+		if(strcmp(,"F_OPEN")==0)
+		{
+
+			continuar_con_el_ciclo_instruccion = false;
+		}
+		if(strcmp(,"F_CLOSE")==0)
+
+			continuar_con_el_ciclo_instruccion = false;
+		}
+		if(strcmp(,"F_SEEK")==0)
+		{
+
+			continuar_con_el_ciclo_instruccion = false;
+		}
+		if(strcmp(,"F_READ")==0)
+		{
+
+
+			continuar_con_el_ciclo_instruccion = false;
+		}
+		if(strcmp(,"F_WRITE")==0)
+		{
+
+
+			continuar_con_el_ciclo_instruccion = false;
+		}
+		if(strcmp(,"F_TRUNCATE")==0)
+		{
+
+			continuar_con_el_ciclo_instruccion = false;
+		}
+
+		if(strcmp(,"WAIT")==0)
+		{
+
+			continuar_con_el_ciclo_instruccion = false;
+		}
+		if(strcmp(,"SIGNAL")==0)
+		{
+
+			continuar_con_el_ciclo_instruccion = false;
+		}
+
+		if(strcmp(,"EXIT")==0)
+		{
+
+			continuar_con_el_ciclo_instruccion = false;
+		}
+	}
+//aca destruir contexto de ejecucion cuando exista o similar
 
 }

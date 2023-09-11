@@ -133,6 +133,9 @@ int main(int argc, char* argv[]) {
 	//espero peticiones por consola
 	levantar_consola();
 
+	//escucho las peticiones de CPU
+	escuchar_peticiones_cpu(socket_cpu);
+
 	terminar_programa(logger, config);
 	free(args_dispatch);
 	free(args_interrupt);
@@ -288,3 +291,72 @@ void* manejar_peticiones_modulos(void* args){
 		}
 	}
 }
+
+// ---------------------------- Peticiones CPU ----------------------------------------------
+
+void *escuchar_peticiones_cpu(int cliente_fd){
+
+
+	while(1){
+		int cod_op = recibir_operacion(cliente_fd);
+
+			switch (cod_op) {
+				case MENSAJE:
+					break;
+				case HANDSHAKE:
+					break;
+				case FINALIZAR_PROCESO:
+					break;
+				case BLOQUEAR_PROCESO:
+					break;
+				case APROPIAR_RECURSOS:
+					break;
+				case DESALOJAR_RECURSOS:
+					break;
+				case DESALOJAR_PROCESO:
+					break;
+				case CREAR_SEGMENTO:
+					break;
+				case ELIMINAR_SEGMENTO:
+					break;
+				case PROCESAR_INSTRUCCION:
+					break;
+				case ABRIR_ARCHIVO:
+					break;
+				case CERRAR_ARCHIVO:
+					break;
+				case TRUNCAR_ARCHIVO:
+					break;
+				case APUNTAR_ARCHIVO:
+					break;
+				case LEER_ARCHIVO:
+					break;
+				case ESCRIBIR_ARCHIVO:
+					break;
+				case CREAR_ARCHIVO:
+					break;
+				case ACCESO_A_PAGINA:
+					break;
+				case PAGE_FAULT:
+					break;
+				case NUEVO_PROCESO_MEMORIA:
+					break;
+				case FINALIZAR_PROCESO_MEMORIA;
+					break;
+				case READ_MEMORY:
+					break;
+				case WRITE_MEMORY;
+					break;
+				case -1:
+					log_error(logger, "La CPU se desconecto. Terminando servidor ");
+					free(recursos_disponibles);
+					return NULL;
+				default:
+					log_warning(logger,"CPU Operacion desconocida. No quieras meter la pata. cod_op: %d", cod_op );
+					break;
+			}
+	}
+
+	return NULL;
+}
+

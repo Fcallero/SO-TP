@@ -43,5 +43,6 @@ int conectar_fs(char* ip, char* puerto);
 int conectar_cpu_dispatch(char* ip, char* puerto);
 int conectar_cpu_interrupt(char* ip, char* puerto);
 void levantar_consola();
+void *escuchar_peticiones_cpu(int cliente_fd);
 
 #endif /* KERNEL_H_ */

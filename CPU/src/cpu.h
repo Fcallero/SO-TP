@@ -31,4 +31,6 @@ void terminar_programa(t_log* logger, t_config* config);
 int conectar_memoria(char* ip, char* puerto);
 void* manejar_interrupciones(void* args);
 void manejar_peticiones_instruccion();
+void manejar_peticion_al_cpu();
+
 #endif /* CPU_H_ */
