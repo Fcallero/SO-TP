@@ -6,8 +6,8 @@ int socket_kernel;
 int socket_memoria;
 int socket_fs;
 int grado_max_multiprogramacion;
-char** instancias_recursos;
 char** recursos;
+int* recursos_disponibles;
 
 int main(int argc, char* argv[]) {
 
@@ -23,6 +23,7 @@ int main(int argc, char* argv[]) {
 	char* algoritmo_planificacion;
 	int quantum;
 	int grado_multiprogramacion;
+	char** instancias_recursos;
 
 /*------------------------------LOGGER Y CONFIG--------------------------------------------------*/
 
@@ -103,6 +104,18 @@ int main(int argc, char* argv[]) {
 	}
 
 	log_info(logger, "El Kernel se conecto con el dispatch de la CPU correctamente");
+
+
+	// creo array de int de recursos disponibles
+
+	int cantidad_de_recursos = string_array_size(instancias_recursos);
+	recursos_disponibles = malloc(sizeof(int)*cantidad_de_recursos);
+
+	if(cantidad_de_recursos!=0){
+		for(int i = 0; i< cantidad_de_recursos; i++ ){
+			recursos_disponibles[i] = atoi(instancias_recursos[i]);
+		}
+	}
 
 
 	//levanto 4 hilos para recibir peticiones de forma concurrente de los modulos
@@ -295,15 +308,6 @@ void* manejar_peticiones_modulos(void* args){
 void *escuchar_peticiones_cpu_dispatch(void* args){
 
 	uint64_t cliente_fd = (uint64_t) args;
-
-    int cantidad_de_recursos = string_array_size(instancias_recursos);
-	int* recursos_disponibles = malloc(sizeof(int)*cantidad_de_recursos);
-
-	if(cantidad_de_recursos!=0){
-		for(int i = 0; i< cantidad_de_recursos; i++ ){
-			recursos_disponibles[i] = atoi(instancias_recursos[i]);
-		}
-	}
 
 
 	while(1){
