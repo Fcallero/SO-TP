@@ -173,6 +173,7 @@ void manejar_peticiones_instruccion(){
 				//no confundir con el del tp anterior
 				//ahora hay un manejo de interrupciones arriba
 				manejar_peticion_al_cpu();
+				break;
 			case -1:
 				log_error(logger, "El cliente se desconecto. Terminando servidor");
 				return;

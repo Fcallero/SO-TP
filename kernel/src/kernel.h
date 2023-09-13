@@ -20,7 +20,8 @@
 #include <global/global.h>
 #include <global/utils_cliente.h>
 #include <global/utils_server.h>
-
+#include "peticiones_cpu_dispatch.h"
+#include "peticiones_cpu_interrupt.h"
 
 extern int socket_cpu_dispatch;
 extern int socket_cpu_interrupt;
@@ -43,6 +44,6 @@ int conectar_fs(char* ip, char* puerto);
 int conectar_cpu_dispatch(char* ip, char* puerto);
 int conectar_cpu_interrupt(char* ip, char* puerto);
 void levantar_consola();
-void *escuchar_peticiones_cpu(int cliente_fd);
+void *escuchar_peticiones_cpu_dispatch(void* args);
 
 #endif /* KERNEL_H_ */

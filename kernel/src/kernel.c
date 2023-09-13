@@ -6,6 +6,8 @@ int socket_kernel;
 int socket_memoria;
 int socket_fs;
 int grado_max_multiprogramacion;
+char** instancias_recursos;
+char** recursos;
 
 int main(int argc, char* argv[]) {
 
@@ -20,8 +22,6 @@ int main(int argc, char* argv[]) {
 	char* puerto_cpu_interrupt;
 	char* algoritmo_planificacion;
 	int quantum;
-	char** recursos;
-	char** instancias_recursos;
 	int grado_multiprogramacion;
 
 /*------------------------------LOGGER Y CONFIG--------------------------------------------------*/
@@ -119,7 +119,7 @@ int main(int argc, char* argv[]) {
 	args_memoria->cliente_fd = socket_memoria;
 	args_filesystem->cliente_fd = socket_fs;
 
-	pthread_create(&hilo_peticiones_cpu_dispatch, NULL, manejar_peticiones_modulos, args_dispatch);
+	pthread_create(&hilo_peticiones_cpu_dispatch, NULL, escuchar_peticiones_cpu_dispatch, args_dispatch);
 	pthread_create(&hilo_peticiones_cpu_interrupt, NULL, manejar_peticiones_modulos, args_interrupt);
 	pthread_create(&hilo_peticiones_memoria, NULL, manejar_peticiones_modulos, args_memoria);
 	pthread_create(&hilo_peticiones_filesystem, NULL, manejar_peticiones_modulos, args_filesystem);
@@ -133,8 +133,6 @@ int main(int argc, char* argv[]) {
 	//espero peticiones por consola
 	levantar_consola();
 
-	//escucho las peticiones de CPU
-	escuchar_peticiones_cpu(socket_cpu);
 
 	terminar_programa(logger, config);
 	free(args_dispatch);
@@ -265,7 +263,7 @@ void levantar_consola(){
 	//TODO crear consola interactiva
 }
 
-//aca se maneja las peticiones de todos los modulos
+//aca se maneja las peticiones de todos los modulos menos los de CPU
 void* manejar_peticiones_modulos(void* args){
 
 	uint64_t cliente_fd = (uint64_t) args;
@@ -294,7 +292,18 @@ void* manejar_peticiones_modulos(void* args){
 
 // ---------------------------- Peticiones CPU ----------------------------------------------
 
-void *escuchar_peticiones_cpu(int cliente_fd){
+void *escuchar_peticiones_cpu_dispatch(void* args){
+
+	uint64_t cliente_fd = (uint64_t) args;
+
+    int cantidad_de_recursos = string_array_size(instancias_recursos);
+	int* recursos_disponibles = malloc(sizeof(int)*cantidad_de_recursos);
+
+	if(cantidad_de_recursos!=0){
+		for(int i = 0; i< cantidad_de_recursos; i++ ){
+			recursos_disponibles[i] = atoi(instancias_recursos[i]);
+		}
+	}
 
 
 	while(1){
@@ -309,15 +318,11 @@ void *escuchar_peticiones_cpu(int cliente_fd){
 					break;
 				case BLOQUEAR_PROCESO:
 					break;
-				case APROPIAR_RECURSOS:
+				case APROPIAR_RECURSOS: // usar int* recursos_disponibles
 					break;
-				case DESALOJAR_RECURSOS:
+				case DESALOJAR_RECURSOS: // usar int* recursos_disponibles
 					break;
 				case DESALOJAR_PROCESO:
-					break;
-				case CREAR_SEGMENTO:
-					break;
-				case ELIMINAR_SEGMENTO:
 					break;
 				case PROCESAR_INSTRUCCION:
 					break;
@@ -341,11 +346,11 @@ void *escuchar_peticiones_cpu(int cliente_fd){
 					break;
 				case NUEVO_PROCESO_MEMORIA:
 					break;
-				case FINALIZAR_PROCESO_MEMORIA;
+				case FINALIZAR_PROCESO_MEMORIA:
 					break;
 				case READ_MEMORY:
 					break;
-				case WRITE_MEMORY;
+				case WRITE_MEMORY:
 					break;
 				case -1:
 					log_error(logger, "La CPU se desconecto. Terminando servidor ");
