@@ -17,7 +17,14 @@
 #include <global/utils_cliente.h>
 #include <global/utils_server.h>
 
+typedef struct
+{
+	int tiempo_io;
+	int grado_max_multiprogramacion;
 
+} t_argumentos_simular_sleep;
+
+void* simular_sleep(void* arg)
 
 
 #endif /* SRC_PETICIONES_CPU_DISPATCH_H_ */

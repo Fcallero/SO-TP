@@ -24,6 +24,7 @@ typedef enum
 	PAQUETE,
 	// CPU
 	INSTRUCCION,
+	CREAR_PROCESO,
 	TERMINAR_PROCESO, //Libera la pcb, avisa a memoria y a consola
 	FINALIZAR_PROCESO,
 	BLOQUEAR_PROCESO,
@@ -31,6 +32,7 @@ typedef enum
 	APROPIAR_RECURSOS,
 	DESALOJAR_RECURSOS,
 	DESALOJAR_PROCESO,
+	SLEEP,
 	PROCESAR_INSTRUCCION,
 	// memoria
 	ACCESO_A_PAGINA,
@@ -105,13 +107,14 @@ typedef struct
 	int PID;
 	int program_counter;
 	char* proceso_estado; // pueden ser "NEW", "READY", "EXEC", "BLOCKED" y "EXIT"
-
+	int64_t tiempo_llegada_ready;
 	registros_CPU* registros_CPU;
 
 	int prioridad;
 
 	// lista de t_tabla_de_archivos_por_proceso
 	t_list* tabla_archivos_abiertos_del_proceso;
+
 
 	t_temporal* temporal_ready; // para cronometrar el tiempo para el Round Robbin
 

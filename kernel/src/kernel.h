@@ -22,6 +22,7 @@
 #include <global/utils_server.h>
 #include "peticiones_cpu_dispatch.h"
 #include "peticiones_cpu_interrupt.h"
+#include "planificador_largo_plazo.h"
 
 extern int socket_cpu_dispatch;
 extern int socket_cpu_interrupt;

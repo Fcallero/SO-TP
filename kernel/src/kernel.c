@@ -1,5 +1,6 @@
 #include "kernel.h"
 
+
 int socket_cpu_dispatch;
 int socket_cpu_interrupt;
 int socket_kernel;
@@ -120,7 +121,7 @@ int main(int argc, char* argv[]) {
 
 	//levanto 4 hilos para recibir peticiones de forma concurrente de los modulos
 
-	pthread_t hilo_peticiones_cpu_dispatch, hilo_peticiones_cpu_interrupt, hilo_peticiones_memoria, hilo_peticiones_filesystem;
+	pthread_t hilo_peticiones_cpu_dispatch, hilo_peticiones_cpu_interrupt, hilo_peticiones_memoria, hilo_peticiones_filesystem, hilo_planificador_largo_plazo;
 
 	t_args_manejar_peticiones_modulos* args_dispatch = malloc(sizeof(t_args_manejar_peticiones_modulos));
 	t_args_manejar_peticiones_modulos* args_interrupt = malloc(sizeof(t_args_manejar_peticiones_modulos));
@@ -132,6 +133,8 @@ int main(int argc, char* argv[]) {
 	args_memoria->cliente_fd = socket_memoria;
 	args_filesystem->cliente_fd = socket_fs;
 
+
+	pthread_create(&hilo_planificador_largo_plazo, NULL, planificar_nuevos_procesos_largo_plazo, NULL);
 	pthread_create(&hilo_peticiones_cpu_dispatch, NULL, escuchar_peticiones_cpu_dispatch, args_dispatch);
 	pthread_create(&hilo_peticiones_cpu_interrupt, NULL, manejar_peticiones_modulos, args_interrupt);
 	pthread_create(&hilo_peticiones_memoria, NULL, manejar_peticiones_modulos, args_memoria);
@@ -142,6 +145,8 @@ int main(int argc, char* argv[]) {
 	pthread_detach(hilo_peticiones_cpu_interrupt);
 	pthread_detach(hilo_peticiones_memoria);
 	pthread_detach(hilo_peticiones_filesystem);
+	pthread_detach(planificar_nuevos_procesos_largo_plazo);
+
 
 	//espero peticiones por consola
 	levantar_consola();
@@ -318,6 +323,8 @@ void *escuchar_peticiones_cpu_dispatch(void* args){
 					break;
 				case HANDSHAKE:
 					break;
+				case CREAR_PROCESO:
+					break;
 				case FINALIZAR_PROCESO:
 					break;
 				case BLOQUEAR_PROCESO:
@@ -328,7 +335,7 @@ void *escuchar_peticiones_cpu_dispatch(void* args){
 					break;
 				case DESALOJAR_PROCESO:
 					break;
-				case PROCESAR_INSTRUCCION:
+				case SLEEP:
 					break;
 				case ABRIR_ARCHIVO:
 					break;
