@@ -53,7 +53,7 @@ void planificar_corto_plazo_prioridades(){
 		return;
 	}
 
-	// reordenar cola en base a las prioridades
+	// reordenar cola en base a las prioridades (ver la de hrrn del tp anterior)
 
 	t_pcb *proceso_a_ejecutar = queue_pop(cola_ready);
 	sem_post(&m_cola_ready);
@@ -109,14 +109,16 @@ void planificar_corto_plazo_round_robbin(){
 	sem_wait(&m_proceso_ejecutando);
 
 	log_info(logger, "PID: %d - Desalojado por fin de Quantum", proceso_a_ejecutar->PID);
+	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_ejecutar->PID, "EXEC", "READY");
 
-	// notificar desalojo a CPU
+	// TODO notificar desalojo a CPU (tal vez una interrupccion?)
 
 	proceso_ejecutando = NULL;
 
+	sem_post(&m_proceso_ejecutando);
+
 	pasar_a_ready(proceso_a_ejecutar);
 
-	sem_post(&m_proceso_ejecutando);
 
 	//TODO algoritmo planificador corto plazo RR
 }
