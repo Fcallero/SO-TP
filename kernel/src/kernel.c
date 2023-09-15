@@ -9,6 +9,7 @@ int socket_fs;
 int grado_max_multiprogramacion;
 char** recursos;
 int* recursos_disponibles;
+int quantum;
 
 int main(int argc, char* argv[]) {
 
@@ -21,9 +22,6 @@ int main(int argc, char* argv[]) {
 	char* ip_cpu;
 	char* puerto_cpu_dispatch;
 	char* puerto_cpu_interrupt;
-	char* algoritmo_planificacion;
-	int quantum;
-	int grado_multiprogramacion;
 	char** instancias_recursos;
 
 /*------------------------------LOGGER Y CONFIG--------------------------------------------------*/
@@ -51,7 +49,7 @@ int main(int argc, char* argv[]) {
 
 	algoritmo_planificacion = config_get_string_value(config, "ALGORITMO_PLANIFICACION");
 	quantum = config_get_int_value(config, "QUANTUM");
-	grado_multiprogramacion = config_get_int_value(config, "GRADO_MULTIPROGRAMACION_INI");
+	grado_max_multiprogramacion = config_get_int_value(config, "GRADO_MULTIPROGRAMACION_INI");
 
 	recursos = config_get_array_value(config, "RECURSOS");
 	instancias_recursos = config_get_array_value(config, "INSTANCIAS_RECURSOS");
@@ -118,10 +116,24 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+	inicializar_colas_y_semaforos();
+
+	// inicializo diccionarios para recursos bloqueados
+	recurso_bloqueado = dictionary_create();
+	colas_de_procesos_bloqueados_para_cada_archivo = dictionary_create();
+
+	void _iterar_recursos(char* nombre_recurso){
+		t_queue* cola_bloqueados = queue_create();
+
+		dictionary_put(recurso_bloqueado, nombre_recurso, cola_bloqueados);
+	}
+
+	string_iterate_lines(recursos, _iterar_recursos);
+
 
 	//levanto 4 hilos para recibir peticiones de forma concurrente de los modulos
 
-	pthread_t hilo_peticiones_cpu_dispatch, hilo_peticiones_cpu_interrupt, hilo_peticiones_memoria, hilo_peticiones_filesystem, hilo_planificador_largo_plazo;
+	pthread_t hilo_peticiones_cpu_dispatch, hilo_peticiones_cpu_interrupt, hilo_peticiones_memoria, hilo_peticiones_filesystem, hilo_planificador_largo_plazo, hilo_planificador_corto_plazo;
 
 	t_args_manejar_peticiones_modulos* args_dispatch = malloc(sizeof(t_args_manejar_peticiones_modulos));
 	t_args_manejar_peticiones_modulos* args_interrupt = malloc(sizeof(t_args_manejar_peticiones_modulos));
@@ -134,6 +146,7 @@ int main(int argc, char* argv[]) {
 	args_filesystem->cliente_fd = socket_fs;
 
 
+	pthread_create(&hilo_planificador_corto_plazo, NULL, planificar_nuevos_procesos_corto_plazo, NULL);
 	pthread_create(&hilo_planificador_largo_plazo, NULL, planificar_nuevos_procesos_largo_plazo, NULL);
 	pthread_create(&hilo_peticiones_cpu_dispatch, NULL, escuchar_peticiones_cpu_dispatch, args_dispatch);
 	pthread_create(&hilo_peticiones_cpu_interrupt, NULL, manejar_peticiones_modulos, args_interrupt);
@@ -145,7 +158,7 @@ int main(int argc, char* argv[]) {
 	pthread_detach(hilo_peticiones_cpu_interrupt);
 	pthread_detach(hilo_peticiones_memoria);
 	pthread_detach(hilo_peticiones_filesystem);
-	pthread_detach(planificar_nuevos_procesos_largo_plazo);
+	pthread_detach(hilo_planificador_largo_plazo);
 
 
 	//espero peticiones por consola

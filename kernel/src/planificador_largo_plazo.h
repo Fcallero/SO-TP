@@ -22,18 +22,22 @@
 #include <global/global.h>
 #include <global/utils_cliente.h>
 #include <global/utils_server.h>
-#include "kernel.h"
 
+extern int socket_cpu_dispatch;
+extern int socket_cpu_interrupt;
+extern int socket_kernel;
+extern int socket_memoria;
+extern int socket_fs;
+extern int grado_max_multiprogramacion;
 
 extern t_dictionary* recurso_bloqueado;
-
 extern t_dictionary* colas_de_procesos_bloqueados_para_cada_archivo;
 
 extern t_queue* cola_new;
 extern t_queue* cola_ready;
 extern t_pcb* proceso_ejecutando;
-extern t_temporal* rafaga_proceso_ejecutando;
 extern char* algoritmo_planificacion;
+extern int quantum;
 
 extern sem_t m_cola_ready;
 extern sem_t m_cola_new;

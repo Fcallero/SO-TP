@@ -17,7 +17,7 @@
 #include <global/utils_cliente.h>
 #include <global/utils_server.h>
 
-
+#include "planificador_largo_plazo.h"
 
 
 #endif /* SRC_PETICIONES_CPU_INTERRUPT_H_ */

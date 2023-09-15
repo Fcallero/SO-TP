@@ -17,6 +17,8 @@
 #include <global/utils_cliente.h>
 #include <global/utils_server.h>
 
+#include "planificador_largo_plazo.h"
+
 typedef struct
 {
 	int tiempo_io;
@@ -24,7 +26,7 @@ typedef struct
 
 } t_argumentos_simular_sleep;
 
-void* simular_sleep(void* arg)
+void* simular_sleep(void* arg);
 
 
 #endif /* SRC_PETICIONES_CPU_DISPATCH_H_ */

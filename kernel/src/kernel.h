@@ -20,16 +20,12 @@
 #include <global/global.h>
 #include <global/utils_cliente.h>
 #include <global/utils_server.h>
+
 #include "peticiones_cpu_dispatch.h"
 #include "peticiones_cpu_interrupt.h"
 #include "planificador_largo_plazo.h"
+#include "planificador_corto_plazo.h"
 
-extern int socket_cpu_dispatch;
-extern int socket_cpu_interrupt;
-extern int socket_kernel;
-extern int socket_memoria;
-extern int socket_fs;
-extern int grado_max_multiprogramacion;
 
 typedef struct{
 	uint64_t cliente_fd;

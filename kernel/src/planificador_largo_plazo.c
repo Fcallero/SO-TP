@@ -15,7 +15,7 @@ sem_t m_recurso_bloqueado;
 sem_t m_cola_de_procesos_bloqueados_para_cada_archivo;
 sem_t despertar_planificacion_largo_plazo;
 t_dictionary* colas_de_procesos_bloqueados_para_cada_archivo;
-
+t_dictionary* recurso_bloqueado;
 
 
 void inicializar_colas_y_semaforos(){
@@ -69,20 +69,20 @@ void agregar_proceso_a_ready(int conexion_memoria, char* algoritmo_planificacion
 
 	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_new_a_ready->PID, "NEW", "READY");
 
-	//si el proceso es nuevo se calcula tiempo de llegada a ready en milisegundos
-
+	//si el proceso es nuevo
 	if(proceso_new_a_ready->tiempo_llegada_ready == 0){
 
 		/*
 		//aca iria la funcion que crea los procesos en memoria UwU
 		//reservando los marcos las paginas y eso
 		 *
-		 * TODO HACER ESO
-
+		 * TODO agregar funcion que solicita la creacion del proceso en memoria
 */
+
 		//esto para diferenciar si es la primera vez que va de new a ready
 		//a modificar en otro momento :)
 		proceso_new_a_ready->tiempo_llegada_ready = temporal_gettime(proceso_new_a_ready->temporal_ready);
+
 		temporal_stop(proceso_new_a_ready->temporal_ready);
 		temporal_destroy(proceso_new_a_ready->temporal_ready);
 		proceso_new_a_ready->temporal_ready= NULL;
@@ -101,23 +101,13 @@ void agregar_proceso_a_ready(int conexion_memoria, char* algoritmo_planificacion
 
 	free(pids);
 
-	//si no hay nadie ejecutandose, lo pone a ejecutar, sino va a quedar en la espera en la cola ready
-
-
-/*esto genera espera activo bien dura,se arregla
-	while(proceso_ejecutando != NULL){
-		sem_wait(&m_proceso_ejecutando);
-		if(proceso_ejecutando == NULL){
-			sem_post(&m_proceso_ejecutando);
-			sem_post(&despertar_corto_plazo);
-			return;
-		}
-		sem_post(&m_proceso_ejecutando);
-
-	}*/
+	// si ya esta ejecutando un proceso, cuando termine se llama al planificador de largo plazo
+	sem_wait(&m_proceso_ejecutando);
 	if(proceso_ejecutando == NULL){
 		sem_post(&m_proceso_ejecutando);
 		sem_post(&despertar_corto_plazo);
+	} else {
+		sem_post(&m_proceso_ejecutando);
 	}
 
 }
@@ -140,7 +130,6 @@ void pasar_a_ready(t_pcb* proceso_bloqueado){
 
 	sem_wait(&m_proceso_ejecutando);
 	if(proceso_ejecutando == NULL && procesos_en_ready > 0 ){
-		sem_post(&m_cola_ready);
 		sem_post(&m_proceso_ejecutando);
 		sem_post(&despertar_corto_plazo);
 	} else {
@@ -202,8 +191,7 @@ int calcular_procesos_en_memoria(int procesos_en_ready){
 		}
 	}
 
-	//TODO crear el diccionario de los recursos bloqueados e iniciarlizarlos :D
-//	dictionary_iterator(recurso_bloqueado, _calcular_procesos_bloqueados);
+	dictionary_iterator(recurso_bloqueado, _calcular_procesos_bloqueados);
 
 
 	sem_wait(&m_cola_de_procesos_bloqueados_para_cada_archivo);
@@ -220,8 +208,12 @@ int calcular_procesos_en_memoria(int procesos_en_ready){
 
 
 
+	sem_wait(&m_proceso_ejecutando);
 	if(proceso_ejecutando != NULL){
+		sem_post(&m_proceso_ejecutando);
 		procesos_bloqueados ++;
+	} else {
+		sem_post(&m_proceso_ejecutando);
 	}
 
 
