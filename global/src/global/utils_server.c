@@ -186,37 +186,10 @@ t_contexto_ejec* recibir_contexto_de_ejecucion(int socket_cliente)
 		memcpy(&(contexto_ejecucion->pid), buffer+desplazamiento, sizeof(int));
 		desplazamiento+=sizeof(int);
 
-		contexto_ejecucion->instruccion = malloc(sizeof(t_instruccion));
-
-		memcpy(&(contexto_ejecucion->instruccion->opcode_lenght), buffer + desplazamiento, sizeof(int));
-		desplazamiento+=sizeof(int);
-		contexto_ejecucion->instruccion->opcode = malloc(contexto_ejecucion->instruccion->opcode_lenght);
-		memcpy(contexto_ejecucion->instruccion->opcode, buffer+desplazamiento, contexto_ejecucion->instruccion->opcode_lenght);
-		desplazamiento+=contexto_ejecucion->instruccion->opcode_lenght;
-
-		memcpy(&(contexto_ejecucion->instruccion->parametro1_lenght), buffer+desplazamiento, sizeof(int));
-		desplazamiento+=sizeof(int);
-		contexto_ejecucion->instruccion->parametros[0] = malloc(contexto_ejecucion->instruccion->parametro1_lenght);
-		memcpy(contexto_ejecucion->instruccion->parametros[0], buffer + desplazamiento, contexto_ejecucion->instruccion->parametro1_lenght);
-		desplazamiento += contexto_ejecucion->instruccion->parametro1_lenght;
-
-		memcpy(&(contexto_ejecucion->instruccion->parametro2_lenght), buffer+desplazamiento, sizeof(int));
-		desplazamiento+=sizeof(int);
-		contexto_ejecucion->instruccion->parametros[1] = malloc(contexto_ejecucion->instruccion->parametro2_lenght);
-		memcpy(contexto_ejecucion->instruccion->parametros[1], buffer + desplazamiento, contexto_ejecucion->instruccion->parametro2_lenght);
-		desplazamiento += contexto_ejecucion->instruccion->parametro2_lenght;
-
-
-		memcpy(&(contexto_ejecucion->instruccion->parametro3_lenght), buffer+desplazamiento, sizeof(int));
-		desplazamiento+=sizeof(int);
-		contexto_ejecucion->instruccion->parametros[2] = malloc(contexto_ejecucion->instruccion->parametro3_lenght);
-		memcpy(contexto_ejecucion->instruccion->parametros[2], buffer + desplazamiento, contexto_ejecucion->instruccion->parametro3_lenght);
-		desplazamiento += contexto_ejecucion->instruccion->parametro3_lenght;
-
-
 
 		memcpy(&program_counter, buffer + desplazamiento, sizeof(int));
 		desplazamiento+=sizeof(int);
+
 
 		memcpy(&(contexto_ejecucion->registros_CPU->AX), buffer + desplazamiento,sizeof(uint32_t));
 		desplazamiento+=sizeof(uint32_t);
@@ -224,12 +197,13 @@ t_contexto_ejec* recibir_contexto_de_ejecucion(int socket_cliente)
 		memcpy(&(contexto_ejecucion->registros_CPU->BX), buffer + desplazamiento,sizeof(uint32_t));
 		desplazamiento+=sizeof(uint32_t);
 
-
 		memcpy(&(contexto_ejecucion->registros_CPU->CX), buffer + desplazamiento,sizeof(uint32_t));
 		desplazamiento+=sizeof(uint32_t);
 
 		memcpy(&(contexto_ejecucion->registros_CPU->DX), buffer + desplazamiento,sizeof(uint32_t));
 		desplazamiento+=sizeof(uint32_t);
+
+		contexto_ejecucion->instruccion = deserializar_instruccion_en(buffer, &desplazamiento);
 
 
 	}
@@ -323,7 +297,75 @@ void recibir_instruccion_con_dos_parametros_en(t_instruccion* instruccion, char*
 	free(buffer);
 }
 
+t_instruccion *recibir_instruccion(int cliente_fd){
+	int size;
+	void* buffer = recibir_buffer(&size, cliente_fd);
 
+	int desplazamiento  = 0;
+	t_instruccion* instruccion = malloc(sizeof(t_instruccion));
+
+	while(desplazamiento < size){
+
+		memcpy(&(instruccion->opcode_lenght), buffer + desplazamiento, sizeof(int));
+		desplazamiento+=sizeof(int);
+		instruccion->opcode = malloc(instruccion->opcode_lenght);
+		memcpy(instruccion->opcode, buffer+desplazamiento, instruccion->opcode_lenght);
+		desplazamiento+= instruccion->opcode_lenght;
+
+		memcpy(&(instruccion->parametro1_lenght), buffer+desplazamiento, sizeof(int));
+		desplazamiento+=sizeof(int);
+		instruccion->parametros[0] = malloc(instruccion->parametro1_lenght);
+		memcpy(instruccion->parametros[0], buffer + desplazamiento, instruccion->parametro1_lenght);
+		desplazamiento += instruccion->parametro1_lenght;
+
+		memcpy(&(instruccion->parametro2_lenght), buffer+desplazamiento, sizeof(int));
+		desplazamiento+=sizeof(int);
+		instruccion->parametros[1] = malloc(instruccion->parametro2_lenght);
+		memcpy(instruccion->parametros[1], buffer + desplazamiento, instruccion->parametro2_lenght);
+		desplazamiento +=  instruccion->parametro2_lenght;
+
+
+		memcpy(&(instruccion->parametro3_lenght), buffer+desplazamiento, sizeof(int));
+		desplazamiento+=sizeof(int);
+		instruccion->parametros[2] = malloc(instruccion->parametro3_lenght);
+		memcpy(instruccion->parametros[2], buffer + desplazamiento, instruccion->parametro3_lenght);
+		desplazamiento +=  instruccion->parametro3_lenght;
+	}
+
+	free(buffer);
+	return instruccion;
+}
+
+t_instruccion *deserializar_instruccion_en(void *buffer, int* desplazamiento){
+	t_instruccion * instruccion = malloc(sizeof(t_instruccion));
+
+	memcpy(&(instruccion->opcode_lenght), buffer + *desplazamiento, sizeof(int));
+	*desplazamiento+=sizeof(int);
+	instruccion->opcode = malloc( instruccion->opcode_lenght);
+	memcpy( instruccion->opcode, buffer+*desplazamiento,  instruccion->opcode_lenght);
+	*desplazamiento+= instruccion->opcode_lenght;
+
+	memcpy(&( instruccion->parametro1_lenght), buffer+*desplazamiento, sizeof(int));
+	*desplazamiento+=sizeof(int);
+	 instruccion->parametros[0] = malloc( instruccion->parametro1_lenght);
+	memcpy( instruccion->parametros[0], buffer + *desplazamiento,  instruccion->parametro1_lenght);
+	*desplazamiento +=  instruccion->parametro1_lenght;
+
+	memcpy(&( instruccion->parametro2_lenght), buffer+*desplazamiento, sizeof(int));
+	*desplazamiento+=sizeof(int);
+	 instruccion->parametros[1] = malloc( instruccion->parametro2_lenght);
+	memcpy( instruccion->parametros[1], buffer + *desplazamiento,  instruccion->parametro2_lenght);
+	*desplazamiento +=  instruccion->parametro2_lenght;
+
+
+	memcpy(&( instruccion->parametro3_lenght), buffer+*desplazamiento, sizeof(int));
+	*desplazamiento+=sizeof(int);
+	 instruccion->parametros[2] = malloc( instruccion->parametro3_lenght);
+	memcpy( instruccion->parametros[2], buffer + *desplazamiento,  instruccion->parametro3_lenght);
+	*desplazamiento +=  instruccion->parametro3_lenght;
+
+	return instruccion;
+}
 
 void instruccion_destroy(t_instruccion* instruccion){
     free(instruccion->opcode);
@@ -351,20 +393,9 @@ void instruccion_destroy(t_instruccion* instruccion){
 
 void contexto_ejecucion_destroy(t_contexto_ejec* contexto_ejecucion){
 
-	/*
-	 * no se borra la lista de instrucciones porque sino se borra del pcb tambien
-	 * 	por lo cual solo se va a borar cuando se haga un pcb_destroy();
-	void destructor_instrucciones (void* arg){
-		t_instruccion* inst = (t_instruccion*) arg;
+	instruccion_destroy(contexto_ejecucion->instruccion);
 
-		instruccion_destroy(inst);
-	}
-
-	list_destroy_and_destroy_elements(contexto_ejecucion->lista_instrucciones, destructor_instrucciones);
-
-	registro_cpu_destroy(contexto_ejecucion->registros_CPU);
-	*/
-
+	free(contexto_ejecucion->registros_CPU);
 
 	free(contexto_ejecucion);
 }
@@ -372,8 +403,7 @@ void contexto_ejecucion_destroy(t_contexto_ejec* contexto_ejecucion){
 
 
 void registro_cpu_destroy(registros_CPU* registro){
-	// no es necesario hacer free de los char[n] porque tienen un tamaño fijo a diferencia de char*
-    free(registro);
+	free(registro);
 }
 
 

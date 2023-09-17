@@ -26,5 +26,7 @@ void deserializar_instruccion_con_dos_parametros_de(void* buffer, t_instruccion*
 void registro_cpu_destroy(registros_CPU* registro);
 void contexto_ejecucion_destroy(t_contexto_ejec* contexto_ejecucion);
 void instruccion_destroy(t_instruccion* instruccion);
+t_instruccion *deserializar_instruccion_en(void *buffer, int* desplazamiento);
+t_instruccion *recibir_instruccion(int cliente_fd);
 
 #endif /* UTILS_SERVER_H_ */

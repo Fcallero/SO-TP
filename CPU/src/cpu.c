@@ -2,9 +2,8 @@
 
 int socket_cpu_dispatch;
 int socket_cpu_interrupt;
-int socket_kernel;
 int socket_memoria;
-
+bool hay_interrupcion_pendiente = false;
 
 int main(int argc, char* argv[]) {
 
@@ -143,6 +142,9 @@ void* manejar_interrupciones(void* args){
 				case HANDSHAKE:
 					recibir_handshake(cliente_fd);
 					break;
+				case INTERRUPCION:
+					recibir_interrupcion(cliente_fd);
+					break;
 				case -1:
 					log_error(logger, "El cliente se desconecto. Terminando servidor");
 					return NULL;
@@ -170,9 +172,7 @@ void manejar_peticiones_instruccion(){
 				recibir_handshake(cliente_fd);
 				break;
 			case PETICION_CPU:
-				//no confundir con el del tp anterior
-				//ahora hay un manejo de interrupciones arriba
-				manejar_peticion_al_cpu();
+				manejar_peticion_al_cpu(cliente_fd);
 				break;
 			case -1:
 				log_error(logger, "El cliente se desconecto. Terminando servidor");
@@ -186,121 +186,184 @@ void manejar_peticiones_instruccion(){
 }
 
 
-/**
- * Fetch y Decode
- * aca ir agregando las funciones necesarias
- * ------comentar si se necesita compilar-------
- */
-void manejar_peticion_al_cpu()
+//FETCH DECODE, EXCEC y CHECK INTERRUPT
+void manejar_peticion_al_cpu(int socket_kernel)
 {
-
+	t_contexto_ejec *contexto_actual = recibir_contexto_de_ejecucion(socket_kernel);
 	bool continuar_con_el_ciclo_instruccion = true;
 
 	while(continuar_con_el_ciclo_instruccion){
 
+		//FETCH
+
+		log_info(logger, "PID: %d - FETCH - Program Counter: %d", contexto_actual->pid, contexto_actual->program_counter);
+
+		contexto_actual->instruccion = recibir_instruccion_memoria(contexto_actual->program_counter+1);
+
+		t_instruccion *instruccion = contexto_actual->instruccion;
+
+		if(instruccion->parametro1_lenght == 0){
+			log_info(logger, "PID: %d - Ejecutando: %s ", contexto_actual->pid, instruccion->opcode);
+
+		} else if(instruccion->parametro2_lenght == 0){
+			log_info(logger, "PID: %d - Ejecutando: %s - %s", contexto_actual->pid, instruccion->opcode, instruccion->parametros[0]);
+
+		}else if(instruccion->parametro3_lenght == 0){
+			log_info(logger, "PID: %d - Ejecutando: %s - %s %s", contexto_actual->pid, instruccion->opcode, instruccion->parametros[0], instruccion->parametros[1]);
+
+		} else {
+			log_info(logger, "PID: %d - Ejecutando: %s - %s %s %s", contexto_actual->pid, instruccion->opcode, instruccion->parametros[0], instruccion->parametros[1], instruccion->parametros[2]);
+		}
+
 
 		//DECODE y EXECUTE
 
-		if(strcmp(,"SET")==0)
+		if(strcmp(instruccion->opcode,"SET")==0)
 		{
 			continuar_con_el_ciclo_instruccion = false;
 		}
 
-		if(strcmp(,"SUM")==0)
+		if(strcmp(instruccion->opcode,"SUM")==0)
 		{
-
-				continuar_con_el_ciclo_instruccion = false;
+			continuar_con_el_ciclo_instruccion = false;
 
 		}
-
-
-		if(strcmp(,"SUB")==0)
+		if(strcmp(instruccion->opcode,"SUB")==0)
 		{
 
 			continuar_con_el_ciclo_instruccion = false;
 		}
-
-
-
-		if(strcmp(,"JNZ")==0)
+		if(strcmp(instruccion->opcode,"JNZ")==0)
 		{
 
 		continuar_con_el_ciclo_instruccion = false;
 
 		}
 
-
-		if(strcmp(,"SLEEP")==0)
+		if(strcmp(instruccion->opcode,"SLEEP")==0)
 		{
 
-		continuar_con_el_ciclo_instruccion = false;
+			continuar_con_el_ciclo_instruccion = false;
 
 		}
 
-		if(strcmp(,"MOV_IN")==0)
+		if(strcmp(instruccion->opcode,"MOV_IN")==0)
+		{
+			continuar_con_el_ciclo_instruccion = false;
+		}
+
+		if(strcmp(instruccion->opcode,"MOV_OUT")==0)
 		{
 
-				continuar_con_el_ciclo_instruccion = false;
+			continuar_con_el_ciclo_instruccion = false;
 
 		}
 
-		if(strcmp(,"MOV_OUT")==0)
-		{
-
-				continuar_con_el_ciclo_instruccion = false;
-
-		}
-
-
-		if(strcmp(,"F_OPEN")==0)
+		if(strcmp(instruccion->opcode,"F_OPEN")==0)
 		{
 
 			continuar_con_el_ciclo_instruccion = false;
 		}
-		if(strcmp(,"F_CLOSE")==0)
-
-			continuar_con_el_ciclo_instruccion = false;
-		}
-		if(strcmp(,"F_SEEK")==0)
+		if(strcmp(instruccion->opcode,"F_CLOSE")==0)
 		{
 
 			continuar_con_el_ciclo_instruccion = false;
 		}
-		if(strcmp(,"F_READ")==0)
+		if(strcmp(instruccion->opcode,"F_SEEK")==0)
+		{
+
+			continuar_con_el_ciclo_instruccion = false;
+		}
+		if(strcmp(instruccion->opcode,"F_READ")==0)
 		{
 
 
 			continuar_con_el_ciclo_instruccion = false;
 		}
-		if(strcmp(,"F_WRITE")==0)
+		if(strcmp(instruccion->opcode,"F_WRITE")==0)
 		{
 
 
 			continuar_con_el_ciclo_instruccion = false;
 		}
-		if(strcmp(,"F_TRUNCATE")==0)
+		if(strcmp(instruccion->opcode,"F_TRUNCATE")==0)
 		{
 
 			continuar_con_el_ciclo_instruccion = false;
 		}
 
-		if(strcmp(,"WAIT")==0)
+		if(strcmp(instruccion->opcode,"WAIT")==0)
 		{
 
 			continuar_con_el_ciclo_instruccion = false;
 		}
-		if(strcmp(,"SIGNAL")==0)
+		if(strcmp(instruccion->opcode,"SIGNAL")==0)
 		{
 
 			continuar_con_el_ciclo_instruccion = false;
 		}
 
-		if(strcmp(,"EXIT")==0)
+		if(strcmp(instruccion->opcode,"EXIT")==0)
 		{
 
 			continuar_con_el_ciclo_instruccion = false;
+		}
+
+		contexto_actual->program_counter ++;
+
+		if(hay_interrupcion_pendiente){
+			continuar_con_el_ciclo_instruccion = false;
+			devolver_a_kernel(contexto_actual, INTERRUPCION, socket_kernel);
 		}
 	}
-//aca destruir contexto de ejecucion cuando exista o similar
 
+	contexto_ejecucion_destroy(contexto_actual);
 }
+
+void recibir_interrupcion(int socket_kernel){
+
+	char* mensaje = recibir_mensaje(socket_kernel);
+
+	log_info(logger, "Interrupcion - Motivo: %s", mensaje);
+
+	hay_interrupcion_pendiente = true;
+}
+
+void devolver_a_kernel(t_contexto_ejec* contexto, op_code code, int socket_cliente){
+
+	t_paquete *paquete_contexto = crear_paquete(code);
+
+	agregar_a_paquete_sin_agregar_tamanio(paquete_contexto, &(contexto->pid), sizeof(int));
+
+	agregar_a_paquete_sin_agregar_tamanio(paquete_contexto, &(contexto->program_counter), sizeof(int));
+
+	agregar_a_paquete_sin_agregar_tamanio(paquete_contexto, &(contexto->registros_CPU->AX), sizeof(uint32_t));
+	agregar_a_paquete_sin_agregar_tamanio(paquete_contexto, &(contexto->registros_CPU->BX), sizeof(uint32_t));
+	agregar_a_paquete_sin_agregar_tamanio(paquete_contexto, &(contexto->registros_CPU->CX), sizeof(uint32_t));
+	agregar_a_paquete_sin_agregar_tamanio(paquete_contexto, &(contexto->registros_CPU->DX), sizeof(uint32_t));
+
+	agregar_a_paquete(paquete_contexto, contexto->instruccion->opcode, sizeof(contexto->instruccion->opcode_lenght));
+	agregar_a_paquete(paquete_contexto, contexto->instruccion->parametros[0], sizeof(contexto->instruccion->parametro1_lenght));
+	agregar_a_paquete(paquete_contexto, contexto->instruccion->parametros[1], sizeof(contexto->instruccion->parametro2_lenght));
+	agregar_a_paquete(paquete_contexto, contexto->instruccion->parametros[2], sizeof(contexto->instruccion->parametro3_lenght));
+
+
+	enviar_paquete(paquete_contexto, socket_cliente);
+
+	eliminar_paquete(paquete_contexto);
+}
+
+t_instruccion *recibir_instruccion_memoria(int program_counter){
+
+	t_paquete *paquete_program_counter = crear_paquete(INSTRUCCION);
+
+	agregar_a_paquete_sin_agregar_tamanio(paquete_program_counter, &program_counter, sizeof(int));
+
+	enviar_paquete(paquete_program_counter, socket_memoria);
+
+	t_instruccion* instruccion = recibir_instruccion(socket_memoria);
+
+	eliminar_paquete(paquete_program_counter);
+	return instruccion;
+}
+

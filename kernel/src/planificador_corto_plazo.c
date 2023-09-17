@@ -1,5 +1,7 @@
 #include "planificador_corto_plazo.h"
 
+void reordenar_cola_ready_prioridades();
+void notificar_desalojo_cpu_interrupt();
 
 void *planificar_nuevos_procesos_corto_plazo(void *arg){
 
@@ -35,13 +37,7 @@ void planificar_corto_plazo_fifo(){
 	sem_post(&m_proceso_ejecutando);
 
 
-	// CREAR CONTEXTO DE EJCUCION
-
-	//TODO CREAR FUNCION ENVIAR_CONTEXTO_A
-	//enviar_contexto_ejecucion_a(contexto_ejecucion, PETICION_CPU, socket_cpu_dispatch);
-
-	//TODO CREAR FUNCION DESTROY PARA CONTEXTO DE EJECUCION
-	// destroy contexto de ejecucion
+	crear_contexto_y_enviar_a_CPU(proceso_a_ejecutar);
 }
 
 void planificar_corto_plazo_prioridades(){
@@ -53,8 +49,9 @@ void planificar_corto_plazo_prioridades(){
 		return;
 	}
 
-	// reordenar cola en base a las prioridades (ver la de hrrn del tp anterior)
+	reordenar_cola_ready_prioridades();
 
+	//saca el de mayor prioridad
 	t_pcb *proceso_a_ejecutar = queue_pop(cola_ready);
 	sem_post(&m_cola_ready);
 
@@ -65,13 +62,8 @@ void planificar_corto_plazo_prioridades(){
 
 
 
-	// CREAR CONTEXTO DE EJCUCION
+	crear_contexto_y_enviar_a_CPU(proceso_a_ejecutar);
 
-	//enviar_contexto_ejecucion_a(contexto_ejecucion, PETICION_CPU, socket_cpu_dispatch);
-
-	// destroy contexto de ejecucion
-
-	//TODO algoritmo planificador corto plazo prioridades
 }
 
 void planificar_corto_plazo_round_robbin(){
@@ -96,12 +88,7 @@ void planificar_corto_plazo_round_robbin(){
 
 
 
-	// CREAR CONTEXTO DE EJCUCION
-
-	//enviar_contexto_ejecucion_a(contexto_ejecucion, PETICION_CPU, socket_cpu_dispatch);
-
-
-	// destroy contexto de ejecucion
+	crear_contexto_y_enviar_a_CPU(proceso_a_ejecutar);
 
 
 	esperar_por(quantum);
@@ -111,7 +98,7 @@ void planificar_corto_plazo_round_robbin(){
 	log_info(logger, "PID: %d - Desalojado por fin de Quantum", proceso_a_ejecutar->PID);
 	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_ejecutar->PID, "EXEC", "READY");
 
-	// TODO notificar desalojo a CPU (tal vez una interrupccion?)
+	notificar_desalojo_cpu_interrupt();
 
 	proceso_ejecutando = NULL;
 
@@ -119,8 +106,68 @@ void planificar_corto_plazo_round_robbin(){
 
 	pasar_a_ready(proceso_a_ejecutar);
 
-
-	//TODO algoritmo planificador corto plazo RR
 }
 
+void crear_contexto_y_enviar_a_CPU(t_pcb* proceso_a_ejecutar){
+	t_contexto_ejec* contexto_ejecucion = malloc(sizeof(t_contexto_ejec));
+	contexto_ejecucion->instruccion = malloc(sizeof(t_instruccion));
+	contexto_ejecucion->program_counter = proceso_a_ejecutar->program_counter;
+	contexto_ejecucion->pid = proceso_a_ejecutar->PID;
+	contexto_ejecucion->registros_CPU = proceso_a_ejecutar->registros_CPU;
+
+	enviar_contexto_de_ejecucion_a(contexto_ejecucion, PETICION_CPU, socket_cpu_dispatch);
+
+
+	contexto_ejecucion_destroy(contexto_ejecucion);
+}
+
+void enviar_contexto_de_ejecucion_a(t_contexto_ejec* contexto_a_ejecutar, op_code opcode, int socket_cliente){
+
+	t_paquete* paquete = crear_paquete(opcode);
+
+	agregar_a_paquete_sin_agregar_tamanio(paquete, &(contexto_a_ejecutar->pid), sizeof(int));
+
+	agregar_a_paquete_sin_agregar_tamanio(paquete, &(contexto_a_ejecutar->program_counter), sizeof(int));
+
+	agregar_a_paquete_sin_agregar_tamanio(paquete,  &(contexto_a_ejecutar->registros_CPU->AX), sizeof(uint32_t));
+	agregar_a_paquete_sin_agregar_tamanio(paquete,  &(contexto_a_ejecutar->registros_CPU->BX), sizeof(uint32_t));
+	agregar_a_paquete_sin_agregar_tamanio(paquete,  &(contexto_a_ejecutar->registros_CPU->CX), sizeof(uint32_t));
+	agregar_a_paquete_sin_agregar_tamanio(paquete,  &(contexto_a_ejecutar->registros_CPU->DX), sizeof(uint32_t));
+
+	enviar_paquete(paquete, socket_cliente);
+
+
+	eliminar_paquete(paquete);
+}
+
+void reordenar_cola_ready_prioridades(){
+	// reodena de mayor a menor para que al hacer pop, saque al de mayor proridad
+	// cuando hace pop saca al primer elemento de la lista
+	bool __proceso_mayor_prioridad(t_pcb* pcb_proceso1, t_pcb* pcb_proceso2){
+		return pcb_proceso1->prioridad > pcb_proceso2->prioridad;
+	}
+
+	sem_wait(&m_cola_ready);
+	list_sort(cola_ready->elements, (void *) __proceso_mayor_prioridad);
+	sem_post(&m_cola_ready);
+}
+
+void notificar_desalojo_cpu_interrupt(){
+
+	//el mensaje es el motivo del desalojo (usado solo para un log en cpu)
+	enviar_mensaje("Desalojo por fin de quantum", socket_cpu_interrupt, INTERRUPCION);
+
+	t_contexto_ejec *contexto = recibir_contexto_de_ejecucion(socket_cpu_dispatch);
+
+	sem_wait(&m_proceso_ejecutando);
+	proceso_ejecutando->program_counter = contexto->program_counter;
+	proceso_ejecutando->registros_CPU->AX = contexto->registros_CPU->AX;
+	proceso_ejecutando->registros_CPU->BX = contexto->registros_CPU->BX;
+	proceso_ejecutando->registros_CPU->CX = contexto->registros_CPU->CX;
+	proceso_ejecutando->registros_CPU->DX = contexto->registros_CPU->DX;
+	sem_post(&m_proceso_ejecutando);
+
+
+	contexto_ejecucion_destroy(contexto);
+}
 

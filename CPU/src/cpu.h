@@ -33,4 +33,9 @@ void* manejar_interrupciones(void* args);
 void manejar_peticiones_instruccion();
 void manejar_peticion_al_cpu();
 
+t_instruccion *recibir_instruccion_memoria(int);
+void recibir_interrupcion(int);
+void devolver_a_kernel(t_contexto_ejec* contexto, op_code code, int socket_cliente);
+
+
 #endif /* CPU_H_ */
