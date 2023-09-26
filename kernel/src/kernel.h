@@ -25,6 +25,7 @@
 #include "peticiones_cpu_interrupt.h"
 #include "planificador_largo_plazo.h"
 #include "planificador_corto_plazo.h"
+#include "consola.h"
 
 
 typedef struct{
@@ -40,7 +41,7 @@ int conectar_memoria(char* ip, char* puerto);
 int conectar_fs(char* ip, char* puerto);
 int conectar_cpu_dispatch(char* ip, char* puerto);
 int conectar_cpu_interrupt(char* ip, char* puerto);
-void levantar_consola();
+//void levantar_consola();
 void *escuchar_peticiones_cpu_dispatch(void* args);
 
 #endif /* KERNEL_H_ */
