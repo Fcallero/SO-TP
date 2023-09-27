@@ -1,46 +1,44 @@
 #include "consola.h"
-
+sem_t despertar_planificacion_largo_plazo;
 void* levantar_consola(){
 	//TODO crear consola interactiva
 	while(1){
 		char* linea = readline(">");
 		 printf("comando recibido  \n");
-	    t_comando* comando = malloc(sizeof(t_comando));
+	    t_instruccion* comando = malloc(sizeof(t_instruccion));
 		comando = armar_comando(linea);
-		int cod_op = comando->opcode;
-		 switch(cod_op){
-		 case INICIAR_PROCESO:
-			 printf("Caso: iniciar proceso \n");
-			// iniciar_proceso(comando);
-			 break;
-		 case FINALIZAR_PROCESO:
-			 printf("Caso: finalizar proceso \n");
-			 break;
-		 case DETENER_PLANIFICACION:
-			 printf("Caso: detener planificacion \n");
-			 break;
-		 case INICIAR_PLANIFICACION:
-			 printf("Caso: iniciar planificacion \n");
-			 break;
-		 case MULTIPROGRAMACION:
-			 printf("Caso: multiprogramacion \n");
-			 break;
-		 case PROCESO_ESTADO:
-			 printf("Caso: proceso estado \n");
-			 break;
-		 }
+		parametros_lenght(comando);
+
+		if(strcmp(comando->opcode,"INICIAR_PROCESO")==0){
+			printf("Caso: iniciar proceso \n");
+			enviar_comando_memoria(comando, INICIAR_PROCESO);
+		}else if(strcmp(comando->opcode,"FINALIZAR_PROCESO")==0){
+			printf("Caso: finalizar proceso \n");
+		}else if(strcmp(comando->opcode,"DETENER_PLANIFICACION")==0){
+			printf("Caso: detener planificacion \n");
+		}else if(strcmp(comando->opcode,"INICIAR_PLANIFICACION")==0){
+			printf("Caso: iniciar planificacion \n");
+		}else if(strcmp(comando->opcode,"MULTIPROGRAMACION")==0){
+			printf("Caso: multiprogramacion \n");
+		}else if(strcmp(comando->opcode,"PROCESO_ESTADO")==0){
+			printf("Caso: proceso estado \n");
+		}else{
+			printf("Comando desconocido campeon, leete la documentacion de nuevo :p \n");
+		}
+
 	 free(linea);
 	 free(comando);
 }
 }
 
-t_comando* armar_comando(char* cadena){
+t_instruccion* armar_comando(char* cadena){
 
-	t_comando* comando = malloc(sizeof(t_comando));
+	t_instruccion* comando = malloc(sizeof(t_instruccion));
+	string_to_upper(cadena); //paso la cadena a mayuscula
 
 	char* token = strtok(cadena, " "); // obtiene el primer elemento en token
 
-	comando = cargar_opcode(token, comando);
+	comando->opcode = token;
 
 	token = strtok(NULL, " "); // avanza al segundo elemento
 	int i = 0; // Variable local utilizada para cargar el array de parametros
@@ -55,25 +53,28 @@ t_comando* armar_comando(char* cadena){
 	}
 
 
-t_comando* cargar_opcode(char* cadena, t_comando* comando){
-	if(string_equals_ignore_case(cadena, "INICIAR_PROCESO")){
-		comando->opcode = INICIAR_PROCESO;
-	} else if(string_equals_ignore_case(cadena, "FINALIZAR_PROCESO")){
-		comando->opcode = FINALIZAR_PROCESO;
-	}else if(string_equals_ignore_case(cadena, "DETENER_PLANIFICACION")){
-		comando->opcode = DETENER_PLANIFICACION;
-	}else if(string_equals_ignore_case(cadena, "INICIAR_PLANIFICACION")){
-		comando->opcode = INICIAR_PLANIFICACION;
-	}else if(string_equals_ignore_case(cadena, "MULTIPROGRAMACION")){
-		comando->opcode = MULTIPROGRAMACION;
-	}else if(string_equals_ignore_case(cadena, "PROCESO_ESTADO")){
-		comando->opcode = PROCESO_ESTADO;
-	}
+void parametros_lenght(t_instruccion* ptr_inst){
 
-	return comando;
+		ptr_inst->opcode_lenght = strlen(ptr_inst->opcode)+1;
+
+		if(ptr_inst->parametros[0] != NULL){
+			ptr_inst->parametro1_lenght = strlen(ptr_inst->parametros[0])+1;
+		} else {
+			ptr_inst->parametro1_lenght = 0;
+		}
+		if(ptr_inst->parametros[1] != NULL){
+			ptr_inst->parametro2_lenght = strlen(ptr_inst->parametros[1])+1;
+		} else {
+			ptr_inst->parametro2_lenght = 0;
+		}
+		if(ptr_inst->parametros[2] != NULL){
+			ptr_inst->parametro3_lenght = strlen(ptr_inst->parametros[2])+1;
+		} else {
+			ptr_inst->parametro3_lenght = 0;
+		}
 }
 
-void iniciar_proceso(t_comando* comando){
+void iniciar_proceso(t_instruccion* comando){
 	//Armar PCB, colocarla en estado new y enviar el path a memoria
 	t_pcb* pcb_proceso = malloc(sizeof(t_pcb));
 
@@ -81,22 +82,18 @@ void iniciar_proceso(t_comando* comando){
 	pcb_proceso->program_counter = 1;
 	pcb_proceso->proceso_estado = "NEW";
 	pcb_proceso->tiempo_llegada_ready = 0;
-//	pcb_proceso->prioridad = (int)comando->parametros[3];  //TODO verificar que el parametro ingresado sea un numero
+	pcb_proceso->prioridad = (int)comando->parametros[3];  //TODO verificar que el parametro ingresado sea un numero
 	pcb_proceso->tabla_archivos_abiertos_del_proceso = NULL;
 
 	//este malloc para evitar el segmentation fault en el envio del contexto de ejecución a cpu
 	pcb_proceso->registros_CPU = malloc(sizeof(registros_CPU));
 
-/*	strcpy(pcb_proceso->registros_CPU->AX, "");
-	strcpy(pcb_proceso->registros_CPU->BX, "");
-	strcpy(pcb_proceso->registros_CPU->CX, "");
-	strcpy(pcb_proceso->registros_CPU->DX, "");
+	agregar_cola_new(pcb_proceso);
 
-	agregar_cola_new(pcb_proceso);*/
+	sem_post(&despertar_planificacion_largo_plazo);
 
 	//envio a memoria de instrucciones
-	t_paquete* paquete = crear_paquete(INICIAR_PROCESO);
-	agregar_a_paquete(paquete, comando, sizeof(t_comando));
+	enviar_comando_memoria(comando, INICIAR_PROCESO);
 
 }
 
@@ -119,3 +116,19 @@ void proceso_estado(){
 	//Listara por consola todos los estados y los procesos que se encuentran dentro de ellos
 }
 
+void verificar_entrada_comando(){
+
+}
+
+void enviar_comando_memoria(t_instruccion* comando, op_code code){
+
+	t_paquete *paquete_comando = crear_paquete(code);
+	agregar_a_paquete(paquete_comando, comando->opcode, sizeof(char)*comando->opcode_lenght);
+	agregar_a_paquete(paquete_comando, comando->parametros[0], comando->parametro1_lenght);
+	agregar_a_paquete(paquete_comando, comando->parametros[1], comando->parametro2_lenght);
+	agregar_a_paquete(paquete_comando, comando->parametros[2], comando->parametro3_lenght);
+
+	enviar_paquete(paquete_comando, socket_memoria);
+
+	eliminar_paquete(paquete_comando);
+}

@@ -15,9 +15,10 @@
 #include <commons/collections/queue.h>
 #include <pthread.h>
 
+#include <global/global.h>
 #include <global/utils_cliente.h>
 #include <global/utils_server.h>
-#include <global/global.h>
+
 
 
 extern int socket_memoria;
@@ -30,6 +31,7 @@ typedef struct{
 t_config* iniciar_config(void);
 t_log* iniciar_logger(void);
 void terminar_programa(t_log* logger, t_config* config);
+void crear_proceso();
 
 int conectar_fs(char* ip, char* puerto);
 void manejar_pedidos_memoria();

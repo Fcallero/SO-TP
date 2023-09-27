@@ -15,9 +15,10 @@
 #include <commons/collections/queue.h>
 #include <pthread.h>
 
+#include <global/global.h>
 #include <global/utils_cliente.h>
 #include <global/utils_server.h>
-#include <global/global.h>
+
 
 
 extern int socket_cpu_dispatch;

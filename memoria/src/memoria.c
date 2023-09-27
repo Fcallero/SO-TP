@@ -140,7 +140,7 @@ void manejar_pedidos_memoria(){
 
 }
 
-//peticiones de kernel, cpu y filesyste
+//peticiones de kernel, cpu y filesystem
 void *atender_cliente(void* args){
 	t_arg_atender_cliente* argumentos = (t_arg_atender_cliente*) args;
 
@@ -156,7 +156,9 @@ void *atender_cliente(void* args){
 			case HANDSHAKE:
 				recibir_handshake(cliente_fd);
 				break;
-
+			case INICIAR_PROCESO:
+				crear_proceso(cliente_fd);
+				break;
 			case -1:
 				log_error(logger, "El cliente se desconecto. Terminando servidor");
 				return NULL;
@@ -168,3 +170,20 @@ void *atender_cliente(void* args){
 
 	return NULL;
 }
+
+//Funciones kernel TODO (luego separar en un include)
+
+void crear_proceso(uint64_t cliente_fd){
+	t_instruccion* instruccion = recibir_instruccion(cliente_fd);
+	log_info(logger, "Instruccion recibida con exito \n");
+	log_info(logger, instruccion->opcode);
+	log_info(logger, instruccion->parametros[0]);
+	log_info(logger, instruccion->parametros[1]);
+	log_info(logger, instruccion->parametros[2]);
+}
+
+
+
+
+
+
