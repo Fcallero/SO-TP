@@ -30,6 +30,19 @@ void inicializar_colas_y_semaforos(){
 	sem_init(&despertar_planificacion_largo_plazo,0,0);
 }
 
+void aviso_iniciar_estructura_memoria(t_instruccion* comando, op_code code){
+
+	t_paquete *paquete_comando = crear_paquete(code);
+	agregar_a_paquete(paquete_comando, comando->opcode, sizeof(char)*comando->opcode_lenght);
+	agregar_a_paquete(paquete_comando, comando->parametros[0], comando->parametro1_lenght);
+	agregar_a_paquete(paquete_comando, comando->parametros[1], comando->parametro2_lenght);
+	agregar_a_paquete(paquete_comando, comando->parametros[2], comando->parametro3_lenght);
+
+	enviar_paquete(paquete_comando, socket_memoria);
+
+	eliminar_paquete(paquete_comando);
+}
+
 
 void *planificar_nuevos_procesos_largo_plazo(void *arg){
 
@@ -73,11 +86,14 @@ void agregar_proceso_a_ready(int conexion_memoria, char* algoritmo_planificacion
 	if(proceso_new_a_ready->tiempo_llegada_ready == 0){
 
 		/*
-		//aca iria la funcion que crea los procesos en memoria UwU
-		//reservando los marcos las paginas y eso
-		 *
-		 * TODO agregar funcion que solicita la creacion del proceso en memoria
-*/
+			aca iria la funcion que crea los procesos en memoria UwU
+			reservando los marcos las paginas y eso
+		*/
+
+		//envio a memoria de instrucciones
+		aviso_iniciar_estructura_memoria(proceso_new_a_ready->comando, NUEVO_PROCESO_MEMORIA);
+
+		free(proceso_new_a_ready->comando);//el comando luego no se va a usar, lo libero
 
 		//esto para diferenciar si es la primera vez que va de new a ready
 		//a modificar en otro momento :)

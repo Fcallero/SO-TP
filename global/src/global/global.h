@@ -119,6 +119,8 @@ typedef struct
 
 	int prioridad;
 
+	t_instruccion* comando;
+
 	// lista de t_tabla_de_archivos_por_proceso
 	t_list* tabla_archivos_abiertos_del_proceso;
 

@@ -221,21 +221,17 @@ void manejar_peticion_al_cpu(int socket_kernel)
 		if(strcmp(instruccion->opcode,"SET")==0)
 		{
 			manejar_instruccion_set(&contexto_actual, instruccion);
-			continuar_con_el_ciclo_instruccion = false;
 		}
 
 		if(strcmp(instruccion->opcode,"SUM")==0)
 		{
-			//TODO arreglar este warning
-			manejar_instruccion_sum(contexto_actual,instruccion);
-			continuar_con_el_ciclo_instruccion = false;
+			manejar_instruccion_sum(&contexto_actual,instruccion);
 
 		}
 		if(strcmp(instruccion->opcode,"SUB")==0)
 		{
-			//TODO arreglar este warning
-			manejar_instruccion_sub(contexto_actual,instruccion);
-			continuar_con_el_ciclo_instruccion = false;
+			manejar_instruccion_sub(&contexto_actual,instruccion);
+
 		}
 		if(strcmp(instruccion->opcode,"JNZ")==0)
 		{
@@ -407,6 +403,7 @@ void setear_registro(t_contexto_ejec** contexto,char* registro, int valor)
 		(*contexto)->registros_CPU->DX=valor;
 	}
 
+	free(registro);
 }
 
 void manejar_instruccion_sum(t_contexto_ejec** contexto_actual,t_instruccion* instruccion)
@@ -420,6 +417,7 @@ void manejar_instruccion_sum(t_contexto_ejec** contexto_actual,t_instruccion* in
 	 valor_destino=valor_destino+valor_origen;
 
 	 setear_registro(contexto_actual, registro_destino, valor_destino);
+	 free(registro_origen);
 }
 
 void manejar_instruccion_sub(t_contexto_ejec** contexto_actual,t_instruccion* instruccion)
@@ -433,30 +431,31 @@ void manejar_instruccion_sub(t_contexto_ejec** contexto_actual,t_instruccion* in
 	 valor_destino=valor_destino-valor_origen;
 
 	 setear_registro(contexto_actual, registro_destino, valor_destino);
+	 free(registro_origen);
 }
 
 int obtener_valor_del_registro(char* registro_a_leer, t_contexto_ejec** contexto_actual){
-	int valor_leido;
+	int valor_leido = -1; //valor devuelto si se escribe mal el nombre del registro
 
 	if(strcmp(registro_a_leer,"AX")==0)
-		{
+	{
 
-		valor_leido= (*contexto_actual)->registros_CPU->AX;
+	valor_leido= (*contexto_actual)->registros_CPU->AX;
 
-		}else if(strcmp(registro_a_leer,"BX")==0)
-		{
+	}else if(strcmp(registro_a_leer,"BX")==0)
+	{
 
-			valor_leido= (*contexto_actual)->registros_CPU->BX;
+		valor_leido= (*contexto_actual)->registros_CPU->BX;
 
-		}else if(strcmp(registro_a_leer,"CX")==0)
-		{
+	}else if(strcmp(registro_a_leer,"CX")==0)
+	{
 
-			valor_leido= (*contexto_actual)->registros_CPU->CX;
+		valor_leido= (*contexto_actual)->registros_CPU->CX;
 
-		}else if(strcmp(registro_a_leer,"DX")==0)
-		{
-			valor_leido= (*contexto_actual)->registros_CPU->DX;
-		}
+	}else if(strcmp(registro_a_leer,"DX")==0)
+	{
+		valor_leido= (*contexto_actual)->registros_CPU->DX;
+	}
 
 	return valor_leido;
 }

@@ -1,35 +1,5 @@
 #include "consola.h"
 sem_t despertar_planificacion_largo_plazo;
-void* levantar_consola(){
-	//TODO crear consola interactiva
-	while(1){
-		char* linea = readline(">");
-		 printf("comando recibido  \n");
-	    t_instruccion* comando = malloc(sizeof(t_instruccion));
-		comando = armar_comando(linea);
-		parametros_lenght(comando);
-
-		if(strcmp(comando->opcode,"INICIAR_PROCESO")==0){
-			printf("Caso: iniciar proceso \n");
-			enviar_comando_memoria(comando, INICIAR_PROCESO);
-		}else if(strcmp(comando->opcode,"FINALIZAR_PROCESO")==0){
-			printf("Caso: finalizar proceso \n");
-		}else if(strcmp(comando->opcode,"DETENER_PLANIFICACION")==0){
-			printf("Caso: detener planificacion \n");
-		}else if(strcmp(comando->opcode,"INICIAR_PLANIFICACION")==0){
-			printf("Caso: iniciar planificacion \n");
-		}else if(strcmp(comando->opcode,"MULTIPROGRAMACION")==0){
-			printf("Caso: multiprogramacion \n");
-		}else if(strcmp(comando->opcode,"PROCESO_ESTADO")==0){
-			printf("Caso: proceso estado \n");
-		}else{
-			printf("Comando desconocido campeon, leete la documentacion de nuevo :p \n");
-		}
-
-	 free(linea);
-	 free(comando);
-}
-}
 
 t_instruccion* armar_comando(char* cadena){
 
@@ -50,7 +20,7 @@ t_instruccion* armar_comando(char* cadena){
 			i++; //Avanza en el array
 		}
 	return comando;
-	}
+}
 
 
 void parametros_lenght(t_instruccion* ptr_inst){
@@ -80,10 +50,11 @@ void iniciar_proceso(t_instruccion* comando){
 
 	pcb_proceso->PID = rand() % 10000;
 	pcb_proceso->program_counter = 1;
-	pcb_proceso->proceso_estado = "NEW";
+	strcpy(pcb_proceso->proceso_estado, "NEW");
 	pcb_proceso->tiempo_llegada_ready = 0;
-	pcb_proceso->prioridad = (int)comando->parametros[3];  //TODO verificar que el parametro ingresado sea un numero
+	pcb_proceso->prioridad = atoi(comando->parametros[2]);
 	pcb_proceso->tabla_archivos_abiertos_del_proceso = NULL;
+	pcb_proceso->comando = comando;
 
 	//este malloc para evitar el segmentation fault en el envio del contexto de ejecución a cpu
 	pcb_proceso->registros_CPU = malloc(sizeof(registros_CPU));
@@ -92,8 +63,7 @@ void iniciar_proceso(t_instruccion* comando){
 
 	sem_post(&despertar_planificacion_largo_plazo);
 
-	//envio a memoria de instrucciones
-	enviar_comando_memoria(comando, INICIAR_PROCESO);
+
 
 }
 
@@ -120,15 +90,35 @@ void verificar_entrada_comando(){
 
 }
 
-void enviar_comando_memoria(t_instruccion* comando, op_code code){
+void levantar_consola(){
+	while(1){
+		char* linea = readline(">");
+	    t_instruccion* comando = malloc(sizeof(t_instruccion));
+		comando = armar_comando(linea);
+		parametros_lenght(comando);
 
-	t_paquete *paquete_comando = crear_paquete(code);
-	agregar_a_paquete(paquete_comando, comando->opcode, sizeof(char)*comando->opcode_lenght);
-	agregar_a_paquete(paquete_comando, comando->parametros[0], comando->parametro1_lenght);
-	agregar_a_paquete(paquete_comando, comando->parametros[1], comando->parametro2_lenght);
-	agregar_a_paquete(paquete_comando, comando->parametros[2], comando->parametro3_lenght);
+		if(strcmp(comando->opcode,"INICIAR_PROCESO")==0){
+			iniciar_proceso(comando);
 
-	enviar_paquete(paquete_comando, socket_memoria);
+		}else if(strcmp(comando->opcode,"FINALIZAR_PROCESO")==0){
+			finalizar_proceso();
 
-	eliminar_paquete(paquete_comando);
+		}else if(strcmp(comando->opcode,"DETENER_PLANIFICACION")==0){
+			detener_planificacion();
+
+		}else if(strcmp(comando->opcode,"INICIAR_PLANIFICACION")==0){
+			iniciar_planificacion();
+
+		}else if(strcmp(comando->opcode,"MULTIPROGRAMACION")==0){
+			multiprogramacion();
+
+		}else if(strcmp(comando->opcode,"PROCESO_ESTADO")==0){
+			proceso_estado();
+
+		}else{
+			log_error(logger, "Comando desconocido campeon, leete la documentacion de nuevo :p");
+		}
+
+	 free(linea);
+	}
 }

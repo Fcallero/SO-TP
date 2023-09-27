@@ -175,11 +175,21 @@ void *atender_cliente(void* args){
 
 void crear_proceso(uint64_t cliente_fd){
 	t_instruccion* instruccion = recibir_instruccion(cliente_fd);
-	log_info(logger, "Instruccion recibida con exito \n");
-	log_info(logger, instruccion->opcode);
-	log_info(logger, instruccion->parametros[0]);
-	log_info(logger, instruccion->parametros[1]);
-	log_info(logger, instruccion->parametros[2]);
+	log_info(logger, "Instruccion recibida con exito");
+
+	if(instruccion->parametro1_lenght == 0){
+		log_info(logger, "Se recibio: %s ", instruccion->opcode);
+
+	} else if(instruccion->parametro2_lenght == 0){
+		log_info(logger, "Se recibio: %s - %s", instruccion->opcode, instruccion->parametros[0]);
+
+	}else if(instruccion->parametro3_lenght == 0){
+		log_info(logger, "Se recibio: %s - %s %s", instruccion->opcode, instruccion->parametros[0], instruccion->parametros[1]);
+
+	} else {
+		log_info(logger, "Se recibio: %s - %s %s %s",instruccion->opcode, instruccion->parametros[0], instruccion->parametros[1], instruccion->parametros[2]);
+	}
+
 }
 
 
