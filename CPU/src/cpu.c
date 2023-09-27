@@ -220,17 +220,21 @@ void manejar_peticion_al_cpu(int socket_kernel)
 
 		if(strcmp(instruccion->opcode,"SET")==0)
 		{
+			manejar_instruccion_set(&contexto_actual, instruccion);
 			continuar_con_el_ciclo_instruccion = false;
 		}
 
 		if(strcmp(instruccion->opcode,"SUM")==0)
 		{
+			//TODO arreglar este warning
+			manejar_instruccion_sum(contexto_actual,instruccion);
 			continuar_con_el_ciclo_instruccion = false;
 
 		}
 		if(strcmp(instruccion->opcode,"SUB")==0)
 		{
-
+			//TODO arreglar este warning
+			manejar_instruccion_sub(contexto_actual,instruccion);
 			continuar_con_el_ciclo_instruccion = false;
 		}
 		if(strcmp(instruccion->opcode,"JNZ")==0)
@@ -305,6 +309,7 @@ void manejar_peticion_al_cpu(int socket_kernel)
 
 		if(strcmp(instruccion->opcode,"EXIT")==0)
 		{
+			devolver_a_kernel(contexto_actual,FINALIZAR_PROCESO, socket_kernel);
 
 			continuar_con_el_ciclo_instruccion = false;
 		}
@@ -366,4 +371,94 @@ t_instruccion *recibir_instruccion_memoria(int program_counter){
 	eliminar_paquete(paquete_program_counter);
 	return instruccion;
 }
+
+void enviar_instruccion_a_kernel(op_code code,int cliente_fd,t_instruccion* instruccion )
+{
+	t_paquete* paquete = crear_paquete(code);
+
+	agregar_a_paquete(paquete, instruccion->opcode, sizeof(char)*instruccion->opcode_lenght );
+
+	agregar_a_paquete(paquete, instruccion->parametros[0], instruccion->parametro1_lenght);
+	agregar_a_paquete(paquete, instruccion->parametros[1], instruccion->parametro2_lenght);
+	agregar_a_paquete(paquete, instruccion->parametros[2], instruccion->parametro3_lenght);
+	enviar_paquete(paquete, cliente_fd);
+}
+
+void manejar_instruccion_set(t_contexto_ejec** contexto,t_instruccion* instruccion)
+{
+	char* registro = strdup(instruccion->parametros[0]);
+	int valor = atoi(instruccion->parametros[1]);
+	setear_registro(contexto, registro, valor);
+}
+
+void setear_registro(t_contexto_ejec** contexto,char* registro, int valor)
+{
+	if(strcmp(registro,"AX")==0)
+	{
+		(*contexto)->registros_CPU->AX=valor;
+	}else if(strcmp(registro,"BX")==0)
+	{
+		(*contexto)->registros_CPU->BX=valor;
+	}else if(strcmp(registro,"CX")==0)
+	{
+		(*contexto)->registros_CPU->CX=valor;
+	}else if(strcmp(registro,"DX")==0)
+	{
+		(*contexto)->registros_CPU->DX=valor;
+	}
+
+}
+
+void manejar_instruccion_sum(t_contexto_ejec** contexto_actual,t_instruccion* instruccion)
+{
+	 char* registro_destino = strdup(instruccion->parametros[0]);
+	 char* registro_origen = strdup(instruccion->parametros[1]);
+
+	 int valor_destino = obtener_valor_del_registro(registro_destino, contexto_actual);
+	 int valor_origen = obtener_valor_del_registro(registro_origen, contexto_actual);
+
+	 valor_destino=valor_destino+valor_origen;
+
+	 setear_registro(contexto_actual, registro_destino, valor_destino);
+}
+
+void manejar_instruccion_sub(t_contexto_ejec** contexto_actual,t_instruccion* instruccion)
+{
+	 char* registro_destino = strdup(instruccion->parametros[0]);
+	 char* registro_origen = strdup(instruccion->parametros[1]);
+
+	 int valor_destino = obtener_valor_del_registro(registro_destino, contexto_actual);
+	 int valor_origen = obtener_valor_del_registro(registro_origen, contexto_actual);
+
+	 valor_destino=valor_destino-valor_origen;
+
+	 setear_registro(contexto_actual, registro_destino, valor_destino);
+}
+
+int obtener_valor_del_registro(char* registro_a_leer, t_contexto_ejec** contexto_actual){
+	int valor_leido;
+
+	if(strcmp(registro_a_leer,"AX")==0)
+		{
+
+		valor_leido= (*contexto_actual)->registros_CPU->AX;
+
+		}else if(strcmp(registro_a_leer,"BX")==0)
+		{
+
+			valor_leido= (*contexto_actual)->registros_CPU->BX;
+
+		}else if(strcmp(registro_a_leer,"CX")==0)
+		{
+
+			valor_leido= (*contexto_actual)->registros_CPU->CX;
+
+		}else if(strcmp(registro_a_leer,"DX")==0)
+		{
+			valor_leido= (*contexto_actual)->registros_CPU->DX;
+		}
+
+	return valor_leido;
+}
+
 
