@@ -3,6 +3,7 @@
 
 int socket_memoria;
 int socket_fs;
+void* espacio_usuario;
 
 int main(int argc, char* argv[]) {
 
@@ -68,12 +69,19 @@ int main(int argc, char* argv[]) {
 	socket_memoria = iniciar_servidor(puerto_escucha);
 
 	log_info(logger, "La memoria esta lista para recibir peticiones");
+/*-------------------------------- CREAR STRUCTS -------------------------------*/
+
+	//espacio de usuario
+	espacio_usuario = malloc(tam_memoria);
+
+	//memoria de instrucciones
+
 
 	manejar_pedidos_memoria();
 
 	terminar_programa(logger, config);
     return 0;
-}
+} //FIN DEL MAIN
 
 //Iniciar archivo de log y de config
 
