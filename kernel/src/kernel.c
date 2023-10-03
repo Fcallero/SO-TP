@@ -154,6 +154,7 @@ int main(int argc, char* argv[]) {
 	pthread_create(&hilo_peticiones_filesystem, NULL, manejar_peticiones_modulos, args_filesystem);
 
 
+
 	pthread_detach(hilo_peticiones_cpu_dispatch);
 	pthread_detach(hilo_peticiones_cpu_interrupt);
 	pthread_detach(hilo_peticiones_memoria);
@@ -165,7 +166,7 @@ int main(int argc, char* argv[]) {
 	levantar_consola();
 
 
-	terminar_programa(logger, config);
+//	terminar_programa(logger, config);
 	free(args_dispatch);
 	free(args_interrupt);
 	free(args_memoria);
@@ -290,9 +291,7 @@ int conectar_cpu_interrupt(char* ip, char* puerto){
 	return 0;
 }
 
-void levantar_consola(){
-	//TODO crear consola interactiva
-}
+
 
 //aca se maneja las peticiones de todos los modulos menos los de CPU
 void* manejar_peticiones_modulos(void* args){

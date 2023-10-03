@@ -51,6 +51,12 @@ typedef enum
 	LEER_ARCHIVO,
 	ESCRIBIR_ARCHIVO,
 	CREAR_ARCHIVO,
+	//consola kernel (FINALIZAR PROCESO REUTILIZA EL DE ARRIBA)
+	INICIAR_PROCESO,
+	DETENER_PLANIFICACION,
+	INICIAR_PLANIFICACION,
+	MULTIPROGRAMACION,
+	PROCESO_ESTADO,
 }op_code;
 
 
@@ -112,6 +118,8 @@ typedef struct
 	registros_CPU* registros_CPU;
 
 	int prioridad;
+
+	t_instruccion* comando;
 
 	// lista de t_tabla_de_archivos_por_proceso
 	t_list* tabla_archivos_abiertos_del_proceso;
