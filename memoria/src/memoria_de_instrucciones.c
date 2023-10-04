@@ -12,7 +12,7 @@ int leer_pseudo(int cliente_fd){
 
 	//comprobar si el archivo existe
 	if(archivo == NULL){
-			perror("Error en la apertura del archivo.");
+			logger_error(logger, "Error en la apertura del archivo.");
 			return 1;
 		}
 
