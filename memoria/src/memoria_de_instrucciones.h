@@ -1,3 +1,5 @@
+#ifndef MEMORIA_DE_INSTRUCCIONES_H_
+#define MEMORIA_DE_INSTRUCCIONES_H_
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,4 +16,4 @@
 #include <global/utils_cliente.h>
 #include <global/utils_server.h>
 
-
+#endif
