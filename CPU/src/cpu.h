@@ -18,7 +18,7 @@
 #include <global/global.h>
 #include <global/utils_cliente.h>
 #include <global/utils_server.h>
-
+#include "cpu_instrucciones.h"
 
 
 extern int socket_cpu_dispatch;
@@ -35,14 +35,8 @@ void manejar_peticiones_instruccion();
 void manejar_peticion_al_cpu();
 
 t_instruccion *recibir_instruccion_memoria(int);
-void recibir_interrupcion(int);
+void recibir_interrupcion(int socket_kernel);
 void devolver_a_kernel(t_contexto_ejec* contexto, op_code code, int socket_cliente);
-
-void manejar_instruccion_set(t_contexto_ejec** contexto,t_instruccion* instruccion);
-void setear_registro(t_contexto_ejec** contexto,char* registro, int valor);
-
-int obtener_valor_del_registro(char* registro_a_leer, t_contexto_ejec** contexto_actual);
-void manejar_instruccion_sub(t_contexto_ejec** contexto_actual,t_instruccion* instruccion);
-void manejar_instruccion_sum(t_contexto_ejec** contexto_actual,t_instruccion* instruccion);
+int obtener_tamanio_pagina();
 
 #endif /* CPU_H_ */

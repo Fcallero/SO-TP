@@ -72,6 +72,8 @@ int main(int argc, char* argv[]) {
 	pthread_detach(thread_interrupt);
 
 
+	tamano_pagina = obtener_tamanio_pagina();
+
 	//escucho peticiones para puerto dispatch
 	manejar_peticiones_instruccion();
 
@@ -136,9 +138,6 @@ void* manejar_interrupciones(void* args){
 			int cod_op = recibir_operacion(cliente_fd);
 
 			switch(cod_op){
-				case MENSAJE:
-					recibir_mensaje(cliente_fd);
-					break;
 				case HANDSHAKE:
 					recibir_handshake(cliente_fd);
 					break;
@@ -165,9 +164,6 @@ void manejar_peticiones_instruccion(){
 		int cod_op = recibir_operacion(cliente_fd);
 
 		switch(cod_op){
-			case MENSAJE:
-				recibir_mensaje(cliente_fd);
-				break;
 			case HANDSHAKE:
 				recibir_handshake(cliente_fd);
 				break;
@@ -236,70 +232,76 @@ void manejar_peticion_al_cpu(int socket_kernel)
 		if(strcmp(instruccion->opcode,"JNZ")==0)
 		{
 
-		continuar_con_el_ciclo_instruccion = false;
+			manejar_instruccion_jnz(&contexto_actual, instruccion);
 
 		}
 
 		if(strcmp(instruccion->opcode,"SLEEP")==0)
 		{
 
+			devolver_a_kernel(contexto_actual,SLEEP, socket_kernel);
 			continuar_con_el_ciclo_instruccion = false;
-
 		}
 
 		if(strcmp(instruccion->opcode,"MOV_IN")==0)
 		{
-			continuar_con_el_ciclo_instruccion = false;
+			bool es_pagefault = menjar_mov_in(&contexto_actual, instruccion);
+
+			if(es_pagefault){
+				continuar_con_el_ciclo_instruccion = false;
+			}
 		}
 
 		if(strcmp(instruccion->opcode,"MOV_OUT")==0)
 		{
+			bool es_pagefault = menjar_mov_out(&contexto_actual, instruccion);
 
-			continuar_con_el_ciclo_instruccion = false;
-
+			if(es_pagefault){
+				continuar_con_el_ciclo_instruccion = false;
+			}
 		}
 
 		if(strcmp(instruccion->opcode,"F_OPEN")==0)
 		{
-
+			devolver_a_kernel(contexto_actual,ABRIR_ARCHIVO, socket_kernel);
 			continuar_con_el_ciclo_instruccion = false;
 		}
 		if(strcmp(instruccion->opcode,"F_CLOSE")==0)
 		{
-
+			devolver_a_kernel(contexto_actual,CERRAR_ARCHIVO, socket_kernel);
 			continuar_con_el_ciclo_instruccion = false;
 		}
 		if(strcmp(instruccion->opcode,"F_SEEK")==0)
 		{
-
+			devolver_a_kernel(contexto_actual,APUNTAR_ARCHIVO, socket_kernel);
 			continuar_con_el_ciclo_instruccion = false;
 		}
 		if(strcmp(instruccion->opcode,"F_READ")==0)
 		{
-
-
+			devolver_a_kernel(contexto_actual,LEER_ARCHIVO, socket_kernel);
 			continuar_con_el_ciclo_instruccion = false;
 		}
 		if(strcmp(instruccion->opcode,"F_WRITE")==0)
 		{
-
-
+			devolver_a_kernel(contexto_actual,ESCRIBIR_ARCHIVO, socket_kernel);
 			continuar_con_el_ciclo_instruccion = false;
 		}
 		if(strcmp(instruccion->opcode,"F_TRUNCATE")==0)
 		{
-
+			devolver_a_kernel(contexto_actual,TRUNCAR_ARCHIVO, socket_kernel);
 			continuar_con_el_ciclo_instruccion = false;
 		}
 
 		if(strcmp(instruccion->opcode,"WAIT")==0)
 		{
 
+			devolver_a_kernel(contexto_actual,APROPIAR_RECURSOS, socket_kernel);
 			continuar_con_el_ciclo_instruccion = false;
 		}
 		if(strcmp(instruccion->opcode,"SIGNAL")==0)
 		{
 
+			devolver_a_kernel(contexto_actual,DESALOJAR_RECURSOS, socket_kernel);
 			continuar_con_el_ciclo_instruccion = false;
 		}
 
@@ -312,6 +314,7 @@ void manejar_peticion_al_cpu(int socket_kernel)
 
 		contexto_actual->program_counter ++;
 
+		//CHECK INTERRUPT
 		if(hay_interrupcion_pendiente){
 			continuar_con_el_ciclo_instruccion = false;
 			devolver_a_kernel(contexto_actual, INTERRUPCION, socket_kernel);
@@ -362,102 +365,38 @@ t_instruccion *recibir_instruccion_memoria(int program_counter){
 
 	enviar_paquete(paquete_program_counter, socket_memoria);
 
+	op_code opcode = recibir_operacion(socket_memoria);
+
+	if(opcode != INSTRUCCION){
+		log_error(logger, "No se pudo recibir la instruccion de memoria! codigo de operacion recibido: %d", opcode);
+		return NULL;
+	}
+
 	t_instruccion* instruccion = recibir_instruccion(socket_memoria);
 
 	eliminar_paquete(paquete_program_counter);
 	return instruccion;
 }
 
-void enviar_instruccion_a_kernel(op_code code,int cliente_fd,t_instruccion* instruccion )
-{
-	t_paquete* paquete = crear_paquete(code);
 
-	agregar_a_paquete(paquete, instruccion->opcode, sizeof(char)*instruccion->opcode_lenght );
+int obtener_tamanio_pagina(){
+	enviar_mensaje("TAMANO_PAGINA", socket_memoria, TAMANO_PAGINA);
 
-	agregar_a_paquete(paquete, instruccion->parametros[0], instruccion->parametro1_lenght);
-	agregar_a_paquete(paquete, instruccion->parametros[1], instruccion->parametro2_lenght);
-	agregar_a_paquete(paquete, instruccion->parametros[2], instruccion->parametro3_lenght);
-	enviar_paquete(paquete, cliente_fd);
-}
+	op_code opcode = recibir_operacion(socket_memoria);
 
-void manejar_instruccion_set(t_contexto_ejec** contexto,t_instruccion* instruccion)
-{
-	char* registro = strdup(instruccion->parametros[0]);
-	int valor = atoi(instruccion->parametros[1]);
-	setear_registro(contexto, registro, valor);
-}
-
-void setear_registro(t_contexto_ejec** contexto,char* registro, int valor)
-{
-	if(strcmp(registro,"AX")==0)
-	{
-		(*contexto)->registros_CPU->AX=valor;
-	}else if(strcmp(registro,"BX")==0)
-	{
-		(*contexto)->registros_CPU->BX=valor;
-	}else if(strcmp(registro,"CX")==0)
-	{
-		(*contexto)->registros_CPU->CX=valor;
-	}else if(strcmp(registro,"DX")==0)
-	{
-		(*contexto)->registros_CPU->DX=valor;
+	if(opcode != TAMANO_PAGINA){
+		log_error(logger, "No se pudo recibir el tamanio de pagina de memoria! codigo de operacion recibido: %d", opcode);
+		return -1;
 	}
 
-	free(registro);
-}
+	int size;
+	void* buffer = recibir_buffer(&size, socket_memoria);
+	int tamano_pagina;
 
-void manejar_instruccion_sum(t_contexto_ejec** contexto_actual,t_instruccion* instruccion)
-{
-	 char* registro_destino = strdup(instruccion->parametros[0]);
-	 char* registro_origen = strdup(instruccion->parametros[1]);
+	memcpy(&tamano_pagina, buffer, sizeof(int));
 
-	 int valor_destino = obtener_valor_del_registro(registro_destino, contexto_actual);
-	 int valor_origen = obtener_valor_del_registro(registro_origen, contexto_actual);
-
-	 valor_destino=valor_destino+valor_origen;
-
-	 setear_registro(contexto_actual, registro_destino, valor_destino);
-	 free(registro_origen);
-}
-
-void manejar_instruccion_sub(t_contexto_ejec** contexto_actual,t_instruccion* instruccion)
-{
-	 char* registro_destino = strdup(instruccion->parametros[0]);
-	 char* registro_origen = strdup(instruccion->parametros[1]);
-
-	 int valor_destino = obtener_valor_del_registro(registro_destino, contexto_actual);
-	 int valor_origen = obtener_valor_del_registro(registro_origen, contexto_actual);
-
-	 valor_destino=valor_destino-valor_origen;
-
-	 setear_registro(contexto_actual, registro_destino, valor_destino);
-	 free(registro_origen);
-}
-
-int obtener_valor_del_registro(char* registro_a_leer, t_contexto_ejec** contexto_actual){
-	int valor_leido = -1; //valor devuelto si se escribe mal el nombre del registro
-
-	if(strcmp(registro_a_leer,"AX")==0)
-	{
-
-	valor_leido= (*contexto_actual)->registros_CPU->AX;
-
-	}else if(strcmp(registro_a_leer,"BX")==0)
-	{
-
-		valor_leido= (*contexto_actual)->registros_CPU->BX;
-
-	}else if(strcmp(registro_a_leer,"CX")==0)
-	{
-
-		valor_leido= (*contexto_actual)->registros_CPU->CX;
-
-	}else if(strcmp(registro_a_leer,"DX")==0)
-	{
-		valor_leido= (*contexto_actual)->registros_CPU->DX;
-	}
-
-	return valor_leido;
+	free(buffer);
+	return tamano_pagina;
 }
 
 
