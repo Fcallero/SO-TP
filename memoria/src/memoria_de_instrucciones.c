@@ -6,7 +6,7 @@ t_list* instruccion;
 int leer_pseudo(int cliente_fd){
 
 	//recibe el path de la instruccion enviado por kernel por "enviar_mensaje"
-	char archivo_path[]= recibir_mensaje(cliente_fd);
+	char* archivo_path= recibir_mensaje(cliente_fd);
 
 	FILE* archivo = fopen(archivo_path,"r");
 

@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) {
 		socket_fs = iniciar_servidor(puerto_escucha);
 
 		log_info(logger, "Filesystem esta listo para recibir peticiones");
-
+//manejar_peticiones_kernel(logger, socket_fs, socket_memoria, bloques, superbloque);
 		manejar_peticiones();
 
 	terminar_programa(logger, config);
@@ -139,7 +139,6 @@ void manejar_peticiones(){
 }
 
 
-
 void *atender_cliente(void* args){
 	t_arg_atender_cliente* argumentos = (t_arg_atender_cliente*) args;
 
@@ -155,7 +154,30 @@ void *atender_cliente(void* args){
 			case HANDSHAKE:
 				recibir_handshake(cliente_fd);
 				break;
-
+			case ABRIR_ARCHIVO:
+				abrir_archivo();
+				break;
+			case CREAR_ARCHIVO:
+				crear_archivo();
+				break;
+			case CERRAR_ARCHIVO:
+				cerrar_archivo();
+				break;
+			case TRUNCAR_ARCHIVO:
+				truncar_archivo();
+					break;
+			case LEER_ARCHIVO:
+				leer_archivo();
+				break;
+			case ESCRIBIR_ARCHIVO:
+				escribir_archivo();
+				break;
+			case NUEVO_PROCESO_FS:
+				reservar_bloques();
+				break;
+			case FINALIZAR_PROCESO_FS:
+				marcar_bloques_libres();
+				break;
 			case -1:
 				log_error(logger, "El cliente se desconecto. Terminando servidor");
 				return NULL;

@@ -17,7 +17,7 @@ int main(int argc, char* argv[]) {
 	int tam_memoria;
 	char* path_instrucciones;
 	int retardo_respuesta;
-	char* algoritmo_remplazo;
+	char* algoritmo_reemplazo;
 
 /*------------------------------LOGGER Y CONFIG--------------------------------------------------*/
 
@@ -43,10 +43,10 @@ int main(int argc, char* argv[]) {
 	path_instrucciones = config_get_string_value(config, "PATH_INSTRUCCIONES");
 	retardo_respuesta = config_get_int_value(config, "RETARDO_RESPUESTA");
 
-	algoritmo_remplazo = config_get_string_value(config, "ALGORITMO_REEMPLAZO");
+	algoritmo_reemplazo = config_get_string_value(config, "ALGORITMO_REEMPLAZO");
 
 	// Control archivo configuracion
-	if(!ip_filesystem || !puerto_filesystem || !puerto_escucha || !tam_memoria || !tam_pagina || !path_instrucciones || !retardo_respuesta || !algoritmo_remplazo){
+	if(!ip_filesystem || !puerto_filesystem || !puerto_escucha || !tam_memoria || !tam_pagina || !path_instrucciones || !retardo_respuesta || !algoritmo_reemplazo){
 
 		log_error(logger, "Error al recibir los datos del archivo de configuracion de la memoria");
 		terminar_programa(logger, config);
@@ -78,7 +78,8 @@ int main(int argc, char* argv[]) {
 	//memoria de instrucciones
 
 
-	manejar_pedidos_memoria();
+	//manejo de peticiones
+	manejar_pedidos_memoria(algoritmo_reemplazo,retardo_respuesta,tam_pagina,tam_memoria);
 
 	terminar_programa(logger, config);
     return 0;
@@ -132,7 +133,7 @@ int conectar_fs(char* ip, char* puerto){
 }
 
 // atiende las peticiones de kernel, cpu y filesystem de forma concurrente
-void manejar_pedidos_memoria(){
+void manejar_pedidos_memoria(char* algoritmo_reemplazo,int retardo_respuesta,int tam_pagina,int tam_memoria){
 
 	while(1){
 		pthread_t thread;
@@ -140,7 +141,10 @@ void manejar_pedidos_memoria(){
 
 		t_arg_atender_cliente* argumentos_atender_cliente = malloc(sizeof(t_arg_atender_cliente));
 		argumentos_atender_cliente->cliente_fd = cliente_fd;
-
+		argumentos_atender_cliente->algoritmo_reemplazo = algoritmo_reemplazo;
+		argumentos_atender_cliente->retardo_respuesta = retardo_respuesta;
+		argumentos_atender_cliente->tam_pagina = tam_pagina;
+		argumentos_atender_cliente->tam_memoria = tam_memoria;
 
 		pthread_create(&thread, NULL, atender_cliente, (void*) argumentos_atender_cliente);
 
@@ -174,6 +178,10 @@ void *atender_cliente(void* args){
 	t_arg_atender_cliente* argumentos = (t_arg_atender_cliente*) args;
 
 	uint64_t cliente_fd = argumentos->cliente_fd;
+	char* algoritmo_reemplazo = argumentos->algoritmo_reemplazo;
+	uint64_t retardo_respuesta = argumentos->retardo_respuesta;
+	uint64_t tam_pagina = argumentos->tam_pagina;
+	uint64_t tam_memoria = argumentos->tam_memoria;
 
 	while(1){
 		int cod_op = recibir_operacion(cliente_fd);
@@ -190,6 +198,22 @@ void *atender_cliente(void* args){
 				break;
 			case INICIAR_PROCESO:
 				crear_proceso(cliente_fd);
+				break;
+			case NUEVO_PROCESO_MEMORIA:
+				nuevo_proceso();
+				break;
+			case FINALIZAR_PROCESO_MEMORIA:
+				finalizar_proceso();
+				break;
+			case ACCESO_A_PAGINA:
+				devolver_marco();
+				break;
+			case PAGE_FAULT:
+				manejar_pagefault();
+				break;
+			case READ_MEMORY:
+				break;
+			case WRITE_MEMORY:
 				break;
 			case -1:
 				log_error(logger, "El cliente se desconecto. Terminando servidor");
@@ -224,8 +248,20 @@ void crear_proceso(uint64_t cliente_fd){
 
 }
 
+/* Estas mover a otros archivos en un futuro */
 
+void nuevo_proceso(){
 
+}
 
+void finalizar_proceso(){
 
+}
 
+void devolver_marco(){
+
+}
+
+void manejar_pagefault(){
+
+}

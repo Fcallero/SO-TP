@@ -18,7 +18,8 @@
 #include <global/utils_cliente.h>
 #include <global/utils_server.h>
 #include <global/global.h>
-
+#include "peticiones_memoria.h"
+#include "peticiones_kernel.h"
 
 extern int socket_memoria;
 extern int socket_fs;
