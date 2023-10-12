@@ -203,8 +203,9 @@ t_contexto_ejec* recibir_contexto_de_ejecucion(int socket_cliente)
 		memcpy(&(contexto_ejecucion->registros_CPU->DX), buffer + desplazamiento,sizeof(uint32_t));
 		desplazamiento+=sizeof(uint32_t);
 
-		contexto_ejecucion->instruccion = deserializar_instruccion_en(buffer, &desplazamiento);
-
+		if(desplazamiento < size){
+			contexto_ejecucion->instruccion = deserializar_instruccion_en(buffer, &desplazamiento);
+		}
 
 	}
 

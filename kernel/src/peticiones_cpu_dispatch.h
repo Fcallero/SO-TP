@@ -11,6 +11,7 @@
 #include <commons/string.h>
 #include <commons/collections/list.h>
 #include <commons/collections/queue.h>
+#include <pthread.h>
 
 
 #include <global/global.h>
@@ -18,15 +19,10 @@
 #include <global/utils_server.h>
 
 #include "planificador_largo_plazo.h"
+#include "planificador_corto_plazo.h"
 
-typedef struct
-{
-	int tiempo_io;
-	int grado_max_multiprogramacion;
-
-} t_argumentos_simular_sleep;
-
-void* simular_sleep(void* arg);
-
+void manejar_sleep(int socket_cliente);
+void apropiar_recursos(int socket_cliente, char** recursos, int* recurso_disponible, int cantidad_de_recursos);
+void desalojar_recursos(int socket_cliente, char** recursos, int* recurso_disponible, int cantidad_de_recursos);
 
 #endif /* SRC_PETICIONES_CPU_DISPATCH_H_ */

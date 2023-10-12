@@ -125,9 +125,6 @@ typedef struct
 	// lista de t_tabla_de_archivos_por_proceso
 	t_list* tabla_archivos_abiertos_del_proceso;
 
-
-	t_temporal* temporal_ready; // para cronometrar el tiempo para el Round Robbin
-
 } t_pcb;
 
 #endif /* GLOBAL_H_ */

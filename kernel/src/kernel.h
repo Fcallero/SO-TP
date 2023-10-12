@@ -22,7 +22,6 @@
 #include <global/utils_server.h>
 
 #include "peticiones_cpu_dispatch.h"
-#include "peticiones_cpu_interrupt.h"
 #include "planificador_largo_plazo.h"
 #include "planificador_corto_plazo.h"
 #include "consola.h"

@@ -48,11 +48,8 @@ extern sem_t m_cola_de_procesos_bloqueados_para_cada_archivo;
 
 void inicializar_colas_y_semaforos();
 void *planificar_nuevos_procesos_largo_plazo(void *arg);
-void agregar_proceso_a_ready(int conexion_memoria,  char* algoritmo_planificacion);
 void agregar_cola_new(t_pcb* pcb_proceso);
 
-char* listar_pids_cola_ready(void);
 void pasar_a_ready(t_pcb* proceso_bloqueado);
-int calcular_procesos_en_memoria(int procesos_en_ready);
 
 #endif /* SRC_PLANIFICADOR_LARGO_PLAZO_H_ */

@@ -10,6 +10,7 @@ int grado_max_multiprogramacion;
 char** recursos;
 int* recursos_disponibles;
 int quantum;
+char** instancias_recursos;
 
 int main(int argc, char* argv[]) {
 
@@ -22,7 +23,7 @@ int main(int argc, char* argv[]) {
 	char* ip_cpu;
 	char* puerto_cpu_dispatch;
 	char* puerto_cpu_interrupt;
-	char** instancias_recursos;
+
 
 /*------------------------------LOGGER Y CONFIG--------------------------------------------------*/
 
@@ -266,7 +267,8 @@ int conectar_cpu_dispatch(char* ip, char* puerto){
 	char* buffer = recibir_buffer(&size, socket_cpu_dispatch);
 
 	if(strcmp(buffer, "OK") != 0){
-		return -1;	}
+		return -1;
+	}
 
 	return 0;
 }
@@ -280,18 +282,18 @@ int conectar_cpu_interrupt(char* ip, char* puerto){
 	op_code cod_op = recibir_operacion(socket_cpu_interrupt);
 
 	if(cod_op != HANDSHAKE){
-		return -1;	}
+		return -1;
+	}
 
 	int size;
 	char* buffer = recibir_buffer(&size, socket_cpu_interrupt);
 
 	if(strcmp(buffer, "OK") != 0){
-		return -1;	}
+		return -1;
+	}
 
 	return 0;
 }
-
-
 
 //aca se maneja las peticiones de todos los modulos menos los de CPU
 void* manejar_peticiones_modulos(void* args){
@@ -309,7 +311,6 @@ void* manejar_peticiones_modulos(void* args){
 			case HANDSHAKE:
 				recibir_handshake(cliente_fd);
 				break;
-
 			case -1:
 				log_error(logger, "El cliente se desconecto. Terminando servidor");
 				return NULL;
@@ -325,7 +326,7 @@ void* manejar_peticiones_modulos(void* args){
 void *escuchar_peticiones_cpu_dispatch(void* args){
 
 	uint64_t cliente_fd = (uint64_t) args;
-
+	int cantidad_de_recursos = string_array_size(instancias_recursos);
 
 	while(1){
 		int cod_op = recibir_operacion(cliente_fd);
@@ -341,13 +342,16 @@ void *escuchar_peticiones_cpu_dispatch(void* args){
 					break;
 				case BLOQUEAR_PROCESO:
 					break;
-				case APROPIAR_RECURSOS: // usar int* recursos_disponibles
+				case APROPIAR_RECURSOS:
+					apropiar_recursos(cliente_fd, recursos, recursos_disponibles, cantidad_de_recursos);
 					break;
-				case DESALOJAR_RECURSOS: // usar int* recursos_disponibles
+				case DESALOJAR_RECURSOS:
+					desalojar_recursos(cliente_fd, recursos, recursos_disponibles, cantidad_de_recursos);
 					break;
 				case DESALOJAR_PROCESO:
 					break;
 				case SLEEP:
+					manejar_sleep(cliente_fd);
 					break;
 				case ABRIR_ARCHIVO:
 					break;

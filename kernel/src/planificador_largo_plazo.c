@@ -3,7 +3,6 @@
 t_queue* cola_new;
 t_queue* cola_ready;
 t_pcb* proceso_ejecutando;
-t_temporal* rafaga_proceso_ejecutando;
 char* algoritmo_planificacion;
 
 
@@ -44,127 +43,6 @@ void aviso_iniciar_estructura_memoria(t_instruccion* comando, op_code code){
 }
 
 
-void *planificar_nuevos_procesos_largo_plazo(void *arg){
-
-	sem_wait(&despertar_planificacion_largo_plazo);
-
-	while(1){
-
-		sem_wait(&m_cola_ready);
-		int tamanio_cola_ready = queue_size(cola_ready);
-		sem_post(&m_cola_ready);
-		sem_wait(&m_cola_new);
-		int tamanio_cola_new = queue_size(cola_new);
-		sem_post(&m_cola_new);
-
-		int procesos_en_memoria_total = calcular_procesos_en_memoria(tamanio_cola_ready);
-
-		// sumo uno para simular si agrego a ready el proceso qeu esta en new
-		procesos_en_memoria_total ++;
-
-
-		if(tamanio_cola_new != 0 && procesos_en_memoria_total < grado_max_multiprogramacion){
-
-			//verificar si se lo puede admitir a la cola de ready
-			agregar_proceso_a_ready(socket_memoria, algoritmo_planificacion);
-		} 
-	}
-
-	return NULL;
-}
-
-
-// si el proceso no es new, no es necesario el socket de memoria
-void agregar_proceso_a_ready(int conexion_memoria, char* algoritmo_planificacion){
-	sem_wait(&m_cola_new);
-	t_pcb* proceso_new_a_ready = queue_pop(cola_new);
-	sem_post(&m_cola_new);
-
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_new_a_ready->PID, "NEW", "READY");
-
-	//si el proceso es nuevo
-	if(proceso_new_a_ready->tiempo_llegada_ready == 0){
-
-		/*
-			aca iria la funcion que crea los procesos en memoria UwU
-			reservando los marcos las paginas y eso
-		*/
-
-		//envio a memoria de instrucciones
-		aviso_iniciar_estructura_memoria(proceso_new_a_ready->comando, NUEVO_PROCESO_MEMORIA);
-
-		free(proceso_new_a_ready->comando);//el comando luego no se va a usar, lo libero
-
-		//esto para diferenciar si es la primera vez que va de new a ready
-		//a modificar en otro momento :)
-		proceso_new_a_ready->tiempo_llegada_ready = temporal_gettime(proceso_new_a_ready->temporal_ready);
-
-		temporal_stop(proceso_new_a_ready->temporal_ready);
-		temporal_destroy(proceso_new_a_ready->temporal_ready);
-		proceso_new_a_ready->temporal_ready= NULL;
-
-	}
-
-
-
-	sem_wait(&m_cola_ready);
-	queue_push(cola_ready, proceso_new_a_ready);
-	char *pids = listar_pids_cola_ready();
-	sem_post(&m_cola_ready);
-
-
-	log_info(logger, "Cola Ready %s: [%s]",algoritmo_planificacion, pids);
-
-	free(pids);
-
-	// si ya esta ejecutando un proceso, cuando termine se llama al planificador de largo plazo
-	sem_wait(&m_proceso_ejecutando);
-	if(proceso_ejecutando == NULL){
-		sem_post(&m_proceso_ejecutando);
-		sem_post(&despertar_corto_plazo);
-	} else {
-		sem_post(&m_proceso_ejecutando);
-	}
-
-}
-
-void pasar_a_ready(t_pcb* proceso_bloqueado){
-
-	sem_wait(&m_cola_ready);
-
-	queue_push(cola_ready, proceso_bloqueado);
-	int procesos_en_ready = queue_size(cola_ready);
-
-	char *pids = listar_pids_cola_ready();
-
-	sem_post(&m_cola_ready);
-
-
-	log_info(logger, "Cola Ready %s: [%s]",algoritmo_planificacion, pids);
-
-	free(pids);
-
-	sem_wait(&m_proceso_ejecutando);
-	if(proceso_ejecutando == NULL && procesos_en_ready > 0 ){
-		sem_post(&m_proceso_ejecutando);
-		sem_post(&despertar_corto_plazo);
-	} else {
-		sem_post(&m_proceso_ejecutando);
-	}
-
-}
-
-
-void agregar_cola_new(t_pcb* pcb_proceso){
-	pcb_proceso->temporal_ready = temporal_create();
-	sem_wait(&m_cola_new);
-	queue_push(cola_new, pcb_proceso);
-	sem_post(&m_cola_new);
-
-	log_info(logger, "Se crea el proceso %d en NEW", pcb_proceso->PID);
-}
-
-
 char* listar_pids_cola_ready(void){
 
 	char** array_pids = string_array_new();
@@ -193,6 +71,39 @@ char* listar_pids_cola_ready(void){
 	string_array_destroy(array_pids);
 
 	return string_pids ;
+}
+
+// si el proceso no es new, no es necesario el socket de memoria
+void agregar_proceso_a_ready(int conexion_memoria, char* algoritmo_planificacion){
+	sem_wait(&m_cola_new);
+	t_pcb* proceso_new_a_ready = queue_pop(cola_new);
+	sem_post(&m_cola_new);
+
+	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_new_a_ready->PID, "NEW", "READY");
+
+	//envio a memoria de instrucciones
+	aviso_iniciar_estructura_memoria(proceso_new_a_ready->comando, NUEVO_PROCESO_MEMORIA);
+
+	free(proceso_new_a_ready->comando);//el comando luego no se va a usar, lo libero
+
+
+	sem_wait(&m_cola_ready);
+	queue_push(cola_ready, proceso_new_a_ready);
+	char *pids = listar_pids_cola_ready();
+	sem_post(&m_cola_ready);
+
+	log_info(logger, "Cola Ready %s: [%s]",algoritmo_planificacion, pids);
+
+	free(pids);
+
+	// si ya esta ejecutando un proceso, cuando termine se llama al planificador de largo plazo
+	sem_wait(&m_proceso_ejecutando);
+	if(proceso_ejecutando == NULL){
+		sem_post(&m_proceso_ejecutando);
+		sem_post(&despertar_corto_plazo);
+	} else {
+		sem_post(&m_proceso_ejecutando);
+	}
 }
 
 int calcular_procesos_en_memoria(int procesos_en_ready){
@@ -234,4 +145,68 @@ int calcular_procesos_en_memoria(int procesos_en_ready){
 
 
 	return procesos_bloqueados + procesos_en_ready;
+}
+
+void *planificar_nuevos_procesos_largo_plazo(void *arg){
+
+	sem_wait(&despertar_planificacion_largo_plazo);
+
+	while(1){
+		sem_wait(&m_cola_ready);
+		int tamanio_cola_ready = queue_size(cola_ready);
+		sem_post(&m_cola_ready);
+		sem_wait(&m_cola_new);
+		int tamanio_cola_new = queue_size(cola_new);
+		sem_post(&m_cola_new);
+
+		int procesos_en_memoria_total = calcular_procesos_en_memoria(tamanio_cola_ready);
+
+		// sumo uno para simular si agrego a ready el proceso qeu esta en new
+		procesos_en_memoria_total ++;
+
+
+		if(tamanio_cola_new != 0 && procesos_en_memoria_total < grado_max_multiprogramacion){
+
+			//verificar si se lo puede admitir a la cola de ready
+			agregar_proceso_a_ready(socket_memoria, algoritmo_planificacion);
+		}
+	}
+
+	return NULL;
+}
+
+
+void pasar_a_ready(t_pcb* proceso_bloqueado){
+
+	sem_wait(&m_cola_ready);
+
+	queue_push(cola_ready, proceso_bloqueado);
+	int procesos_en_ready = queue_size(cola_ready);
+
+	char *pids = listar_pids_cola_ready();
+
+	sem_post(&m_cola_ready);
+
+
+	log_info(logger, "Cola Ready %s: [%s]",algoritmo_planificacion, pids);
+
+	free(pids);
+
+	sem_wait(&m_proceso_ejecutando);
+	if(proceso_ejecutando == NULL && procesos_en_ready > 0 ){
+		sem_post(&m_proceso_ejecutando);
+		sem_post(&despertar_corto_plazo);
+	} else {
+		sem_post(&m_proceso_ejecutando);
+	}
+
+}
+
+
+void agregar_cola_new(t_pcb* pcb_proceso){
+	sem_wait(&m_cola_new);
+	queue_push(cola_new, pcb_proceso);
+	sem_post(&m_cola_new);
+
+	log_info(logger, "Se crea el proceso %d en NEW", pcb_proceso->PID);
 }
