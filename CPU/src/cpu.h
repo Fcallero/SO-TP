@@ -37,6 +37,5 @@ void manejar_peticion_al_cpu();
 t_instruccion *recibir_instruccion_memoria(int);
 void recibir_interrupcion(int socket_kernel);
 void devolver_a_kernel(t_contexto_ejec* contexto, op_code code, int socket_cliente);
-int obtener_tamanio_pagina();
 
 #endif /* CPU_H_ */

@@ -4,6 +4,8 @@
 int socket_memoria;
 int socket_fs;
 void* espacio_usuario;
+int tam_pagina;
+
 
 int main(int argc, char* argv[]) {
 
@@ -13,7 +15,6 @@ int main(int argc, char* argv[]) {
 	char* puerto_filesystem;
 	char* puerto_escucha;
 	int tam_memoria;
-	int tam_pagina;
 	char* path_instrucciones;
 	int retardo_respuesta;
 	char* algoritmo_remplazo;
@@ -148,6 +149,26 @@ void manejar_pedidos_memoria(){
 
 }
 
+// en el handshake con CPU le envia el tamanio de pagina para la traduccion de direcciones logicas
+void enviar_tam_pagina(int socket_cliente){
+	int size;
+	char* buffer = recibir_buffer(&size, socket_cliente);
+
+	if(strcmp(buffer, "OK") == 0){
+		t_paquete* paquete = crear_paquete(HANDSHAKE_TAM_MEMORIA);
+		agregar_a_paquete_sin_agregar_tamanio(paquete, &tam_pagina, sizeof(tam_pagina));
+
+		enviar_paquete(paquete, socket_cliente);
+
+		eliminar_paquete(paquete);
+	} else {
+		enviar_mensaje("ERROR", socket_cliente, HANDSHAKE_TAM_MEMORIA);
+	}
+
+
+	free(buffer);
+}
+
 //peticiones de kernel, cpu y filesystem
 void *atender_cliente(void* args){
 	t_arg_atender_cliente* argumentos = (t_arg_atender_cliente*) args;
@@ -163,6 +184,9 @@ void *atender_cliente(void* args){
 				break;
 			case HANDSHAKE:
 				recibir_handshake(cliente_fd);
+				break;
+			case HANDSHAKE_TAM_MEMORIA:
+				enviar_tam_pagina(cliente_fd);
 				break;
 			case INICIAR_PROCESO:
 				crear_proceso(cliente_fd);

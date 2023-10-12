@@ -48,7 +48,8 @@ int main(int argc, char* argv[]) {
 
 	if(result_conexion_memoria  == -1){
 		log_error(logger, "No se pudo conectar con el modulo Memoria !!");
-		terminar_programa(logger, config);}
+		terminar_programa(logger, config);
+	}
 
 	log_info(logger, "CPU se conecto con el modulo Memoria correctamente");
 
@@ -70,9 +71,6 @@ int main(int argc, char* argv[]) {
 	pthread_create(&thread_interrupt, NULL, manejar_interrupciones, (void*) cliente_fd);
 
 	pthread_detach(thread_interrupt);
-
-
-	tamano_pagina = obtener_tamanio_pagina();
 
 	//escucho peticiones para puerto dispatch
 	manejar_peticiones_instruccion();
@@ -113,20 +111,21 @@ t_config* iniciar_config(void){
  	socket_memoria = crear_conexion(ip, puerto);
 
  	//enviar handshake
- 	enviar_mensaje("OK", socket_memoria, HANDSHAKE);
+ 	enviar_mensaje("OK", socket_memoria, HANDSHAKE_TAM_MEMORIA);
 
  	op_code cod_op = recibir_operacion(socket_memoria);
- 	if(cod_op != HANDSHAKE){
- 		return -1;	}
-
- 	int size;
- 	char* buffer = recibir_buffer(&size, socket_memoria);
-
-
- 	if(strcmp(buffer, "OK") != 0){
+ 	if(cod_op != HANDSHAKE_TAM_MEMORIA){
  		return -1;
  	}
 
+ 	int size;
+ 	void* buffer = recibir_buffer(&size, socket_memoria);
+
+ 	memcpy(&tamano_pagina, buffer, sizeof(int));
+
+ 	log_info(logger, "se recibio tam pagina: %d", tamano_pagina);
+
+ 	free(buffer);
  	return 0;
  }
 
@@ -376,27 +375,6 @@ t_instruccion *recibir_instruccion_memoria(int program_counter){
 
 	eliminar_paquete(paquete_program_counter);
 	return instruccion;
-}
-
-
-int obtener_tamanio_pagina(){
-	enviar_mensaje("TAMANO_PAGINA", socket_memoria, TAMANO_PAGINA);
-
-	op_code opcode = recibir_operacion(socket_memoria);
-
-	if(opcode != TAMANO_PAGINA){
-		log_error(logger, "No se pudo recibir el tamanio de pagina de memoria! codigo de operacion recibido: %d", opcode);
-		return -1;
-	}
-
-	int size;
-	void* buffer = recibir_buffer(&size, socket_memoria);
-	int tamano_pagina;
-
-	memcpy(&tamano_pagina, buffer, sizeof(int));
-
-	free(buffer);
-	return tamano_pagina;
 }
 
 
