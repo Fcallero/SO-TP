@@ -51,11 +51,11 @@ void crear_contexto_y_enviar_a_CPU(t_pcb* proceso_a_ejecutar){
 	contexto_ejecucion_destroy(contexto_ejecucion);
 }
 
-void planificar_corto_plazo_fifo(){
+void planificar_corto_plazo_fifo() {
 	sem_wait(&despertar_corto_plazo);
 	sem_wait(&m_cola_ready);
 
-	if(queue_size(cola_ready) == 0){
+	if (queue_size(cola_ready) == 0) {
 		sem_post(&m_cola_ready);
 		return;
 	}
@@ -66,18 +66,18 @@ void planificar_corto_plazo_fifo(){
 	sem_wait(&m_proceso_ejecutando);
 	proceso_ejecutando = proceso_a_ejecutar;
 
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_ejecutar->PID, "READY", "EXEC");
+	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s",
+			proceso_a_ejecutar->PID, "READY", "EXEC");
 	sem_post(&m_proceso_ejecutando);
-
 
 	crear_contexto_y_enviar_a_CPU(proceso_a_ejecutar);
 }
 
-void planificar_corto_plazo_prioridades(){
+void planificar_corto_plazo_prioridades() {
 	sem_wait(&despertar_corto_plazo);
 	sem_wait(&m_cola_ready);
 
-	if(queue_size(cola_ready) == 0){
+	if (queue_size(cola_ready) == 0) {
 		sem_post(&m_cola_ready);
 		return;
 	}
@@ -90,21 +90,20 @@ void planificar_corto_plazo_prioridades(){
 
 	sem_wait(&m_proceso_ejecutando);
 	proceso_ejecutando = proceso_a_ejecutar;
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_ejecutar->PID, "READY", "EXEC");
+	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s",
+			proceso_a_ejecutar->PID, "READY", "EXEC");
 	sem_post(&m_proceso_ejecutando);
-
-
 
 	crear_contexto_y_enviar_a_CPU(proceso_a_ejecutar);
 
 }
 
-void planificar_corto_plazo_round_robbin(){
+void planificar_corto_plazo_round_robbin() {
 
 	sem_wait(&despertar_corto_plazo);
 	sem_wait(&m_cola_ready);
 
-	if(queue_size(cola_ready) == 0){
+	if (queue_size(cola_ready) == 0) {
 		sem_post(&m_cola_ready);
 		return;
 	}
@@ -115,7 +114,8 @@ void planificar_corto_plazo_round_robbin(){
 	sem_wait(&m_proceso_ejecutando);
 	proceso_ejecutando = proceso_a_ejecutar;
 
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_ejecutar->PID, "READY", "EXEC");
+	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s",
+			proceso_a_ejecutar->PID, "READY", "EXEC");
 	sem_post(&m_proceso_ejecutando);
 
 	crear_contexto_y_enviar_a_CPU(proceso_a_ejecutar);
@@ -124,8 +124,10 @@ void planificar_corto_plazo_round_robbin(){
 
 	sem_wait(&m_proceso_ejecutando);
 
-	log_info(logger, "PID: %d - Desalojado por fin de Quantum", proceso_a_ejecutar->PID);
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_ejecutar->PID, "EXEC", "READY");
+	log_info(logger, "PID: %d - Desalojado por fin de Quantum",
+			proceso_a_ejecutar->PID);
+	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s",
+			proceso_a_ejecutar->PID, "EXEC", "READY");
 
 	notificar_desalojo_cpu_interrupt();
 
@@ -139,19 +141,24 @@ void planificar_corto_plazo_round_robbin(){
 
 void enviar_contexto_de_ejecucion_a(t_contexto_ejec* contexto_a_ejecutar, op_code opcode, int socket_cliente){
 
-	t_paquete* paquete = crear_paquete(opcode);
+	t_paquete *paquete = crear_paquete(opcode);
 
-	agregar_a_paquete_sin_agregar_tamanio(paquete, &(contexto_a_ejecutar->pid), sizeof(int));
+	agregar_a_paquete_sin_agregar_tamanio(paquete, &(contexto_a_ejecutar->pid),
+			sizeof(int));
 
-	agregar_a_paquete_sin_agregar_tamanio(paquete, &(contexto_a_ejecutar->program_counter), sizeof(int));
+	agregar_a_paquete_sin_agregar_tamanio(paquete,
+			&(contexto_a_ejecutar->program_counter), sizeof(int));
 
-	agregar_a_paquete_sin_agregar_tamanio(paquete,  &(contexto_a_ejecutar->registros_CPU->AX), sizeof(uint32_t));
-	agregar_a_paquete_sin_agregar_tamanio(paquete,  &(contexto_a_ejecutar->registros_CPU->BX), sizeof(uint32_t));
-	agregar_a_paquete_sin_agregar_tamanio(paquete,  &(contexto_a_ejecutar->registros_CPU->CX), sizeof(uint32_t));
-	agregar_a_paquete_sin_agregar_tamanio(paquete,  &(contexto_a_ejecutar->registros_CPU->DX), sizeof(uint32_t));
+	agregar_a_paquete_sin_agregar_tamanio(paquete,
+			&(contexto_a_ejecutar->registros_CPU->AX), sizeof(uint32_t));
+	agregar_a_paquete_sin_agregar_tamanio(paquete,
+			&(contexto_a_ejecutar->registros_CPU->BX), sizeof(uint32_t));
+	agregar_a_paquete_sin_agregar_tamanio(paquete,
+			&(contexto_a_ejecutar->registros_CPU->CX), sizeof(uint32_t));
+	agregar_a_paquete_sin_agregar_tamanio(paquete,
+			&(contexto_a_ejecutar->registros_CPU->DX), sizeof(uint32_t));
 
 	enviar_paquete(paquete, socket_cliente);
-
 
 	eliminar_paquete(paquete);
 }

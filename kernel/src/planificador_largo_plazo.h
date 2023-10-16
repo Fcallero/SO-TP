@@ -1,5 +1,4 @@
 
-
 #ifndef SRC_PLANIFICADOR_LARGO_PLAZO_H_
 #define SRC_PLANIFICADOR_LARGO_PLAZO_H_
 
@@ -30,13 +29,13 @@ extern int socket_memoria;
 extern int socket_fs;
 extern int grado_max_multiprogramacion;
 
-extern t_dictionary* recurso_bloqueado;
-extern t_dictionary* colas_de_procesos_bloqueados_para_cada_archivo;
+extern t_dictionary *recurso_bloqueado;
+extern t_dictionary *colas_de_procesos_bloqueados_para_cada_archivo;
 
-extern t_queue* cola_new;
-extern t_queue* cola_ready;
-extern t_pcb* proceso_ejecutando;
-extern char* algoritmo_planificacion;
+extern t_queue *cola_new;
+extern t_queue *cola_ready;
+extern t_pcb *proceso_ejecutando;
+extern char *algoritmo_planificacion;
 extern int quantum;
 
 extern sem_t m_cola_ready;

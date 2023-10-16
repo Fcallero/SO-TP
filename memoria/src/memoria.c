@@ -1,33 +1,33 @@
 #include "memoria.h"
 
-
 int socket_memoria;
 int socket_fs;
 void* espacio_usuario;
 int tam_pagina;
 
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
 
 	//Declaraciones de variables para config:
 
-	char* ip_filesystem;
-	char* puerto_filesystem;
-	char* puerto_escucha;
+	char *ip_filesystem;
+	char *puerto_filesystem;
+	char *puerto_escucha;
 	int tam_memoria;
 	char* path_instrucciones;
 	int retardo_respuesta;
 	char* algoritmo_reemplazo;
 
-/*------------------------------LOGGER Y CONFIG--------------------------------------------------*/
+	/*------------------------------LOGGER Y CONFIG--------------------------------------------------*/
 
 	// Iniciar archivos de log y configuracion:
-	t_config* config = iniciar_config();
+	t_config *config = iniciar_config();
 	logger = iniciar_logger();
 
 	// Verificacion de creacion archivo config
-	if(config == NULL){
-		log_error(logger, "No fue posible iniciar el archivo de configuracion !!");
+	if (config == NULL) {
+		log_error(logger,
+				"No fue posible iniciar el archivo de configuracion !!");
 		terminar_programa(logger, config);
 	}
 
@@ -48,29 +48,29 @@ int main(int argc, char* argv[]) {
 	// Control archivo configuracion
 	if(!ip_filesystem || !puerto_filesystem || !puerto_escucha || !tam_memoria || !tam_pagina || !path_instrucciones || !retardo_respuesta || !algoritmo_reemplazo){
 
-		log_error(logger, "Error al recibir los datos del archivo de configuracion de la memoria");
+		log_error(logger,
+				"Error al recibir los datos del archivo de configuracion de la memoria");
 		terminar_programa(logger, config);
 	}
 
-/*-------------------------------CONEXIONES MEMORIA---------------------------------------------------------------*/
-
+	/*-------------------------------CONEXIONES MEMORIA---------------------------------------------------------------*/
 
 	// Realizar las conexiones y probarlas
-
 	int result_conexion_fs = conectar_fs(ip_filesystem, puerto_filesystem);
 
-	if(result_conexion_fs == -1){
+	if (result_conexion_fs == -1) {
 		log_error(logger, "No se pudo conectar con el modulo Filesystem !!");
 		terminar_programa(logger, config);
 	}
 
-	log_info(logger, "Memoria se conecto con el modulo Filesystem correctamente");
+	log_info(logger,
+			"Memoria se conecto con el modulo Filesystem correctamente");
 
 	//Esperar conexion de FS
 	socket_memoria = iniciar_servidor(puerto_escucha);
 
 	log_info(logger, "La memoria esta lista para recibir peticiones");
-/*-------------------------------- CREAR STRUCTS -------------------------------*/
+	/*-------------------------------- CREAR STRUCTS -------------------------------*/
 
 	//espacio de usuario
 	espacio_usuario = malloc(tam_memoria);
@@ -82,25 +82,25 @@ int main(int argc, char* argv[]) {
 	manejar_pedidos_memoria(algoritmo_reemplazo,retardo_respuesta,tam_pagina,tam_memoria);
 
 	terminar_programa(logger, config);
-    return 0;
+	return 0;
 } //FIN DEL MAIN
 
 //Iniciar archivo de log y de config
 
-t_log* iniciar_logger(void){
-	t_log* nuevo_logger = log_create("memoria.log", "Memoria", true, LOG_LEVEL_INFO);
+t_log* iniciar_logger(void) {
+	t_log *nuevo_logger = log_create("memoria.log", "Memoria", true,
+			LOG_LEVEL_INFO);
 	return nuevo_logger;
 }
 
-t_config* iniciar_config(void){
-	t_config* nueva_config = config_create("memoria.config");
+t_config* iniciar_config(void) {
+	t_config *nueva_config = config_create("memoria.config");
 	return nueva_config;
 }
 
-
 //Finalizar el programa
 
- void terminar_programa(t_log* logger, t_config* config){
+void terminar_programa(t_log *logger, t_config *config) {
 	log_destroy(logger);
 	config_destroy(config);
 	close(socket_fs);
@@ -108,7 +108,7 @@ t_config* iniciar_config(void){
 }
 
 //conexiones
-int conectar_fs(char* ip, char* puerto){
+int conectar_fs(char *ip, char *puerto) {
 
 	socket_fs = crear_conexion(ip, puerto);
 
@@ -117,15 +117,14 @@ int conectar_fs(char* ip, char* puerto){
 
 	op_code cod_op = recibir_operacion(socket_fs);
 
-	if(cod_op != HANDSHAKE){
+	if (cod_op != HANDSHAKE) {
 		return -1;
 	}
 
 	int size;
-	char* buffer = recibir_buffer(&size, socket_fs);
+	char *buffer = recibir_buffer(&size, socket_fs);
 
-
-	if(strcmp(buffer, "OK") != 0){
+	if (strcmp(buffer, "OK") != 0) {
 		return -1;
 	}
 
@@ -135,11 +134,12 @@ int conectar_fs(char* ip, char* puerto){
 // atiende las peticiones de kernel, cpu y filesystem de forma concurrente
 void manejar_pedidos_memoria(char* algoritmo_reemplazo,int retardo_respuesta,int tam_pagina,int tam_memoria){
 
-	while(1){
+	while (1) {
 		pthread_t thread;
 		uint64_t cliente_fd = (uint64_t) esperar_cliente(socket_memoria);
 
-		t_arg_atender_cliente* argumentos_atender_cliente = malloc(sizeof(t_arg_atender_cliente));
+		t_arg_atender_cliente *argumentos_atender_cliente = malloc(
+				sizeof(t_arg_atender_cliente));
 		argumentos_atender_cliente->cliente_fd = cliente_fd;
 		argumentos_atender_cliente->algoritmo_reemplazo = algoritmo_reemplazo;
 		argumentos_atender_cliente->retardo_respuesta = retardo_respuesta;
@@ -174,8 +174,8 @@ void enviar_tam_pagina(int socket_cliente){
 }
 
 //peticiones de kernel, cpu y filesystem
-void *atender_cliente(void* args){
-	t_arg_atender_cliente* argumentos = (t_arg_atender_cliente*) args;
+void* atender_cliente(void *args) {
+	t_arg_atender_cliente *argumentos = (t_arg_atender_cliente*) args;
 
 	uint64_t cliente_fd = argumentos->cliente_fd;
 	char* algoritmo_reemplazo = argumentos->algoritmo_reemplazo;
@@ -183,7 +183,7 @@ void *atender_cliente(void* args){
 	uint64_t tam_pagina = argumentos->tam_pagina;
 	uint64_t tam_memoria = argumentos->tam_memoria;
 
-	while(1){
+	while (1) {
 		int cod_op = recibir_operacion(cliente_fd);
 
 		switch(cod_op){
@@ -229,21 +229,25 @@ void *atender_cliente(void* args){
 
 //Funciones kernel TODO (luego separar en un include)
 
-void crear_proceso(uint64_t cliente_fd){
-	t_instruccion* instruccion = recibir_instruccion(cliente_fd);
+void crear_proceso(uint64_t cliente_fd) {
+	t_instruccion *instruccion = recibir_instruccion(cliente_fd);
 	log_info(logger, "Instruccion recibida con exito");
 
-	if(instruccion->parametro1_lenght == 0){
+	if (instruccion->parametro1_lenght == 0) {
 		log_info(logger, "Se recibio: %s ", instruccion->opcode);
 
-	} else if(instruccion->parametro2_lenght == 0){
-		log_info(logger, "Se recibio: %s - %s", instruccion->opcode, instruccion->parametros[0]);
+	} else if (instruccion->parametro2_lenght == 0) {
+		log_info(logger, "Se recibio: %s - %s", instruccion->opcode,
+				instruccion->parametros[0]);
 
-	}else if(instruccion->parametro3_lenght == 0){
-		log_info(logger, "Se recibio: %s - %s %s", instruccion->opcode, instruccion->parametros[0], instruccion->parametros[1]);
+	} else if (instruccion->parametro3_lenght == 0) {
+		log_info(logger, "Se recibio: %s - %s %s", instruccion->opcode,
+				instruccion->parametros[0], instruccion->parametros[1]);
 
 	} else {
-		log_info(logger, "Se recibio: %s - %s %s %s",instruccion->opcode, instruccion->parametros[0], instruccion->parametros[1], instruccion->parametros[2]);
+		log_info(logger, "Se recibio: %s - %s %s %s", instruccion->opcode,
+				instruccion->parametros[0], instruccion->parametros[1],
+				instruccion->parametros[2]);
 	}
 
 }

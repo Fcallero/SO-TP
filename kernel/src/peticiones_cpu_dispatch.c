@@ -252,4 +252,30 @@ void desalojar_recursos(int socket_cliente,char** recursos, int* recurso_disponi
 	contexto_ejecucion_destroy(contexto);
 }
 
+void destroy_proceso_ejecutando(){
+
+
+	// destroy tabla de archivos_abiertos del proceso
+	sem_wait(&m_proceso_ejecutando);
+	if(proceso_ejecutando->tabla_archivos_abiertos_del_proceso != NULL){
+		free(proceso_ejecutando->tabla_archivos_abiertos_del_proceso->head);
+		free(proceso_ejecutando->tabla_archivos_abiertos_del_proceso);
+	}
+
+		//Liberar PCB del proceso actual
+		free(proceso_ejecutando->comando);
+		free(proceso_ejecutando->proceso_estado);
+
+		registro_cpu_destroy(proceso_ejecutando->registros_CPU);
+
+
+
+
+
+		free(proceso_ejecutando);
+		proceso_ejecutando = NULL;
+
+		sem_post(&m_proceso_ejecutando);
+}
+
 

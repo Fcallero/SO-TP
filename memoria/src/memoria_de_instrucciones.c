@@ -91,7 +91,7 @@ void enviar_instruccion_a_cpu(int cliente_cpu)
 	agregar_a_paquete(paquete_instruccion,instruccion->parametros[1],instruccion->parametro2_lenght);
 	agregar_a_paquete(paquete_instruccion,instruccion->parametros[2],instruccion->parametro3_lenght);
 
-	esperar_por(/*variable de retardo*/);
+	//esperar_por(/*variable de retardo*/);
 	//envio paquete
 	enviar_paquete(paquete_instruccion,cliente_cpu);
 	// libero memoria

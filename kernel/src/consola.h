@@ -19,11 +19,16 @@
 #include <global/utils_cliente.h>
 #include <global/utils_server.h>
 #include "planificador_largo_plazo.h"
+#include "peticiones_cpu_dispatch.h"
 
 extern sem_t despertar_planificacion_largo_plazo;
-
+extern t_dictionary* colas_de_procesos_bloqueados_para_cada_archivo;
+extern int grado_max_multiprogramacion;
+extern t_pcb* proceso_ejecutando;
 
 void levantar_consola();
+void destroy_proceso_ejecutando();
+void poner_a_ejecutar_otro_proceso();
 
 
 #endif /* SRC_CONSOLA_H_ */
