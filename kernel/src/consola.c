@@ -69,6 +69,8 @@ void iniciar_proceso(t_instruccion* comando){
 
 void finalizar_proceso(){
 	//Liberar recursos, archivos ,memoria y finalizar el proceso por EXIT
+
+
 }
 
 void detener_planificacion(){

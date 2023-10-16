@@ -1,7 +1,7 @@
 #include "memoria_de_instrucciones.h"
+#include "memoria.h"
 
-
-t_list* instruccion;
+t_list* lista_instrucciones;
 
 int leer_pseudo(int cliente_fd){
 
@@ -19,7 +19,7 @@ int leer_pseudo(int cliente_fd){
 	//declaro variables
 
 	char* cadena;
-	t_list* lista_instrucciones = list_create();
+	lista_instrucciones = list_create();
 
 	//leo el pseudocodigo, pongo en la lista
 	while(feof(archivo) == 0)
@@ -65,4 +65,35 @@ int leer_pseudo(int cliente_fd){
 		list_add(lista_instrucciones,ptr_inst);
 	}
 	return 0;
+}
+
+void enviar_instruccion_a_cpu(int cliente_cpu)
+{
+	//recibe el opcode del paquete de cpu
+	int ip;
+	op_code *opcode = recibir_operacion(cliente_cpu);
+	if(opcode != INSTRUCCION)
+	{
+		log_error(logger, "Error de Operacion! codigo de operacion recibido: %d", opcode);
+		return;
+	}
+	t_paquete *paquete = recibir_paquete(cliente_cpu);
+	memcpy(ip,paquete->buffer,sizeof(int));
+
+	//consigo la instruccion
+	t_instruccion *instruccion = list_get(lista_instrucciones,ip);
+
+	//Una vez obtenida la instruccion, creo el paquete y serializo
+	t_paquete *paquete_instruccion = crear_paquete(INSTRUCCION);
+
+	agregar_a_paquete(paquete_instruccion,instruccion->opcode,instruccion->opcode_lenght);
+	agregar_a_paquete(paquete_instruccion,instruccion->parametros[0],instruccion->parametro1_lenght);
+	agregar_a_paquete(paquete_instruccion,instruccion->parametros[1],instruccion->parametro2_lenght);
+	agregar_a_paquete(paquete_instruccion,instruccion->parametros[2],instruccion->parametro3_lenght);
+
+	esperar_por(/*variable de retardo*/);
+	//envio paquete
+	enviar_paquete(paquete_instruccion,cliente_cpu);
+	// libero memoria
+	eliminar_paquete(paquete_instruccion);
 }

@@ -16,4 +16,5 @@
 #include <global/utils_cliente.h>
 #include <global/utils_server.h>
 
+#include "memoria.h"
 #endif
