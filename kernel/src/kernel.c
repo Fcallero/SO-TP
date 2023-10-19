@@ -386,8 +386,6 @@ void* escuchar_peticiones_cpu_dispatch(void *args) {
 					break;
 				case PAGE_FAULT:
 					break;
-				case NUEVO_PROCESO_MEMORIA:
-					break;
 				case FINALIZAR_PROCESO_MEMORIA:
 					break;
 				case READ_MEMORY:

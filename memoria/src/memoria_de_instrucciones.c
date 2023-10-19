@@ -1,12 +1,19 @@
 #include "memoria_de_instrucciones.h"
 #include "memoria.h"
 
-t_list* lista_instrucciones;
+
+
 
 int leer_pseudo(int cliente_fd){
 
-	//recibe el path de la instruccion enviado por kernel por "enviar_mensaje"
-	char* archivo_path= recibir_mensaje(cliente_fd);
+
+	//recibe el path de la instruccion enviado por consola.c
+	t_list* path_y_pid= recibir_path_y_pid(cliente_fd);
+
+	char* archivo_path=list_get(path_y_pid,0);
+	//TODO franco arregla esta conversion!!!
+	uint64_t pid=list_get(path_y_pid,1);
+
 
 	FILE* archivo = fopen(archivo_path,"r");
 
@@ -19,7 +26,7 @@ int leer_pseudo(int cliente_fd){
 	//declaro variables
 
 	char* cadena;
-	lista_instrucciones = list_create();
+	t_list* lista_instrucciones = list_create();
 
 	//leo el pseudocodigo, pongo en la lista
 	while(feof(archivo) == 0)
@@ -64,24 +71,25 @@ int leer_pseudo(int cliente_fd){
 
 		list_add(lista_instrucciones,ptr_inst);
 	}
+
+	dictionary_put(lista_instrucciones_porPID, string_itoa(pid),lista_instrucciones);
+
+	list_destroy(path_y_pid);
 	return 0;
 }
 
-void enviar_instruccion_a_cpu(int cliente_cpu)
+void enviar_instruccion_a_cpu(int cliente_cpu,int retardo_respuesta)
 {
-	//recibe el opcode del paquete de cpu
-	int ip;
-	op_code *opcode = recibir_operacion(cliente_cpu);
-	if(opcode != INSTRUCCION)
-	{
-		log_error(logger, "Error de Operacion! codigo de operacion recibido: %d", opcode);
-		return;
-	}
-	t_paquete *paquete = recibir_paquete(cliente_cpu);
-	memcpy(ip,paquete->buffer,sizeof(int));
 
+	t_list* program_counter_y_pid = recibir_programcounter(cliente_cpu);
+
+	//TODO franco arregla esta conversion!!!
+	uint64_t program_counter=list_get(program_counter_y_pid,0);
+	uint64_t pid=list_get(program_counter_y_pid,1);
+
+	t_list* lista_instrucciones = dictionary_get(lista_instrucciones_porPID,string_itoa(pid));
 	//consigo la instruccion
-	t_instruccion *instruccion = list_get(lista_instrucciones,ip);
+	t_instruccion *instruccion = list_get(lista_instrucciones,program_counter);
 
 	//Una vez obtenida la instruccion, creo el paquete y serializo
 	t_paquete *paquete_instruccion = crear_paquete(INSTRUCCION);
@@ -91,7 +99,8 @@ void enviar_instruccion_a_cpu(int cliente_cpu)
 	agregar_a_paquete(paquete_instruccion,instruccion->parametros[1],instruccion->parametro2_lenght);
 	agregar_a_paquete(paquete_instruccion,instruccion->parametros[2],instruccion->parametro3_lenght);
 
-	//esperar_por(/*variable de retardo*/);
+	esperar_por(retardo_respuesta);
+
 	//envio paquete
 	enviar_paquete(paquete_instruccion,cliente_cpu);
 	// libero memoria

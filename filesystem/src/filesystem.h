@@ -33,11 +33,6 @@ typedef struct{
 	uint64_t cliente_fd;
 }t_arg_atender_cliente;
 
-typedef struct{
-	char* nombre_de_archivo;
-	int tamanio_archivo;
-	int bloque_inicial;
-}t_fcb;
 
 t_config* iniciar_config(void);
 t_log* iniciar_logger(void);

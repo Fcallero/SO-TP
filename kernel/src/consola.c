@@ -64,6 +64,7 @@ void iniciar_proceso(t_instruccion *comando) {
 	//este malloc para evitar el segmentation fault en el envio del contexto de ejecución a cpu
 	pcb_proceso->registros_CPU = malloc(sizeof(registros_CPU));
 
+
 	agregar_cola_new(pcb_proceso);
 
 	sem_post(&despertar_planificacion_largo_plazo);
@@ -93,8 +94,11 @@ void finalizar_proceso(t_instruccion *comando) {
 	}
 
 //TODO revisar si es necesario un mutex
+	//mutex de la variable compartida
+	sem_wait(&m_proceso_ejecutando);
 	if (proceso_ejecutando->PID == pid_buscado) {
 		//Creo mensaje de INT
+		sem_post(&m_proceso_ejecutando);
 		char* mensaje = string_new();
 		char* pid_str = string_itoa(pid_buscado);
 		string_append(&mensaje, "Finalizacion del proceso PID: ");
@@ -124,6 +128,8 @@ void finalizar_proceso(t_instruccion *comando) {
 
 
 	} else {
+		//mutex de la variable compartida
+		sem_post(&m_proceso_ejecutando);
 		//Buscar en cola de ready
 		sem_wait(&m_cola_ready);
 		t_pcb *pcb_a_eliminar = list_find(cola_ready->elements, _encontrar_por_pid);
@@ -265,8 +271,7 @@ void levantar_consola() {
 			proceso_estado();
 
 		} else {
-			log_error(logger,
-					"Comando desconocido campeon, leete la documentacion de nuevo :p");
+			log_error(logger,"Comando desconocido campeon, leete la documentacion de nuevo :p");
 		}
 
 		free(linea);

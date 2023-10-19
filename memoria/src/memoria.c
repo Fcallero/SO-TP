@@ -4,6 +4,7 @@ int socket_memoria;
 int socket_fs;
 void* espacio_usuario;
 int tam_pagina;
+t_tabla_de_paginas* tabla_de_paginas;
 
 
 int main(int argc, char *argv[]) {
@@ -74,7 +75,7 @@ int main(int argc, char *argv[]) {
 
 	//espacio de usuario
 	espacio_usuario = malloc(tam_memoria);
-
+	lista_instrucciones_porPID=dictionary_create();
 	//memoria de instrucciones
 
 
@@ -197,10 +198,10 @@ void* atender_cliente(void *args) {
 				enviar_tam_pagina(cliente_fd);
 				break;
 			case INICIAR_PROCESO:
-				crear_proceso(cliente_fd);
+				 leer_pseudo(cliente_fd);
 				break;
-			case NUEVO_PROCESO_MEMORIA:
-				nuevo_proceso();
+			case INSTRUCCION:
+				enviar_instruccion_a_cpu(cliente_fd,retardo_respuesta);
 				break;
 			case FINALIZAR_PROCESO_MEMORIA:
 				finalizar_proceso();
@@ -229,34 +230,10 @@ void* atender_cliente(void *args) {
 
 //Funciones kernel TODO (luego separar en un include)
 
-void crear_proceso(uint64_t cliente_fd) {
-	t_instruccion *instruccion = recibir_instruccion(cliente_fd);
-	log_info(logger, "Instruccion recibida con exito");
 
-	if (instruccion->parametro1_lenght == 0) {
-		log_info(logger, "Se recibio: %s ", instruccion->opcode);
-
-	} else if (instruccion->parametro2_lenght == 0) {
-		log_info(logger, "Se recibio: %s - %s", instruccion->opcode,
-				instruccion->parametros[0]);
-
-	} else if (instruccion->parametro3_lenght == 0) {
-		log_info(logger, "Se recibio: %s - %s %s", instruccion->opcode,
-				instruccion->parametros[0], instruccion->parametros[1]);
-
-	} else {
-		log_info(logger, "Se recibio: %s - %s %s %s", instruccion->opcode,
-				instruccion->parametros[0], instruccion->parametros[1],
-				instruccion->parametros[2]);
-	}
-
-}
 
 /* Estas mover a otros archivos en un futuro */
 
-void nuevo_proceso(){
-
-}
 
 void finalizar_proceso(int cliente_consola, int server_filesystem){
 	//recibe la orden de la consola de kernel

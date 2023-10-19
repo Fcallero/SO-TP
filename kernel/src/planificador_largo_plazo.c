@@ -29,18 +29,6 @@ void inicializar_colas_y_semaforos(){
 	sem_init(&despertar_planificacion_largo_plazo,0,0);
 }
 
-void aviso_iniciar_estructura_memoria(t_instruccion* comando, op_code code){
-
-	t_paquete *paquete_comando = crear_paquete(code);
-	agregar_a_paquete(paquete_comando, comando->opcode, sizeof(char)*comando->opcode_lenght);
-	agregar_a_paquete(paquete_comando, comando->parametros[0], comando->parametro1_lenght);
-	agregar_a_paquete(paquete_comando, comando->parametros[1], comando->parametro2_lenght);
-	agregar_a_paquete(paquete_comando, comando->parametros[2], comando->parametro3_lenght);
-
-	enviar_paquete(paquete_comando, socket_memoria);
-
-	eliminar_paquete(paquete_comando);
-}
 
 
 char* listar_pids_cola_ready(void){
@@ -82,7 +70,12 @@ void agregar_proceso_a_ready(int conexion_memoria, char* algoritmo_planificacion
 	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_new_a_ready->PID, "NEW", "READY");
 
 	//envio a memoria de instrucciones
-	aviso_iniciar_estructura_memoria(proceso_new_a_ready->comando, NUEVO_PROCESO_MEMORIA);
+	t_paquete* paquete = crear_paquete(INICIAR_PROCESO);
+	agregar_a_paquete(paquete,proceso_new_a_ready->comando->parametros[0],proceso_new_a_ready->comando->parametro1_lenght);
+	agregar_a_paquete_sin_agregar_tamanio(paquete,proceso_new_a_ready->PID,sizeof(int));
+	enviar_paquete(paquete,socket_memoria);
+
+	eliminar_paquete(paquete);
 
 	free(proceso_new_a_ready->comando);//el comando luego no se va a usar, lo libero
 

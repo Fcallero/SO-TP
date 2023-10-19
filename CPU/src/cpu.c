@@ -191,33 +191,23 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 
 		//FETCH
 
-		log_info(logger, "PID: %d - FETCH - Program Counter: %d",
-				contexto_actual->pid, contexto_actual->program_counter);
+		log_info(logger, "PID: %d - FETCH - Program Counter: %d",contexto_actual->pid, contexto_actual->program_counter);
 
-		contexto_actual->instruccion = recibir_instruccion_memoria(
-				contexto_actual->program_counter + 1);
+		contexto_actual->instruccion = recibir_instruccion_memoria(contexto_actual->program_counter + 1,contexto_actual->pid);
 
 		t_instruccion *instruccion = contexto_actual->instruccion;
 
 		if (instruccion->parametro1_lenght == 0) {
-			log_info(logger, "PID: %d - Ejecutando: %s ", contexto_actual->pid,
-					instruccion->opcode);
+			log_info(logger, "PID: %d - Ejecutando: %s ", contexto_actual->pid,instruccion->opcode);
 
 		} else if (instruccion->parametro2_lenght == 0) {
-			log_info(logger, "PID: %d - Ejecutando: %s - %s",
-					contexto_actual->pid, instruccion->opcode,
-					instruccion->parametros[0]);
+			log_info(logger, "PID: %d - Ejecutando: %s - %s",contexto_actual->pid, instruccion->opcode,instruccion->parametros[0]);
 
 		} else if (instruccion->parametro3_lenght == 0) {
-			log_info(logger, "PID: %d - Ejecutando: %s - %s %s",
-					contexto_actual->pid, instruccion->opcode,
-					instruccion->parametros[0], instruccion->parametros[1]);
+			log_info(logger, "PID: %d - Ejecutando: %s - %s %s",contexto_actual->pid, instruccion->opcode,instruccion->parametros[0], instruccion->parametros[1]);
 
 		} else {
-			log_info(logger, "PID: %d - Ejecutando: %s - %s %s %s",
-					contexto_actual->pid, instruccion->opcode,
-					instruccion->parametros[0], instruccion->parametros[1],
-					instruccion->parametros[2]);
+			log_info(logger, "PID: %d - Ejecutando: %s - %s %s %s",contexto_actual->pid, instruccion->opcode,instruccion->parametros[0], instruccion->parametros[1],instruccion->parametros[2]);
 		}
 
 		//DECODE y EXECUTE
@@ -333,41 +323,37 @@ void devolver_a_kernel(t_contexto_ejec *contexto, op_code code,
 
 	t_paquete *paquete_contexto = crear_paquete(code);
 
-	agregar_a_paquete_sin_agregar_tamanio(paquete_contexto, &(contexto->pid),
-			sizeof(int));
+	agregar_a_paquete_sin_agregar_tamanio(paquete_contexto, &(contexto->pid),sizeof(int));
 
-	agregar_a_paquete_sin_agregar_tamanio(paquete_contexto,
-			&(contexto->program_counter), sizeof(int));
+	agregar_a_paquete_sin_agregar_tamanio(paquete_contexto,&(contexto->program_counter), sizeof(int));
 
-	agregar_a_paquete_sin_agregar_tamanio(paquete_contexto,
-			&(contexto->registros_CPU->AX), sizeof(uint32_t));
-	agregar_a_paquete_sin_agregar_tamanio(paquete_contexto,
-			&(contexto->registros_CPU->BX), sizeof(uint32_t));
-	agregar_a_paquete_sin_agregar_tamanio(paquete_contexto,
-			&(contexto->registros_CPU->CX), sizeof(uint32_t));
-	agregar_a_paquete_sin_agregar_tamanio(paquete_contexto,
-			&(contexto->registros_CPU->DX), sizeof(uint32_t));
+	agregar_a_paquete_sin_agregar_tamanio(paquete_contexto,&(contexto->registros_CPU->AX), sizeof(uint32_t));
 
-	agregar_a_paquete(paquete_contexto, contexto->instruccion->opcode,
-			sizeof(contexto->instruccion->opcode_lenght));
-	agregar_a_paquete(paquete_contexto, contexto->instruccion->parametros[0],
-			sizeof(contexto->instruccion->parametro1_lenght));
-	agregar_a_paquete(paquete_contexto, contexto->instruccion->parametros[1],
-			sizeof(contexto->instruccion->parametro2_lenght));
-	agregar_a_paquete(paquete_contexto, contexto->instruccion->parametros[2],
-			sizeof(contexto->instruccion->parametro3_lenght));
+	agregar_a_paquete_sin_agregar_tamanio(paquete_contexto,&(contexto->registros_CPU->BX), sizeof(uint32_t));
+
+	agregar_a_paquete_sin_agregar_tamanio(paquete_contexto,&(contexto->registros_CPU->CX), sizeof(uint32_t));
+
+	agregar_a_paquete_sin_agregar_tamanio(paquete_contexto,&(contexto->registros_CPU->DX), sizeof(uint32_t));
+
+	agregar_a_paquete(paquete_contexto, contexto->instruccion->opcode,sizeof(contexto->instruccion->opcode_lenght));
+
+	agregar_a_paquete(paquete_contexto, contexto->instruccion->parametros[0],sizeof(contexto->instruccion->parametro1_lenght));
+
+	agregar_a_paquete(paquete_contexto, contexto->instruccion->parametros[1],sizeof(contexto->instruccion->parametro2_lenght));
+
+	agregar_a_paquete(paquete_contexto, contexto->instruccion->parametros[2],sizeof(contexto->instruccion->parametro3_lenght));
 
 	enviar_paquete(paquete_contexto, socket_cliente);
 
 	eliminar_paquete(paquete_contexto); 
 }
 
-t_instruccion* recibir_instruccion_memoria(int program_counter) {
+t_instruccion* recibir_instruccion_memoria(int program_counter,int pid) {
 
 	t_paquete *paquete_program_counter = crear_paquete(INSTRUCCION);
 
-	agregar_a_paquete_sin_agregar_tamanio(paquete_program_counter,
-			&program_counter, sizeof(int));
+	agregar_a_paquete_sin_agregar_tamanio(paquete_program_counter,&program_counter, sizeof(int));
+	agregar_a_paquete_sin_agregar_tamanio(paquete_program_counter,&pid, sizeof(int));
 
 	enviar_paquete(paquete_program_counter, socket_memoria);
 
