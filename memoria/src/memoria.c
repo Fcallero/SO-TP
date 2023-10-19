@@ -258,7 +258,26 @@ void nuevo_proceso(){
 
 }
 
-void finalizar_proceso(){
+void finalizar_proceso(int cliente_consola, int server_filesystem){
+	//recibe la orden de la consola de kernel
+
+	/*op_code opcode = recibir_operacion(cliente_consola);
+	if(opcode != FINALIZAR_PROCESO_MEMORIA)
+	{
+		log_error(logger, "Error de Operacion! codigo de operacion recibido: %d", opcode);
+	}
+
+	t_paquete *paquete = recibir_paquete(cliente_consola);
+	int pid;
+	memcpy(pid,paquete->buffer,sizeof(int));
+
+	free(pcb_a_eliminar);
+	//
+
+	//mando a filesystem
+	enviar_mensaje("Marcar como libre las paginas correspondiente del SWAP", server_filesystem,FINALIZAR_PROCESO_FS);
+
+	*/
 
 }
 
