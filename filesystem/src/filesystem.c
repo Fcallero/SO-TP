@@ -2,6 +2,9 @@
 
 int socket_memoria;
 int socket_fs;
+FILE* fat;
+t_bitarray* bitarray_bloques_libres;
+FILE* bloques;
 
 int main(int argc, char* argv[]) {
 	//Declaraciones de variables para config:
@@ -62,13 +65,34 @@ int main(int argc, char* argv[]) {
 //			log_error(logger, "No se pudo conectar con el modulo Memoria !!");
 //			terminar_programa(logger, config);
 //		}
-//
 //		log_info(logger, "El Filesystem se conecto con el modulo Memoria correctamente");
 
 		//Esperar conexion de Kernel
 		socket_fs = iniciar_servidor(puerto_escucha);
 
 		log_info(logger, "Filesystem esta listo para recibir peticiones");
+
+		//Levantar estructuras de FS
+		int tamanio_fat = (cant_bloques_total - cant_bloques_swap) * sizeof(uint32_t);
+		fat = levantar_archivo_binario(path_fat);
+
+		//Truncar fat para que tenga el tamaño correcto
+
+		//trunco el archivo para que tenga el tamaño del bitmap
+		int fat_fd = fileno(fat);
+		ftruncate(fat_fd, tamanio_fat);
+
+		//	osea si modifico algo en el bits_bitmap, tambien se moficica en el archivo
+		char* bits_fat = mmap(NULL, tamanio_fat, PROT_WRITE, MAP_SHARED, fat_fd, 0);
+
+		bitarray_bloques_libres = bitarray_create_with_mode(bits_fat, tamanio_fat, MSB_FIRST);
+
+		bloques = levantar_archivo_binario(path_bloques);
+
+		int bloques_fd = fileno(bloques);
+
+		ftruncate(bloques_fd, tam_bloque);
+
 //manejar_peticiones_kernel(logger, socket_fs, socket_memoria, bloques, superbloque);
 		manejar_peticiones();
 
@@ -98,6 +122,22 @@ t_config* iniciar_config(void){
 	close(socket_fs);
  }
 
+ // levanta un archivo binario en base al path que recibe y lo devuelve
+ // si no existe lo crea
+ FILE* levantar_archivo_binario(char* path_archivo){
+
+ 	FILE* archivo = fopen(path_archivo, "ab+");
+
+ 	archivo = freopen(path_archivo, "rb+", archivo);
+
+
+ 	if(archivo == NULL){
+ 		log_error(logger, "No existe el archivo con el path: %s",path_archivo);
+ 		return NULL;
+ 	}
+
+ 	return archivo;
+ }
 
  // conexiones
 int conectar_memoria(char* ip, char* puerto){
