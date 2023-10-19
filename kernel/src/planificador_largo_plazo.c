@@ -142,9 +142,10 @@ int calcular_procesos_en_memoria(int procesos_en_ready){
 
 void *planificar_nuevos_procesos_largo_plazo(void *arg){
 
-	sem_wait(&despertar_planificacion_largo_plazo);
+
 
 	while(1){
+		sem_wait(&despertar_planificacion_largo_plazo);
 		sem_wait(&m_cola_ready);
 		int tamanio_cola_ready = queue_size(cola_ready);
 		sem_post(&m_cola_ready);
