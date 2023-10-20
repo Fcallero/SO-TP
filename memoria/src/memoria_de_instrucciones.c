@@ -4,24 +4,27 @@
 
 
 
-int leer_pseudo(int cliente_fd){
-
+void leer_pseudo(int cliente_fd){
 
 	//recibe el path de la instruccion enviado por consola.c
-	t_list* path_y_pid= recibir_path_y_pid(cliente_fd);
+	char* archivo_path;
+	int pid;
 
-	char* archivo_path=list_get(path_y_pid,0);
-	//TODO franco arregla esta conversion!!!
-	uint64_t pid=list_get(path_y_pid,1);
+	recibir_path_y_pid(cliente_fd, &archivo_path, &pid);
 
 
-	FILE* archivo = fopen(archivo_path,"r");
+	char* path = string_new();
+	string_append(&path, path_instrucciones);
+	string_append(&path, "/");
+	string_append(&path, archivo_path);
+
+	FILE* archivo = fopen(path,"r");
 
 	//comprobar si el archivo existe
 	if(archivo == NULL){
-			log_error(logger, "Error en la apertura del archivo.");
-			return 1;
-		}
+		log_error(logger, "Error en la apertura del archivo.");
+		return;
+	}
 
 	//declaro variables
 
@@ -31,17 +34,32 @@ int leer_pseudo(int cliente_fd){
 	//leo el pseudocodigo, pongo en la lista
 	while(feof(archivo) == 0)
 	{
+
 		cadena = malloc(30);
 		char *resultado_cadena = fgets(cadena, 30, archivo);
+
+
 
 		//si el char esta vacio, hace break.
 		if(resultado_cadena == NULL)
 		{
+			log_error(logger, "No encontre el archivo o esta vacio");
 			break;
 		}
 
-		// se interpreta que no tiene "/n"
+		// se borra los '\n'
+		if(string_contains(cadena, "\n")){
+			char** array_de_cadenas = string_split(cadena, "\n");
 
+			cadena = string_array_pop(array_de_cadenas);
+
+
+			while(strcmp(cadena, "") == 0){
+				cadena = string_array_pop(array_de_cadenas);
+			}
+
+			string_array_destroy(array_de_cadenas);
+		}
 
 		/*ya tengo la linea del codigo, ahora tengo que separarlos en opcode
 		y los parametros. Esta dividido por un espacio*/
@@ -50,9 +68,15 @@ int leer_pseudo(int cliente_fd){
 		t_instruccion *ptr_inst = malloc(sizeof(t_instruccion));
 
 		//leo el opcode
-		char* token = strtok(resultado_cadena," ");
+		char* token = strtok(cadena," ");
 		ptr_inst->opcode = token;
+
 		ptr_inst->opcode_lenght = string_length(ptr_inst->opcode);
+
+
+		ptr_inst->parametros[0] = NULL;
+		ptr_inst->parametros[1] = NULL;
+		ptr_inst->parametros[2] = NULL;
 
 		//leo parametros
 		token = strtok(NULL, " ");
@@ -63,33 +87,53 @@ int leer_pseudo(int cliente_fd){
 			token = strtok(NULL, " ");
 			n++;
 		}
-		ptr_inst->parametro1_lenght = string_length(ptr_inst->parametros[0]);
-		ptr_inst->parametro2_lenght = string_length(ptr_inst->parametros[1]);
-		ptr_inst->parametro3_lenght = string_length(ptr_inst->parametros[2]);
+
+		if(ptr_inst->parametros[0] != NULL){
+			ptr_inst->parametro1_lenght = strlen(ptr_inst->parametros[0])+1;
+		} else {
+			ptr_inst->parametro1_lenght = 0;
+		}
+		if(ptr_inst->parametros[1] != NULL){
+			ptr_inst->parametro2_lenght = strlen(ptr_inst->parametros[1])+1;
+		} else {
+			ptr_inst->parametro2_lenght = 0;
+		}
+		if(ptr_inst->parametros[2] != NULL){
+			ptr_inst->parametro3_lenght = strlen(ptr_inst->parametros[2])+1;
+		} else {
+			ptr_inst->parametro3_lenght = 0;
+		}
 
 		//ya el t_instruccion esta completo, hay que agregarlo en la cola
 
 		list_add(lista_instrucciones,ptr_inst);
+
 	}
 
 	dictionary_put(lista_instrucciones_porPID, string_itoa(pid),lista_instrucciones);
 
-	list_destroy(path_y_pid);
-	return 0;
+	enviar_mensaje("ok", cliente_fd, INICIAR_PROCESO);
+
+	free(path);
+	fclose(archivo);
 }
 
 void enviar_instruccion_a_cpu(int cliente_cpu,int retardo_respuesta)
 {
 
-	t_list* program_counter_y_pid = recibir_programcounter(cliente_cpu);
+	int program_counter ;
+	int pid ;
 
-	//TODO franco arregla esta conversion!!!
-	uint64_t program_counter=list_get(program_counter_y_pid,0);
-	uint64_t pid=list_get(program_counter_y_pid,1);
+	recibir_programcounter(cliente_cpu, &pid, &program_counter);
 
 	t_list* lista_instrucciones = dictionary_get(lista_instrucciones_porPID,string_itoa(pid));
+
+	if(lista_instrucciones == NULL){
+		log_error(logger, "No encontre lista de instrucciones despues de leer el pseudocodigo");
+	}
+
 	//consigo la instruccion
-	t_instruccion *instruccion = list_get(lista_instrucciones,program_counter);
+	t_instruccion *instruccion = list_get(lista_instrucciones,program_counter-1);
 
 	//Una vez obtenida la instruccion, creo el paquete y serializo
 	t_paquete *paquete_instruccion = crear_paquete(INSTRUCCION);

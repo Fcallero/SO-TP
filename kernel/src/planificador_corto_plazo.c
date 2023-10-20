@@ -81,10 +81,12 @@ void planificar_corto_plazo_prioridades() {
 		sem_post(&m_cola_ready);
 		return;
 	}
+	sem_post(&m_cola_ready);
 
 	reordenar_cola_ready_prioridades();
 
 	//saca el de mayor prioridad
+	sem_wait(&m_cola_ready);
 	t_pcb *proceso_a_ejecutar = queue_pop(cola_ready);
 	sem_post(&m_cola_ready);
 

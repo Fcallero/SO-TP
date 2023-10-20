@@ -134,6 +134,8 @@ int main(int argc, char *argv[]) {
 	recurso_bloqueado = dictionary_create();
 	colas_de_procesos_bloqueados_para_cada_archivo = dictionary_create();
 
+	proceso_ejecutando = NULL;
+
 	void _iterar_recursos(char *nombre_recurso) {
 		t_queue *cola_bloqueados = queue_create();
 

@@ -408,51 +408,44 @@ void registro_cpu_destroy(registros_CPU* registro){
 }
 
 
-t_list* recibir_programcounter(int socket_cliente)
-{
+void recibir_programcounter(int socket_cliente, int *pid,int* program_counter ){
 	int size;
 	int desplazamiento = 0;
 	void * buffer;
-	t_list* valores = list_create();
-	int pid;
-	int program_counter;
+
 	buffer = recibir_buffer(&size, socket_cliente);
 	while(desplazamiento < size)
 	{
-		memcpy(&program_counter, buffer + desplazamiento, sizeof(int));
+		memcpy(program_counter, buffer + desplazamiento, sizeof(int));
 		desplazamiento+=sizeof(int);
-		list_add(valores, program_counter);
 
-		memcpy(&pid, buffer+desplazamiento, sizeof(int));
-		list_add(valores, pid);
+		memcpy(pid, buffer+desplazamiento, sizeof(int));
 		desplazamiento+=sizeof(int);
 	}
 	free(buffer);
-	return valores;
+
 }
 
 
-t_list* recibir_path_y_pid(int socket_cliente)
+void recibir_path_y_pid(int socket_cliente, char **path, int *pid)
 {
 	int size;
 	int desplazamiento = 0;
 	void * buffer;
-	t_list* valores = list_create();
 	int tamanio;
-	int pid;
+
 	buffer = recibir_buffer(&size, socket_cliente);
 	while(desplazamiento < size)
 	{
 		memcpy(&tamanio, buffer + desplazamiento, sizeof(int));
 		desplazamiento+=sizeof(int);
-		char* path = malloc(tamanio);
-		memcpy(path, buffer+desplazamiento, tamanio);
+		*path = malloc(tamanio);
+
+		memcpy(*path, buffer+desplazamiento, tamanio);
 		desplazamiento+=tamanio;
-		list_add(valores, path);
-		memcpy(&pid, buffer+desplazamiento, sizeof(int));
-		list_add(valores, pid);
+
+		memcpy(pid, buffer+desplazamiento, sizeof(int));
 		desplazamiento+=sizeof(int);
 	}
 	free(buffer);
-	return valores;
 }

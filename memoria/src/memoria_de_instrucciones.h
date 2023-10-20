@@ -18,7 +18,9 @@
 
 #include "memoria.h"
 
+extern char * path_instrucciones;
+
 void enviar_instruccion_a_cpu(int cliente_cpu,int retardo_respuesta);
-int leer_pseudo(int cliente_fd);
+void leer_pseudo(int cliente_fd);
 
 #endif

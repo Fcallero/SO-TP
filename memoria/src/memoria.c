@@ -5,7 +5,7 @@ int socket_fs;
 void* espacio_usuario;
 int tam_pagina;
 t_tabla_de_paginas* tabla_de_paginas;
-
+char* path_instrucciones;
 
 int main(int argc, char *argv[]) {
 
@@ -15,7 +15,6 @@ int main(int argc, char *argv[]) {
 	char *puerto_filesystem;
 	char *puerto_escucha;
 	int tam_memoria;
-	char* path_instrucciones;
 	int retardo_respuesta;
 	char* algoritmo_reemplazo;
 

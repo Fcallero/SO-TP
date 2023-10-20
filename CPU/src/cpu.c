@@ -193,7 +193,7 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 
 		log_info(logger, "PID: %d - FETCH - Program Counter: %d",contexto_actual->pid, contexto_actual->program_counter);
 
-		contexto_actual->instruccion = recibir_instruccion_memoria(contexto_actual->program_counter + 1,contexto_actual->pid);
+		contexto_actual->instruccion = recibir_instruccion_memoria(contexto_actual->program_counter,contexto_actual->pid);
 
 		t_instruccion *instruccion = contexto_actual->instruccion;
 

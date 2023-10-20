@@ -10,11 +10,12 @@ int grado_max_multiprogramacion;
 t_instruccion* armar_comando(char *cadena) {
 
 	t_instruccion *comando = malloc(sizeof(t_instruccion));
-	string_to_upper(cadena); //paso la cadena a mayuscula
+
 
 	char *token = strtok(cadena, " "); // obtiene el primer elemento en token
-
+	string_to_upper(token); //paso la cadena a mayuscula
 	comando->opcode = token;
+
 
 	token = strtok(NULL, " "); // avanza al segundo elemento
 	int i = 0; // Variable local utilizada para cargar el array de parametros
@@ -55,6 +56,7 @@ void iniciar_proceso(t_instruccion *comando) {
 
 	pcb_proceso->PID = rand() % 10000;
 	pcb_proceso->program_counter = 1;
+	pcb_proceso->proceso_estado = malloc(8);
 	strcpy(pcb_proceso->proceso_estado, "NEW");
 	pcb_proceso->tiempo_llegada_ready = 0;
 	pcb_proceso->prioridad = atoi(comando->parametros[2]);
@@ -162,8 +164,7 @@ void finalizar_proceso(t_instruccion *comando) {
 					sem_post(&m_cola_de_procesos_bloqueados_para_cada_archivo);
 					sem_post(&despertar_corto_plazo);
 				} else {
-					printf(
-							"No se encontro ningun proceso con el PID indicado\n");
+					log_info(logger,"No se encontro ningun proceso con el PID indicado\n");
 				}
 			}
 
@@ -175,7 +176,7 @@ void finalizar_proceso(t_instruccion *comando) {
 void detener_planificacion() {
 	//Se detiene la planificacion de largo y corto plazo (el proceso en EXEC continua hasta salir) (si se encuentrand detenidos ignorar)
 	if(planificacion_detenida == true){
-		printf("La planificacion ya se encuentra detenida");
+		log_info(logger, "La planificacion ya se encuentra detenida");
 	}else{
 		sem_wait(&despertar_planificacion_largo_plazo);
 		sem_wait(&despertar_corto_plazo);
@@ -186,7 +187,7 @@ void detener_planificacion() {
 void iniciar_planificacion() {
 	//Reanudar los planificadores (si no se encuentran detenidos ignorar)
 	if(planificacion_detenida == false){
-		printf("La planificacion ya se encuentra activa");
+		log_info(logger, "La planificacion ya se encuentra activa");
 	}else{
 		sem_post(&despertar_planificacion_largo_plazo);
 		sem_post(&despertar_corto_plazo);
@@ -199,29 +200,29 @@ void multiprogramacion(t_instruccion* comando) {
 	//Modificar el grado de multiprogramacion (no desalojar procesos)
 	int nuevo_grado_multiprogramacion = (long)comando->parametros[0];
 	if (grado_max_multiprogramacion == nuevo_grado_multiprogramacion){
-		printf("El grado de multiprogramacion actual ya es %d", grado_max_multiprogramacion);
+		log_info(logger, "El grado de multiprogramacion actual ya es %d", grado_max_multiprogramacion);
 	}else if (grado_max_multiprogramacion != nuevo_grado_multiprogramacion){
-		printf("Cambiando grado de multiprogramacion de: %d a %d", grado_max_multiprogramacion, nuevo_grado_multiprogramacion);
+		log_info(logger, "Cambiando grado de multiprogramacion de: %d a %d", grado_max_multiprogramacion, nuevo_grado_multiprogramacion);
 		grado_max_multiprogramacion = nuevo_grado_multiprogramacion;
 
 		sem_post(&despertar_planificacion_largo_plazo);
 	}else{
-		printf("Se produjo un error al recibir el comando, por favor verificar");
+		log_info(logger, "Se produjo un error al recibir el comando, por favor verificar");
 	}
 }
 void proceso_estado() {
 	//Listara por consola todos los estados y los procesos que se encuentran dentro de ellos
-	printf("Lista de todos los procesos del sistema y su respectivo estado:");
+	log_info(logger, "Lista de todos los procesos del sistema y su respectivo estado:");
 
 	sem_wait(&m_proceso_ejecutando);
-	printf("PID: %d ESTADO: %s \n", proceso_ejecutando->PID, proceso_ejecutando->proceso_estado);
+	log_info(logger, "PID: %d ESTADO: %s \n", proceso_ejecutando->PID, proceso_ejecutando->proceso_estado);
 	sem_post(&m_proceso_ejecutando);
 
 	sem_wait(&m_cola_ready);
 	int tamanio_cola_ready = queue_size(cola_ready);
 	for(int i = 0; i< tamanio_cola_ready; i++){
 		t_pcb* pcb = list_get(cola_ready->elements,i);
-		printf("PID: %d ESTADO: %s \n", pcb->PID, pcb->proceso_estado);
+		log_info(logger, "PID: %d ESTADO: %s \n", pcb->PID, pcb->proceso_estado);
 	}
 	sem_post(&m_cola_ready);
 
@@ -229,7 +230,7 @@ void proceso_estado() {
 	int tamanio_cola_new = queue_size(cola_new);
 	for(int i = 0; i< tamanio_cola_new; i++){
 		t_pcb* pcb = list_get(cola_new->elements,i);
-		printf("PID: %d ESTADO: %s \n", pcb->PID, pcb->proceso_estado);
+		log_info(logger, "PID: %d ESTADO: %s \n", pcb->PID, pcb->proceso_estado);
 	}
 	sem_post(&m_cola_ready);
 
@@ -238,7 +239,7 @@ void proceso_estado() {
 	int tamanio_cola_bloqueados = list_size(procesos_bloqueados);
 	for(int i = 0; i< tamanio_cola_bloqueados; i++){
 		t_pcb* pcb = list_get(procesos_bloqueados,i);
-		printf("PID: %d ESTADO: %s \n", pcb->PID, pcb->proceso_estado);
+		log_info(logger, "PID: %d ESTADO: %s \n", pcb->PID, pcb->proceso_estado);
 	}
 	sem_post(&m_cola_de_procesos_bloqueados_para_cada_archivo);
 }
