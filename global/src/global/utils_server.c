@@ -394,10 +394,6 @@ void instruccion_destroy(t_instruccion* instruccion){
 
 void contexto_ejecucion_destroy(t_contexto_ejec* contexto_ejecucion){
 
-	instruccion_destroy(contexto_ejecucion->instruccion);
-
-	free(contexto_ejecucion->registros_CPU);
-
 	free(contexto_ejecucion);
 }
 

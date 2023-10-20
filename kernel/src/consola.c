@@ -20,6 +20,10 @@ t_instruccion* armar_comando(char *cadena) {
 	token = strtok(NULL, " "); // avanza al segundo elemento
 	int i = 0; // Variable local utilizada para cargar el array de parametros
 
+	comando->parametros[0] = NULL;
+	comando->parametros[1] = NULL;
+	comando->parametros[2] = NULL;
+
 	while (token != NULL) { //Ingresa si el parametro no es NULL
 
 		comando->parametros[i] = token; //Carga el parametro en el array de la struct
@@ -249,8 +253,7 @@ void proceso_estado() {
 void levantar_consola() {
 	while (1) {
 		char *linea = readline(">");
-		t_instruccion *comando = malloc(sizeof(t_instruccion));
-		comando = armar_comando(linea);
+		t_instruccion *comando = armar_comando(linea);
 		parametros_lenght(comando);
 
 		if (strcmp(comando->opcode, "INICIAR_PROCESO") == 0) {

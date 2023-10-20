@@ -56,7 +56,7 @@ char* listar_pids_cola_ready(void){
 
 	char* string_pids = pasar_a_string(array_pids);
 
-	string_array_destroy(array_pids);
+	//string_array_destroy(array_pids);
 
 	return string_pids ;
 }
@@ -71,20 +71,23 @@ void agregar_proceso_a_ready(int conexion_memoria, char* algoritmo_planificacion
 
 	//envio a memoria de instrucciones
 	t_paquete* paquete = crear_paquete(INICIAR_PROCESO);
-	agregar_a_paquete(paquete,proceso_new_a_ready->comando->parametros[0],proceso_new_a_ready->comando->parametro1_lenght);
+
+	agregar_a_paquete(paquete, proceso_new_a_ready->comando->parametros[0],proceso_new_a_ready->comando->parametro1_lenght);
 	agregar_a_paquete_sin_agregar_tamanio(paquete,&(proceso_new_a_ready->PID),sizeof(int));
 	enviar_paquete(paquete,socket_memoria);
 
 	eliminar_paquete(paquete);
 
+	/*
 	op_code operacion_code = recibir_operacion(socket_memoria);
 
-	if(operacion_code != INICIAR_PROCESO){
+	if(operacion_code == INICIAR_PROCESO){
 		char* mensaje = recibir_mensaje(socket_memoria);
 	} else {
 		log_error(logger, "no pude iniciar el proceso en memoria");
 	}
 
+	*/
 	free(proceso_new_a_ready->comando);//el comando luego no se va a usar, lo libero
 
 

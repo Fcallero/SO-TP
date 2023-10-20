@@ -263,7 +263,6 @@ void destroy_proceso_ejecutando(){
 	}
 
 		//Liberar PCB del proceso actual
-		free(proceso_ejecutando->comando);
 		free(proceso_ejecutando->proceso_estado);
 
 		registro_cpu_destroy(proceso_ejecutando->registros_CPU);
@@ -279,3 +278,27 @@ void destroy_proceso_ejecutando(){
 }
 
 
+void finalinzar_proceso(int socket_cliente){
+	t_contexto_ejec* contexto = recibir_contexto_de_ejecucion(socket_cliente);
+
+	sem_wait(&m_proceso_ejecutando);
+	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_ejecutando->PID, "EXEC","EXIT");
+
+	/* TODO pedir eliminar proceso memoria
+	t_paquete *paquete = crear_paquete(FINALIZAR_PROCESO_MEMORIA);
+	agregar_a_paquete_sin_agregar_tamanio(paquete,&(proceso_ejecutando->PID),sizeof(int));
+	enviar_paquete(paquete,socket_memoria);
+	eliminar_paquete(paquete);
+	*/
+	sem_post(&m_proceso_ejecutando);
+
+
+	sem_wait(&m_proceso_ejecutando);
+	log_info(logger, "Finaliza el proceso %d - Motivo: SUCCESS", proceso_ejecutando->PID);
+	sem_post(&m_proceso_ejecutando);
+
+	destroy_proceso_ejecutando();
+	contexto_ejecucion_destroy(contexto);
+
+	poner_a_ejecutar_otro_proceso();
+}

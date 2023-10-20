@@ -112,7 +112,7 @@ void leer_pseudo(int cliente_fd){
 
 	dictionary_put(lista_instrucciones_porPID, string_itoa(pid),lista_instrucciones);
 
-	enviar_mensaje("ok", cliente_fd, INICIAR_PROCESO);
+//	enviar_mensaje("ok", cliente_fd, INICIAR_PROCESO);
 
 	free(path);
 	fclose(archivo);

@@ -28,7 +28,7 @@
 
 
 typedef struct{
-	uint64_t cliente_fd;
+	int cliente_fd;
 }t_args_manejar_peticiones_modulos;
 
 void* manejar_peticiones_modulos(void* args);

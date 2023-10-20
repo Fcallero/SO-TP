@@ -160,6 +160,7 @@ int main(int argc, char *argv[]) {
 			sizeof(t_args_manejar_peticiones_modulos));
 
 	args_dispatch->cliente_fd = socket_cpu_dispatch;
+
 	args_interrupt->cliente_fd = socket_cpu_interrupt;
 	args_memoria->cliente_fd = socket_memoria;
 	args_filesystem->cliente_fd = socket_fs;
@@ -314,8 +315,8 @@ int conectar_cpu_interrupt(char *ip, char *puerto) {
 
 //aca se maneja las peticiones de todos los modulos menos los de CPU
 void* manejar_peticiones_modulos(void *args) {
-
-	uint64_t cliente_fd = (uint64_t) args;
+	t_args_manejar_peticiones_modulos * args_hilo = (t_args_manejar_peticiones_modulos *) args;
+	int cliente_fd = args_hilo->cliente_fd; 
 
 	while (1) {
 
@@ -332,7 +333,7 @@ void* manejar_peticiones_modulos(void *args) {
 				log_error(logger, "El cliente se desconecto. Terminando servidor");
 				return NULL;
 			default:
-				log_warning(logger, "Operacion desconocida. No quieras meter la pata");
+				log_warning(logger, "Operacion desconocida. No quieras meter la pata, cod_op modulos: %d", cod_op);
 				break;
 		}
 	}
@@ -342,20 +343,21 @@ void* manejar_peticiones_modulos(void *args) {
 
 void* escuchar_peticiones_cpu_dispatch(void *args) {
 
-	uint64_t cliente_fd = (uint64_t) args;
+	t_args_manejar_peticiones_modulos * arg_hilo = (t_args_manejar_peticiones_modulos *) args;
+	int cliente_fd = arg_hilo->cliente_fd;
 	int cantidad_de_recursos = string_array_size(instancias_recursos);
 
 	while(1){
 		int cod_op = recibir_operacion(cliente_fd);
 
 			switch (cod_op) {
-				case MENSAJE:
-					break;
 				case HANDSHAKE:
+					recibir_handshake(cliente_fd);
 					break;
 				case CREAR_PROCESO:
 					break;
 				case FINALIZAR_PROCESO:
+					finalinzar_proceso(cliente_fd);
 					break;
 				case BLOQUEAR_PROCESO:
 					break;
