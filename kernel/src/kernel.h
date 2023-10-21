@@ -26,6 +26,7 @@
 #include "planificador_corto_plazo.h"
 #include "consola.h"
 
+extern sem_t memoria_lista;
 
 typedef struct{
 	int cliente_fd;

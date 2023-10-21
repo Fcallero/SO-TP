@@ -182,8 +182,8 @@ void detener_planificacion() {
 	if(planificacion_detenida == true){
 		log_info(logger, "La planificacion ya se encuentra detenida");
 	}else{
-		sem_wait(&despertar_planificacion_largo_plazo);
-		sem_wait(&despertar_corto_plazo);
+		pthread_mutex_lock(&m_planificador_largo_plazo);
+		pthread_mutex_lock(&m_planificador_corto_plazo);
 		planificacion_detenida = true;
 	}
 }
@@ -193,8 +193,8 @@ void iniciar_planificacion() {
 	if(planificacion_detenida == false){
 		log_info(logger, "La planificacion ya se encuentra activa");
 	}else{
-		sem_post(&despertar_planificacion_largo_plazo);
-		sem_post(&despertar_corto_plazo);
+		pthread_mutex_unlock(&m_planificador_largo_plazo);
+		pthread_mutex_unlock(&m_planificador_corto_plazo);
 		planificacion_detenida = false;
 	}
 }
@@ -253,6 +253,12 @@ void proceso_estado() {
 void levantar_consola() {
 	while (1) {
 		char *linea = readline(">");
+
+		//es para que guarde un historial de los comandos y poder usar las flechas
+		if(linea){
+			add_history(linea);
+		}
+
 		t_instruccion *comando = armar_comando(linea);
 		parametros_lenght(comando);
 

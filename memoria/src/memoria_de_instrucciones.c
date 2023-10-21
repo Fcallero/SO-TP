@@ -2,8 +2,6 @@
 #include "memoria.h"
 
 
-
-
 void leer_pseudo(int cliente_fd){
 
 	//recibe el path de la instruccion enviado por consola.c
@@ -18,11 +16,24 @@ void leer_pseudo(int cliente_fd){
 	string_append(&path, "/");
 	string_append(&path, archivo_path);
 
+	//INICIAR_PROCESO PLANI_1 64 1
+
+	if(string_contains(path, "./")){
+		char* buffer = malloc(100*sizeof(char));
+		getcwd(buffer, 100); // --> obtiene el path absoluto de "./" y lo guarda en buffer
+		string_append(&buffer, "/"); // como no incluye el / se lo agrego aca
+		path = string_replace(path, "./", buffer);
+	}else if(string_contains(path, "~/")){
+		path = string_replace(path, "~/", "/home/utnso/");
+	}
+
+    log_info(logger, "path: %s", path);
 	FILE* archivo = fopen(path,"r");
 
 	//comprobar si el archivo existe
 	if(archivo == NULL){
 		log_error(logger, "Error en la apertura del archivo.");
+		free(path);
 		return;
 	}
 
@@ -112,7 +123,7 @@ void leer_pseudo(int cliente_fd){
 
 	dictionary_put(lista_instrucciones_porPID, string_itoa(pid),lista_instrucciones);
 
-//	enviar_mensaje("ok", cliente_fd, INICIAR_PROCESO);
+	enviar_mensaje("OK", cliente_fd, INICIAR_PROCESO);
 
 	free(path);
 	fclose(archivo);

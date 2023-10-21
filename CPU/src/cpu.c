@@ -123,8 +123,6 @@ int conectar_memoria(char *ip, char *puerto) {
 
  	memcpy(&tamano_pagina, buffer, sizeof(int));
 
- 	log_info(logger, "se recibio tam pagina: %d", tamano_pagina);
-
  	free(buffer);
  	return 0;
  }

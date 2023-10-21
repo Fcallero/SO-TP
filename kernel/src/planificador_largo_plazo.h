@@ -17,6 +17,7 @@
 #include <commons/temporal.h>
 #include<semaphore.h>
 #include<commons/collections/dictionary.h>
+#include <pthread.h>
 
 #include <global/global.h>
 #include <global/utils_cliente.h>

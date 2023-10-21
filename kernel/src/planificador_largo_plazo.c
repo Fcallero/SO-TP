@@ -13,8 +13,11 @@ sem_t m_proceso_ejecutando;
 sem_t m_recurso_bloqueado;
 sem_t m_cola_de_procesos_bloqueados_para_cada_archivo;
 sem_t despertar_planificacion_largo_plazo;
+sem_t memoria_lista;
 t_dictionary* colas_de_procesos_bloqueados_para_cada_archivo;
 t_dictionary* recurso_bloqueado;
+pthread_mutex_t m_planificador_largo_plazo;
+pthread_mutex_t m_planificador_corto_plazo;
 
 
 void inicializar_colas_y_semaforos(){
@@ -27,6 +30,9 @@ void inicializar_colas_y_semaforos(){
 	sem_init(&m_recurso_bloqueado, 0, 1);
 	sem_init(&m_cola_de_procesos_bloqueados_para_cada_archivo, 0,1);
 	sem_init(&despertar_planificacion_largo_plazo,0,0);
+	sem_init(&memoria_lista,0,0);
+	pthread_mutex_init(&m_planificador_largo_plazo, NULL);
+	pthread_mutex_init(&m_planificador_corto_plazo, NULL);
 }
 
 
@@ -78,6 +84,8 @@ void agregar_proceso_a_ready(int conexion_memoria, char* algoritmo_planificacion
 
 	eliminar_paquete(paquete);
 
+	//espero a que termine memoria
+	sem_wait(&memoria_lista);
 	/*
 	op_code operacion_code = recibir_operacion(socket_memoria);
 
@@ -157,6 +165,7 @@ void *planificar_nuevos_procesos_largo_plazo(void *arg){
 
 	while(1){
 		sem_wait(&despertar_planificacion_largo_plazo);
+		pthread_mutex_lock(&m_planificador_largo_plazo);
 		sem_wait(&m_cola_ready);
 		int tamanio_cola_ready = queue_size(cola_ready);
 		sem_post(&m_cola_ready);
@@ -175,6 +184,7 @@ void *planificar_nuevos_procesos_largo_plazo(void *arg){
 			//verificar si se lo puede admitir a la cola de ready
 			agregar_proceso_a_ready(socket_memoria, algoritmo_planificacion);
 		}
+		pthread_mutex_unlock(&m_planificador_largo_plazo);
 	}
 
 	return NULL;

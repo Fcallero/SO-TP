@@ -53,6 +53,7 @@ void crear_contexto_y_enviar_a_CPU(t_pcb* proceso_a_ejecutar){
 
 void planificar_corto_plazo_fifo() {
 	sem_wait(&despertar_corto_plazo);
+	pthread_mutex_lock(&m_planificador_corto_plazo);
 	sem_wait(&m_cola_ready);
 
 	if (queue_size(cola_ready) == 0) {
@@ -71,10 +72,12 @@ void planificar_corto_plazo_fifo() {
 	sem_post(&m_proceso_ejecutando);
 
 	crear_contexto_y_enviar_a_CPU(proceso_a_ejecutar);
+	pthread_mutex_unlock(&m_planificador_corto_plazo);
 }
 
 void planificar_corto_plazo_prioridades() {
 	sem_wait(&despertar_corto_plazo);
+	pthread_mutex_lock(&m_planificador_corto_plazo);
 	sem_wait(&m_cola_ready);
 
 	if (queue_size(cola_ready) == 0) {
@@ -97,12 +100,13 @@ void planificar_corto_plazo_prioridades() {
 	sem_post(&m_proceso_ejecutando);
 
 	crear_contexto_y_enviar_a_CPU(proceso_a_ejecutar);
-
+	pthread_mutex_unlock(&m_planificador_corto_plazo);
 }
 
 void planificar_corto_plazo_round_robbin() {
 
 	sem_wait(&despertar_corto_plazo);
+	pthread_mutex_lock(&m_planificador_corto_plazo);
 	sem_wait(&m_cola_ready);
 
 	if (queue_size(cola_ready) == 0) {
@@ -139,6 +143,7 @@ void planificar_corto_plazo_round_robbin() {
 
 	pasar_a_ready(proceso_a_ejecutar);
 
+	pthread_mutex_unlock(&m_planificador_corto_plazo);
 }
 
 void enviar_contexto_de_ejecucion_a(t_contexto_ejec* contexto_a_ejecutar, op_code opcode, int socket_cliente){

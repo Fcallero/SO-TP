@@ -329,6 +329,11 @@ void* manejar_peticiones_modulos(void *args) {
 			case HANDSHAKE:
 				recibir_handshake(cliente_fd);
 				break;
+			case INICIAR_PROCESO:
+				char* mensaje = recibir_mensaje(socket_memoria);
+				log_info(logger, "Se recibio un %s de memoria, procede planificador de largo plazo", mensaje);
+				sem_post(&memoria_lista);
+				break;
 			case -1:
 				log_error(logger, "El cliente se desconecto. Terminando servidor");
 				return NULL;

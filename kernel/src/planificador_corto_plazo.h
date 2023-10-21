@@ -21,6 +21,8 @@
 
 #include "planificador_largo_plazo.h"// para traerme variables globales
 
+extern pthread_mutex_t m_planificador_corto_plazo;
+
 void *planificar_nuevos_procesos_corto_plazo(void *arg);
 
 void enviar_contexto_de_ejecucion_a(t_contexto_ejec* contexto_a_ejecutar, op_code opcode, int socket_cliente);

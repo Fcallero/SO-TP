@@ -12,6 +12,7 @@
 #include <commons/collections/list.h>
 #include <commons/collections/queue.h>
 #include <readline/readline.h>
+#include <readline/history.h>
 #include<semaphore.h>
 
 
@@ -25,6 +26,8 @@ extern sem_t despertar_planificacion_largo_plazo;
 extern t_dictionary* colas_de_procesos_bloqueados_para_cada_archivo;
 extern int grado_max_multiprogramacion;
 extern t_pcb* proceso_ejecutando;
+extern pthread_mutex_t m_planificador_largo_plazo;
+extern pthread_mutex_t m_planificador_corto_plazo;
 
 void levantar_consola();
 void destroy_proceso_ejecutando();
