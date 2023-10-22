@@ -16,7 +16,6 @@
 #include <pthread.h>
 #include <commons/bitarray.h>
 #include <commons/txt.h>
-#include <netdb.h>
 #include <sys/mman.h>
 
 #include <global/utils_cliente.h>
@@ -25,9 +24,9 @@
 #include "peticiones_memoria.h"
 #include "peticiones_kernel.h"
 
-extern int socket_memoria;
-extern int socket_fs;
-extern FILE* bitmap;
+int socket_fs;
+FILE* bloques;
+t_bitarray* bitarray_bloques_libres;//para modificar la fat
 
 typedef struct{
 	uint64_t cliente_fd;
@@ -37,7 +36,6 @@ typedef struct{
 t_config* iniciar_config(void);
 t_log* iniciar_logger(void);
 void terminar_programa(t_log* logger, t_config* config);
-int conectar_memoria(char* ip, char* puerto);
 void manejar_peticiones();
 FILE* levantar_archivo_binario(char* path_archivo);
 void *atender_cliente(void* args);

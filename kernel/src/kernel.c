@@ -187,11 +187,11 @@ int main(int argc, char *argv[]) {
 	//espero peticiones por consola
 	levantar_consola();
 
-//	terminar_programa(logger, config);
 	free(args_dispatch);
 	free(args_interrupt);
 	free(args_memoria);
 	free(args_filesystem);
+	terminar_programa(logger, config);
 
 } //Fin del main
 
@@ -330,9 +330,14 @@ void* manejar_peticiones_modulos(void *args) {
 				recibir_handshake(cliente_fd);
 				break;
 			case INICIAR_PROCESO:
-				char* mensaje = recibir_mensaje(socket_memoria);
+				char* mensaje = recibir_mensaje(cliente_fd);
 				log_info(logger, "Se recibio un %s de memoria, procede planificador de largo plazo", mensaje);
 				sem_post(&memoria_lista);
+				break;
+			case INTERRUPCION:
+				t_contexto_ejec* contexto = recibir_contexto_de_ejecucion(cliente_fd);
+				contexto_ejecucion_destroy(contexto);
+				sem_post(&recibir_interrupcion);
 				break;
 			case -1:
 				log_error(logger, "El cliente se desconecto. Terminando servidor");

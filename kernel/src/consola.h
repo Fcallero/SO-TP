@@ -23,6 +23,7 @@
 #include "peticiones_cpu_dispatch.h"
 
 extern sem_t despertar_planificacion_largo_plazo;
+extern sem_t recibir_interrupcion;
 extern t_dictionary* colas_de_procesos_bloqueados_para_cada_archivo;
 extern int grado_max_multiprogramacion;
 extern t_pcb* proceso_ejecutando;

@@ -205,6 +205,8 @@ t_contexto_ejec* recibir_contexto_de_ejecucion(int socket_cliente)
 
 		if(desplazamiento < size){
 			contexto_ejecucion->instruccion = deserializar_instruccion_en(buffer, &desplazamiento);
+		} else {
+			contexto_ejecucion->instruccion = NULL;
 		}
 
 	}
@@ -393,6 +395,10 @@ void instruccion_destroy(t_instruccion* instruccion){
 }
 
 void contexto_ejecucion_destroy(t_contexto_ejec* contexto_ejecucion){
+
+	if(contexto_ejecucion->instruccion != NULL){
+		instruccion_destroy(contexto_ejecucion->instruccion);
+	}
 
 	free(contexto_ejecucion);
 }

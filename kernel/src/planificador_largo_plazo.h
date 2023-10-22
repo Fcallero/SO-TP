@@ -52,4 +52,7 @@ void agregar_cola_new(t_pcb* pcb_proceso);
 
 void pasar_a_ready(t_pcb* proceso_bloqueado);
 
+void pcb_args_destroy(t_pcb* pcb_a_destruir);
+void actualizar_estado_a_pcb(t_pcb* a_actualizar_estado, char* estado);
+
 #endif /* SRC_PLANIFICADOR_LARGO_PLAZO_H_ */

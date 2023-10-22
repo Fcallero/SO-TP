@@ -4,9 +4,9 @@ int tamano_pagina, socket_memoria;
 
 void setear_registro(t_contexto_ejec** contexto, char* registro, uint32_t valor);
 uint32_t obtener_valor_del_registro(char* registro_a_leer, t_contexto_ejec** contexto_actual);
-int traducir_direccion_logica(int direccion_logica, int pid);
 void guardar_valor_en(int direccion_fisica, uint32_t valor_a_guardar,  int pid);
 uint32_t leer_valor(int direccion_fisica,  int pid);
+int traducir_direccion_logica(int direccion_logica, int pid);
 
 void manejar_instruccion_set(t_contexto_ejec** contexto, t_instruccion* instruccion)
 {
@@ -30,8 +30,6 @@ void setear_registro(t_contexto_ejec** contexto, char* registro, uint32_t valor)
 	{
 		(*contexto)->registros_CPU->DX=valor;
 	}
-
-	free(registro);
 }
 
 void manejar_instruccion_sum(t_contexto_ejec** contexto_actual,t_instruccion* instruccion)
@@ -68,38 +66,37 @@ void manejar_instruccion_jnz(t_contexto_ejec** contexto_actual, t_instruccion* i
 	(*contexto_actual)->program_counter = numero_instruccion;
 }
 
-bool menjar_mov_in(t_contexto_ejec** contexto_actual, t_instruccion*  instruccion){
-	char* registro = instruccion->parametros[0];
-	int direccion_logica = atoi(instruccion->parametros[1]);
-
-	int direccion_fisica = traducir_direccion_logica(direccion_logica, (*contexto_actual)->pid);
-
-	if(direccion_fisica == -1){
-		return true;
-	}
+void  menjar_mov_in(t_contexto_ejec** contexto_actual, t_instruccion*  instruccion){
+	char* registro = string_duplicate(instruccion->parametros[0]);
+	int direccion_fisica = atoi(instruccion->parametros[1]);
 
 	uint32_t valor_a_guardar = leer_valor(direccion_fisica, (*contexto_actual)->pid);
 
+	if(valor_a_guardar == -1){
+		free(registro);
+		return;
+	}
+
 	setear_registro(contexto_actual, registro, valor_a_guardar);
 
-	return false;
+	free(registro);
 }
 
-bool menjar_mov_out(t_contexto_ejec** contexto_actual, t_instruccion*  instruccion){
-	int direccion_logica = atoi(instruccion->parametros[0]);
-	char* registro = instruccion->parametros[1];
+void menjar_mov_out(t_contexto_ejec** contexto_actual, t_instruccion*  instruccion){
+	int direccion_fisica = atoi(instruccion->parametros[0]);
+	char* registro = string_duplicate(instruccion->parametros[1]);
 
 	uint32_t valor_a_guardar = obtener_valor_del_registro(registro, contexto_actual);
 
-	int direccion_fisica = traducir_direccion_logica(direccion_logica, (*contexto_actual)->pid);
-
-	if(direccion_fisica == -1){
-		return true;
+	if(valor_a_guardar == -1){
+		log_error(logger, "Error al obtener valor del registro %s ya que no existe un registro con ese nombre", registro);
+		free(registro);
+		return ;
 	}
 
 	guardar_valor_en(direccion_fisica, valor_a_guardar, (*contexto_actual)->pid);
 
-	return false;
+	free(registro);
 }
 
 uint32_t obtener_valor_del_registro(char* registro_a_leer, t_contexto_ejec** contexto_actual){
@@ -133,31 +130,36 @@ int solicitar_marco(int numero_pagina){
 
 	agregar_a_paquete_sin_agregar_tamanio(paquete, &numero_pagina, sizeof(int));
 
-
 	enviar_paquete(paquete, socket_memoria);
 	eliminar_paquete(paquete);
 
 	int size;
-	void* buffer = recibir_buffer(&size, socket_memoria);
 	int marco_pagina;
 
 	op_code cod_op = recibir_operacion(socket_memoria);
 
+
 	if(cod_op == ACCESO_A_PAGINA){
+		void* buffer = recibir_buffer(&size, socket_memoria);
 		memcpy(&marco_pagina, buffer, sizeof(int));
 
 		free(buffer);
 		return marco_pagina;
 
-	} else { // sino significaria page fault
+	} else if(cod_op == PAGE_FAULT) { // sino significaria page fault
+		char* mensaje = recibir_mensaje(socket_memoria);
+		log_info(logger, "Se recibio: \"%s\" de memoria", mensaje);
+		free(mensaje);
+		return -1;
+	} else {
+		log_error(logger, "Codigo de operacion inesperado de memoria: %d", cod_op);
 		return -1;
 	}
-
 }
 
 int traducir_direccion_logica(int direccion_logica, int pid){
 
-	int numero_pagina = floor(direccion_logica / tamano_pagina);
+	int numero_pagina = (int) floor(direccion_logica / tamano_pagina);
 
 	int desplazamiento = direccion_logica - numero_pagina * tamano_pagina;
 
@@ -170,7 +172,27 @@ int traducir_direccion_logica(int direccion_logica, int pid){
 		log_info(logger, "PID: %d - OBTENER MARCO - Página: %d - Marco: %d", pid, numero_pagina, marco_pagina);
 	}
 
-	return marco_pagina + desplazamiento;
+	return desplazamiento + marco_pagina * tamano_pagina;
+}
+
+bool decodificar_direccion_logica(t_contexto_ejec** contexto_acutal){
+	int direccion_logica = atoi((*contexto_acutal)->instruccion->parametros[1]);
+	free((*contexto_acutal)->instruccion->parametros[1]);
+
+	int direccion_fisica = traducir_direccion_logica(direccion_logica, (*contexto_acutal)->pid);
+
+	if(direccion_fisica == -1){
+		return true;
+	}
+
+	char *direccion_fisica_string = string_itoa(direccion_fisica);
+
+	int tam_direccion_fisica_string = strlen(direccion_fisica_string) + 1;
+	(*contexto_acutal)->instruccion->parametros[1] = malloc(sizeof(char) * tam_direccion_fisica_string);
+	strcpy((*contexto_acutal)->instruccion->parametros[1], direccion_fisica_string);
+
+	free(direccion_fisica_string);
+	return false;
 }
 
 void guardar_valor_en(int direccion_fisica, uint32_t valor_a_guardar, int pid){
@@ -190,6 +212,7 @@ void guardar_valor_en(int direccion_fisica, uint32_t valor_a_guardar, int pid){
 	instruccion->parametro2_lenght = strlen(bytes_a_escribir) + 1;
 	instruccion->parametros[1] = bytes_a_escribir;
 
+	instruccion->parametros[2] = NULL ;
 	instruccion->parametro3_lenght = 0;
 
 	agregar_a_paquete_sin_agregar_tamanio(paquete_a_enviar, &pid, sizeof(int));
@@ -197,6 +220,7 @@ void guardar_valor_en(int direccion_fisica, uint32_t valor_a_guardar, int pid){
 
 	agregar_a_paquete(paquete_a_enviar, instruccion->parametros[0], instruccion->parametro1_lenght);
 	agregar_a_paquete(paquete_a_enviar, instruccion->parametros[1], instruccion->parametro2_lenght);
+	agregar_a_paquete(paquete_a_enviar, instruccion->parametros[2], instruccion->parametro3_lenght);
 
 	agregar_a_paquete_sin_agregar_tamanio(paquete_a_enviar, &valor_a_guardar, sizeof(valor_a_guardar));
 
@@ -217,8 +241,9 @@ void guardar_valor_en(int direccion_fisica, uint32_t valor_a_guardar, int pid){
 			log_info(logger,"PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %d ", pid, direccion_fisica, valor_a_guardar);
 		} else {
 			// si esto se llega a ejecutar, debe haber algun error en memoria o aca o algo raro falla
-			log_error(logger,"PID: %d - no se pudo escribir en memoria, esto no deberia pasar", pid );
+			log_error(logger,"PID: %d - no se pudo escribir en memoria, esto no deberia pasar, poque recibi el mensaje: %s", pid, mensaje);
 		}
+		free(mensaje);
 	} else {
 		log_error(logger,"Se recibio cod_op: %d esto no deberia pasar", cod_op );
 	}
@@ -237,10 +262,11 @@ uint32_t leer_valor(int direccion_fisica, int pid){
 	instruccion->parametros[0] = string_itoa(direccion_fisica);
 	instruccion->parametro1_lenght = strlen(instruccion->parametros[0]) +1;
 
-	char *bytes_a_escribir = string_itoa(sizeof(int));
+	char *bytes_a_escribir = string_itoa(sizeof(uint32_t));
 	instruccion->parametro2_lenght = strlen(bytes_a_escribir) + 1;
 	instruccion->parametros[1] = bytes_a_escribir;
 
+	instruccion->parametros[2] = NULL;
 	instruccion->parametro3_lenght = 0;
 
 	agregar_a_paquete_sin_agregar_tamanio(paquete_a_enviar, &pid, sizeof(int));
@@ -248,6 +274,7 @@ uint32_t leer_valor(int direccion_fisica, int pid){
 
 	agregar_a_paquete(paquete_a_enviar, instruccion->parametros[0], instruccion->parametro1_lenght);
 	agregar_a_paquete(paquete_a_enviar, instruccion->parametros[1], instruccion->parametro2_lenght);
+	agregar_a_paquete(paquete_a_enviar, instruccion->parametros[2], instruccion->parametro3_lenght);
 
 	enviar_paquete(paquete_a_enviar, socket_memoria);
 
@@ -256,17 +283,22 @@ uint32_t leer_valor(int direccion_fisica, int pid){
 
 	int cod_op = recibir_operacion(socket_memoria);
 
-	char* valor_leido;
+	char* valor_leido_string;
 
 	if(cod_op == READ_MEMORY){
 		// recibo el valor leido de memoria
-		valor_leido = recibir_mensaje(socket_memoria);
+		valor_leido_string = recibir_mensaje(socket_memoria);
 
-		log_info(logger,"PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", pid, direccion_fisica, valor_leido);
+		log_info(logger,"PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", pid, direccion_fisica, valor_leido_string);
 
 	} else {
 		log_error(logger,"Se recibio cod_op: %d esto no deberia pasar", cod_op );
+
+		return -1;
 	}
 
-	return atoi(valor_leido);
+	int valor_leido = atoi(valor_leido_string);
+
+	free(valor_leido_string);
+	return valor_leido;
 }

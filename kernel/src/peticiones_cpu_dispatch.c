@@ -2,11 +2,6 @@
 
 sem_t esperar_proceso_ejecutando;
 
-//este es un hilo que se levantaria al bloquear por io como en el tp anterior
-//no estan creadas las estructuras necesarias ni el como lo haremos
-//asique dejo esta colgada para cuando llegue el momento
-//carinios con enie UwU
-
 void poner_a_ejecutar_otro_proceso(){
 
 	sem_wait(&m_proceso_ejecutando);
@@ -46,6 +41,7 @@ void* simular_sleep(void* arg){
 	sem_wait(&m_proceso_ejecutando);
 	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_en_sleep->PID, "BLOC","READY");
 
+	actualizar_estado_a_pcb(proceso_en_sleep, "READY");
 
 	pasar_a_ready(proceso_en_sleep);
 	sem_post(&m_proceso_ejecutando);
@@ -80,6 +76,10 @@ void manejar_sleep(int socket_cliente){
 	log_info(logger, "PID: %d - Bloqueado por: SLEEP", contexto->pid);
 
 
+	sem_wait(&m_proceso_ejecutando);
+	actualizar_estado_a_pcb(proceso_ejecutando, "BLOC");
+	sem_post(&m_proceso_ejecutando);
+
 	poner_a_ejecutar_otro_proceso();
 
 	//destruyo el contexto de ejecucion
@@ -113,6 +113,8 @@ void bloquear_proceso_por_recurso(t_pcb* proceso_a_bloquear, char* nombre_recurs
 	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_bloquear->PID, "EXEC","BLOC");
 	log_info(logger, "PID: %d - Bloqueado por: %s", proceso_a_bloquear->PID, nombre_recurso);
 
+	actualizar_estado_a_pcb(proceso_a_bloquear, "BLOC");
+
 	t_queue* cola_bloqueados = dictionary_get(recurso_bloqueado,nombre_recurso);
 
 	queue_push(cola_bloqueados,proceso_a_bloquear);
@@ -139,18 +141,24 @@ void apropiar_recursos(int socket_cliente, char** recursos, int* recurso_disponi
 	if(indice_recurso == -1){
 
 		sem_wait(&m_proceso_ejecutando);
+		actualizar_estado_a_pcb(proceso_ejecutando, "EXIT");
+
 		t_paquete* paquete = crear_paquete(FINALIZAR_PROCESO_MEMORIA);
 		agregar_a_paquete_sin_agregar_tamanio(paquete, &(proceso_ejecutando->PID), sizeof(int));
 		enviar_paquete(paquete, socket_memoria);
 
 		eliminar_paquete(paquete);
 
-		log_info(logger, "FInaliza el proceso %d - Motivo: INVALID_RESOURCE", proceso_ejecutando->PID);
+		log_info(logger, "Finaliza el proceso %d - Motivo: INVALID_RESOURCE", proceso_ejecutando->PID);
 		log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_ejecutando->PID, "EXEC","EXIT");
 		sem_post(&m_proceso_ejecutando);
 
 		contexto_ejecucion_destroy(contexto);
-		//TODO DESTRUIR PCB aca
+
+		sem_wait(&m_proceso_ejecutando);
+		pcb_args_destroy(proceso_ejecutando);
+		sem_post(&m_proceso_ejecutando);
+
 		poner_a_ejecutar_otro_proceso();
 
 		return;
@@ -203,20 +211,24 @@ void desalojar_recursos(int socket_cliente,char** recursos, int* recurso_disponi
 	// si no existe el recurso finaliza
 	if(indice_recurso == -1){
 
-		//TODO pedir_finalizar_las_estructuras_de_memoria();
 		sem_wait(&m_proceso_ejecutando);
+		actualizar_estado_a_pcb(proceso_ejecutando, "EXIT");
+
+		//TODO pedir_finalizar_las_estructuras_de_memoria();
 		t_paquete* paquete = crear_paquete(FINALIZAR_PROCESO_MEMORIA);
 		agregar_a_paquete_sin_agregar_tamanio(paquete, &(proceso_ejecutando->PID), sizeof(int));
 		enviar_paquete(paquete, socket_memoria);
 
 		eliminar_paquete(paquete);
 
-		log_info(logger, "FInaliza el proceso %d - Motivo: INVALID_RESOURCE", proceso_ejecutando->PID);
+		log_info(logger, "Finaliza el proceso %d - Motivo: INVALID_RESOURCE", proceso_ejecutando->PID);
 		log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_ejecutando->PID, "EXEC","EXIT");
 		sem_post(&m_proceso_ejecutando);
 
 		contexto_ejecucion_destroy(contexto);
-		//TODO DESTRUIR PCB aca
+		sem_wait(&m_proceso_ejecutando);
+		pcb_args_destroy(proceso_ejecutando);
+		sem_post(&m_proceso_ejecutando);
 		poner_a_ejecutar_otro_proceso();
 		return;
 	}
@@ -229,7 +241,7 @@ void desalojar_recursos(int socket_cliente,char** recursos, int* recurso_disponi
 
 	int cantidad_procesos_bloqueados = queue_size(cola_bloqueados);
 
-	if(cantidad_procesos_bloqueados != 0){
+	if(cantidad_procesos_bloqueados > 0){
 		t_pcb* proceso_desbloqueado = queue_pop(cola_bloqueados);
 
 		log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_desbloqueado->PID, "BLOC","READY");
@@ -238,6 +250,28 @@ void desalojar_recursos(int socket_cliente,char** recursos, int* recurso_disponi
 		recurso_disponible[indice_recurso] -= 1;
 
 		pasar_a_ready(proceso_desbloqueado);
+	} else { // significa que no habia ningun proceso bloqueado
+		sem_wait(&m_proceso_ejecutando);
+		actualizar_estado_a_pcb(proceso_ejecutando, "EXIT");
+
+		//TODO pedir_finalizar_las_estructuras_de_memoria();
+		t_paquete* paquete = crear_paquete(FINALIZAR_PROCESO_MEMORIA);
+		agregar_a_paquete_sin_agregar_tamanio(paquete, &(proceso_ejecutando->PID), sizeof(int));
+		enviar_paquete(paquete, socket_memoria);
+
+		eliminar_paquete(paquete);
+
+		log_info(logger, "Finaliza el proceso %d - Motivo: INVALID_RESOURCE", proceso_ejecutando->PID);
+		log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_ejecutando->PID, "EXEC","EXIT");
+		sem_post(&m_proceso_ejecutando);
+
+		contexto_ejecucion_destroy(contexto);
+
+		sem_wait(&m_proceso_ejecutando);
+		pcb_args_destroy(proceso_ejecutando);
+		sem_post(&m_proceso_ejecutando);
+		poner_a_ejecutar_otro_proceso();
+		return;
 	}
 
 
@@ -252,31 +286,6 @@ void desalojar_recursos(int socket_cliente,char** recursos, int* recurso_disponi
 	contexto_ejecucion_destroy(contexto);
 }
 
-void destroy_proceso_ejecutando(){
-
-
-	// destroy tabla de archivos_abiertos del proceso
-	sem_wait(&m_proceso_ejecutando);
-	if(proceso_ejecutando->tabla_archivos_abiertos_del_proceso != NULL){
-		free(proceso_ejecutando->tabla_archivos_abiertos_del_proceso->head);
-		free(proceso_ejecutando->tabla_archivos_abiertos_del_proceso);
-	}
-
-		//Liberar PCB del proceso actual
-		free(proceso_ejecutando->proceso_estado);
-
-		registro_cpu_destroy(proceso_ejecutando->registros_CPU);
-
-
-
-
-
-		free(proceso_ejecutando);
-		proceso_ejecutando = NULL;
-
-		sem_post(&m_proceso_ejecutando);
-}
-
 
 void finalinzar_proceso(int socket_cliente){
 	t_contexto_ejec* contexto = recibir_contexto_de_ejecucion(socket_cliente);
@@ -284,21 +293,25 @@ void finalinzar_proceso(int socket_cliente){
 	sem_wait(&m_proceso_ejecutando);
 	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_ejecutando->PID, "EXEC","EXIT");
 
+	actualizar_estado_a_pcb(proceso_ejecutando, "EXIT");
+
 	/* TODO pedir eliminar proceso memoria
 	t_paquete *paquete = crear_paquete(FINALIZAR_PROCESO_MEMORIA);
 	agregar_a_paquete_sin_agregar_tamanio(paquete,&(proceso_ejecutando->PID),sizeof(int));
 	enviar_paquete(paquete,socket_memoria);
 	eliminar_paquete(paquete);
 	*/
+
+	log_info(logger, "Finaliza el proceso %d - Motivo: SUCCESS", proceso_ejecutando->PID);
+
 	sem_post(&m_proceso_ejecutando);
 
+	contexto_ejecucion_destroy(contexto);
 
 	sem_wait(&m_proceso_ejecutando);
-	log_info(logger, "Finaliza el proceso %d - Motivo: SUCCESS", proceso_ejecutando->PID);
+	pcb_args_destroy(proceso_ejecutando);
+	free(proceso_ejecutando);
 	sem_post(&m_proceso_ejecutando);
-
-	destroy_proceso_ejecutando();
-	contexto_ejecucion_destroy(contexto);
 
 	poner_a_ejecutar_otro_proceso();
 }

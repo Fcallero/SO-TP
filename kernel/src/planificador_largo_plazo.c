@@ -14,6 +14,7 @@ sem_t m_recurso_bloqueado;
 sem_t m_cola_de_procesos_bloqueados_para_cada_archivo;
 sem_t despertar_planificacion_largo_plazo;
 sem_t memoria_lista;
+sem_t recibir_interrupcion;
 t_dictionary* colas_de_procesos_bloqueados_para_cada_archivo;
 t_dictionary* recurso_bloqueado;
 pthread_mutex_t m_planificador_largo_plazo;
@@ -31,6 +32,7 @@ void inicializar_colas_y_semaforos(){
 	sem_init(&m_cola_de_procesos_bloqueados_para_cada_archivo, 0,1);
 	sem_init(&despertar_planificacion_largo_plazo,0,0);
 	sem_init(&memoria_lista,0,0);
+	sem_init(&recibir_interrupcion, 0, 0);
 	pthread_mutex_init(&m_planificador_largo_plazo, NULL);
 	pthread_mutex_init(&m_planificador_corto_plazo, NULL);
 }
@@ -75,6 +77,8 @@ void agregar_proceso_a_ready(int conexion_memoria, char* algoritmo_planificacion
 
 	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_new_a_ready->PID, "NEW", "READY");
 
+	actualizar_estado_a_pcb(proceso_new_a_ready, "READY");
+
 	//envio a memoria de instrucciones
 	t_paquete* paquete = crear_paquete(INICIAR_PROCESO);
 
@@ -86,16 +90,8 @@ void agregar_proceso_a_ready(int conexion_memoria, char* algoritmo_planificacion
 
 	//espero a que termine memoria
 	sem_wait(&memoria_lista);
-	/*
-	op_code operacion_code = recibir_operacion(socket_memoria);
 
-	if(operacion_code == INICIAR_PROCESO){
-		char* mensaje = recibir_mensaje(socket_memoria);
-	} else {
-		log_error(logger, "no pude iniciar el proceso en memoria");
-	}
 
-	*/
 	free(proceso_new_a_ready->comando);//el comando luego no se va a usar, lo libero
 
 
@@ -225,3 +221,20 @@ void agregar_cola_new(t_pcb* pcb_proceso){
 
 	log_info(logger, "Se crea el proceso %d en NEW", pcb_proceso->PID);
 }
+
+void pcb_args_destroy(t_pcb* pcb_a_destruir){
+	free(pcb_a_destruir->proceso_estado);
+	free(pcb_a_destruir->registros_CPU); // ver si rompe con contexto ejec
+
+	if(pcb_a_destruir->tabla_archivos_abiertos_del_proceso != NULL){
+		list_destroy(pcb_a_destruir->tabla_archivos_abiertos_del_proceso);
+	}
+}
+
+void actualizar_estado_a_pcb(t_pcb* a_actualizar_estado, char* estado){
+
+	free(a_actualizar_estado->proceso_estado);
+	a_actualizar_estado->proceso_estado = string_new();
+	string_append(&(a_actualizar_estado->proceso_estado), estado);
+}
+

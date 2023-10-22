@@ -1,3 +1,4 @@
+#include "peticiones_kernel.h"
 
 void abrir_archivo(){
 

@@ -1,10 +1,10 @@
 #include "planificador_corto_plazo.h"
 
 void reordenar_cola_ready_prioridades(){
-	// reodena de mayor a menor para que al hacer pop, saque al de mayor proridad
+	// reodena de menor a mayor para que al hacer pop, saque al de menor proridad
 	// cuando hace pop saca al primer elemento de la lista
 	bool __proceso_mayor_prioridad(t_pcb* pcb_proceso1, t_pcb* pcb_proceso2){
-		return pcb_proceso1->prioridad > pcb_proceso2->prioridad;
+		return pcb_proceso1->prioridad < pcb_proceso2->prioridad;
 	}
 
 	sem_wait(&m_cola_ready);
@@ -58,6 +58,7 @@ void planificar_corto_plazo_fifo() {
 
 	if (queue_size(cola_ready) == 0) {
 		sem_post(&m_cola_ready);
+		pthread_mutex_unlock(&m_planificador_corto_plazo);
 		return;
 	}
 
@@ -67,8 +68,8 @@ void planificar_corto_plazo_fifo() {
 	sem_wait(&m_proceso_ejecutando);
 	proceso_ejecutando = proceso_a_ejecutar;
 
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s",
-			proceso_a_ejecutar->PID, "READY", "EXEC");
+	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_ejecutar->PID, "READY", "EXEC");
+	actualizar_estado_a_pcb(proceso_a_ejecutar, "EXEC");
 	sem_post(&m_proceso_ejecutando);
 
 	crear_contexto_y_enviar_a_CPU(proceso_a_ejecutar);
@@ -82,6 +83,7 @@ void planificar_corto_plazo_prioridades() {
 
 	if (queue_size(cola_ready) == 0) {
 		sem_post(&m_cola_ready);
+		pthread_mutex_unlock(&m_planificador_corto_plazo);
 		return;
 	}
 	sem_post(&m_cola_ready);
@@ -95,8 +97,8 @@ void planificar_corto_plazo_prioridades() {
 
 	sem_wait(&m_proceso_ejecutando);
 	proceso_ejecutando = proceso_a_ejecutar;
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s",
-			proceso_a_ejecutar->PID, "READY", "EXEC");
+	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_ejecutar->PID, "READY", "EXEC");
+	actualizar_estado_a_pcb(proceso_a_ejecutar, "EXEC");
 	sem_post(&m_proceso_ejecutando);
 
 	crear_contexto_y_enviar_a_CPU(proceso_a_ejecutar);
@@ -111,6 +113,7 @@ void planificar_corto_plazo_round_robbin() {
 
 	if (queue_size(cola_ready) == 0) {
 		sem_post(&m_cola_ready);
+		pthread_mutex_unlock(&m_planificador_corto_plazo);
 		return;
 	}
 
@@ -120,8 +123,8 @@ void planificar_corto_plazo_round_robbin() {
 	sem_wait(&m_proceso_ejecutando);
 	proceso_ejecutando = proceso_a_ejecutar;
 
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s",
-			proceso_a_ejecutar->PID, "READY", "EXEC");
+	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_ejecutar->PID, "READY", "EXEC");
+	actualizar_estado_a_pcb(proceso_a_ejecutar, "EXEC");
 	sem_post(&m_proceso_ejecutando);
 
 	crear_contexto_y_enviar_a_CPU(proceso_a_ejecutar);
@@ -134,6 +137,7 @@ void planificar_corto_plazo_round_robbin() {
 			proceso_a_ejecutar->PID);
 	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s",
 			proceso_a_ejecutar->PID, "EXEC", "READY");
+	actualizar_estado_a_pcb(proceso_a_ejecutar, "READY");
 
 	notificar_desalojo_cpu_interrupt();
 

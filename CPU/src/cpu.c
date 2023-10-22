@@ -208,6 +208,8 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 			log_info(logger, "PID: %d - Ejecutando: %s - %s %s %s",contexto_actual->pid, instruccion->opcode,instruccion->parametros[0], instruccion->parametros[1],instruccion->parametros[2]);
 		}
 
+		contexto_actual->program_counter++;
+
 		//DECODE y EXECUTE
 
 		if (strcmp(instruccion->opcode, "SET") == 0) {
@@ -235,18 +237,25 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 		}
 
 		if (strcmp(instruccion->opcode, "MOV_IN") == 0) {
-			bool es_pagefault = menjar_mov_in(&contexto_actual, instruccion);
+
+			bool es_pagefault = decodificar_direccion_logica(&contexto_actual);
 
 			if (es_pagefault) {
+				devolver_a_kernel(contexto_actual, PAGE_FAULT, socket_kernel);
 				continuar_con_el_ciclo_instruccion = false;
+			} else {
+				menjar_mov_in(&contexto_actual, instruccion);
 			}
 		}
 
 		if (strcmp(instruccion->opcode, "MOV_OUT") == 0) {
-			bool es_pagefault = menjar_mov_out(&contexto_actual, instruccion);
+			bool es_pagefault = decodificar_direccion_logica(&contexto_actual);
 
 			if (es_pagefault) {
+				devolver_a_kernel(contexto_actual, PAGE_FAULT, socket_kernel);
 				continuar_con_el_ciclo_instruccion = false;
+			} else {
+				menjar_mov_out(&contexto_actual, instruccion);
 			}
 		}
 
@@ -263,11 +272,24 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 			continuar_con_el_ciclo_instruccion = false;
 		}
 		if (strcmp(instruccion->opcode, "F_READ") == 0) {
-			devolver_a_kernel(contexto_actual, LEER_ARCHIVO, socket_kernel);
+			bool es_pagefault = decodificar_direccion_logica(&contexto_actual);
+
+			if(es_pagefault){
+				devolver_a_kernel(contexto_actual, PAGE_FAULT, socket_kernel);
+			} else {
+				devolver_a_kernel(contexto_actual, LEER_ARCHIVO, socket_kernel);
+			}
+
 			continuar_con_el_ciclo_instruccion = false;
 		}
 		if (strcmp(instruccion->opcode, "F_WRITE") == 0) {
-			devolver_a_kernel(contexto_actual, ESCRIBIR_ARCHIVO, socket_kernel);
+			bool es_pagefault = decodificar_direccion_logica(&contexto_actual);
+
+			if(es_pagefault){
+				devolver_a_kernel(contexto_actual, PAGE_FAULT, socket_kernel);
+			} else {
+				devolver_a_kernel(contexto_actual, ESCRIBIR_ARCHIVO, socket_kernel);
+			}
 			continuar_con_el_ciclo_instruccion = false;
 		}
 		if (strcmp(instruccion->opcode, "F_TRUNCATE") == 0) {
@@ -277,25 +299,20 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 
 		if (strcmp(instruccion->opcode, "WAIT") == 0) {
 
-			devolver_a_kernel(contexto_actual, APROPIAR_RECURSOS,
-					socket_kernel);
+			devolver_a_kernel(contexto_actual, APROPIAR_RECURSOS, socket_kernel);
 			continuar_con_el_ciclo_instruccion = false;
 		}
 		if (strcmp(instruccion->opcode, "SIGNAL") == 0) {
 
-			devolver_a_kernel(contexto_actual, DESALOJAR_RECURSOS,
-					socket_kernel);
+			devolver_a_kernel(contexto_actual, DESALOJAR_RECURSOS, socket_kernel);
 			continuar_con_el_ciclo_instruccion = false;
 		}
 
 		if (strcmp(instruccion->opcode, "EXIT") == 0) {
-			devolver_a_kernel(contexto_actual, FINALIZAR_PROCESO,
-					socket_kernel);
+			devolver_a_kernel(contexto_actual, FINALIZAR_PROCESO, socket_kernel);
 
 			continuar_con_el_ciclo_instruccion = false;
 		}
-
-		contexto_actual->program_counter++;
 
 		//CHECK INTERRUPT
 		if (hay_interrupcion_pendiente) {

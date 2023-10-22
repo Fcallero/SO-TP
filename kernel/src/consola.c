@@ -78,8 +78,36 @@ void iniciar_proceso(t_instruccion *comando) {
 }
 
 void eliminar_por_pcb(t_pcb* pcb_a_eliminar, t_list* lista){
+
+	pcb_args_destroy(pcb_a_eliminar);
+
 	list_remove_element(lista, pcb_a_eliminar);
-	free(pcb_a_eliminar);
+}
+
+void avisar_memoria_finalizar_proceso(t_pcb* proceso_a_finalizar, char* estado_anterior){
+	// Eliminar y solicitar la liberacion de memoira
+	t_paquete *paquete = crear_paquete(FINALIZAR_PROCESO_MEMORIA);
+	agregar_a_paquete_sin_agregar_tamanio(paquete,&(proceso_a_finalizar->PID),sizeof(int));
+
+	enviar_paquete(paquete,socket_memoria);
+	eliminar_paquete(paquete);
+	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_finalizar->PID, estado_anterior,"EXIT");
+}
+
+bool finalizar_proceso_si_esta_en_list(t_list* procesos_bloqueado, bool(*closure)(void*)){
+	//buscar en cola de bloqueados por recurso
+	t_pcb* pcb_a_eliminar = list_find(procesos_bloqueado, closure);
+
+	if(pcb_a_eliminar == NULL){
+		return false;
+	}
+
+	avisar_memoria_finalizar_proceso(pcb_a_eliminar, "BLOC");
+
+	sem_wait(&m_recurso_bloqueado);
+	eliminar_por_pcb(pcb_a_eliminar, procesos_bloqueado);
+	sem_post(&m_recurso_bloqueado);
+	return true;
 }
 
 void finalizar_proceso(t_instruccion *comando) {
@@ -109,66 +137,51 @@ void finalizar_proceso(t_instruccion *comando) {
 		char* pid_str = string_itoa(pid_buscado);
 		string_append(&mensaje, "Finalizacion del proceso PID: ");
 		string_append(&mensaje, pid_str);
-		enviar_mensaje(mensaje, socket_cpu_interrupt, FINALIZAR_PROCESO);
+		enviar_mensaje(mensaje, socket_cpu_interrupt, INTERRUPCION);
 
-		t_contexto_ejec* contexto = recibir_contexto_de_ejecucion(socket_cpu_interrupt);
-
-		// Eliminar y solicitar la liberacion de memoira
-		t_paquete *paquete = crear_paquete(FINALIZAR_PROCESO_MEMORIA);
-		sem_wait(&m_proceso_ejecutando);
-		agregar_a_paquete_sin_agregar_tamanio(paquete,&(proceso_ejecutando->PID),sizeof(int));
-		sem_post(&m_proceso_ejecutando);
-
-		enviar_paquete(paquete,socket_memoria);
+		sem_wait(&recibir_interrupcion);//espero recibir la interrupcion de cpu
 
 		sem_wait(&m_proceso_ejecutando);
-		log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_ejecutando->PID, "EXEC","EXIT");
-		sem_post(&m_proceso_ejecutando);
+		avisar_memoria_finalizar_proceso(proceso_ejecutando, "EXEC");
 		//libero
-		eliminar_paquete(paquete);
-
-		destroy_proceso_ejecutando();
-		contexto_ejecucion_destroy(contexto);
+		pcb_args_destroy(proceso_ejecutando);
+		sem_post(&m_proceso_ejecutando);
 
 		poner_a_ejecutar_otro_proceso();
-
-
 	} else {
 		//mutex de la variable compartida
 		sem_post(&m_proceso_ejecutando);
+
 		//Buscar en cola de ready
 		sem_wait(&m_cola_ready);
-		t_pcb *pcb_a_eliminar = list_find(cola_ready->elements, _encontrar_por_pid);
+		bool estaba_en_el_list = finalizar_proceso_si_esta_en_list(cola_ready->elements, _encontrar_por_pid);
 		sem_post(&m_cola_ready);
 
-		if (pcb_a_eliminar != NULL) {
-			sem_wait(&m_cola_ready);
-			eliminar_por_pcb(pcb_a_eliminar, cola_ready->elements);
-			sem_post(&m_cola_ready);
-			sem_post(&despertar_corto_plazo);
-		} else {
+		if (!estaba_en_el_list) {
 			//Buscar en cola de new
 			sem_wait(&m_cola_new);
-			pcb_a_eliminar = list_find(cola_new->elements, _encontrar_por_pid);
+			bool estaba_en_el_list = finalizar_proceso_si_esta_en_list(cola_new->elements, _encontrar_por_pid);
 			sem_post(&m_cola_new);
-			if (pcb_a_eliminar != NULL) {
-				sem_wait(&m_cola_new);
-				eliminar_por_pcb(pcb_a_eliminar, cola_new->elements);
-				sem_post(&m_cola_new);
-				sem_post(&despertar_planificacion_largo_plazo);
-			} else {
+
+			if (!estaba_en_el_list) {
 				//buscar en cola de bloqueados por archivos
 				sem_wait(&m_cola_de_procesos_bloqueados_para_cada_archivo);
 				t_list *procesos_bloqueados = dictionary_elements(colas_de_procesos_bloqueados_para_cada_archivo);
 				sem_post(&m_cola_de_procesos_bloqueados_para_cada_archivo);
-				pcb_a_eliminar = list_find(procesos_bloqueados, _encontrar_por_pid);
-				if (pcb_a_eliminar != NULL) {
-					sem_wait(&m_cola_de_procesos_bloqueados_para_cada_archivo);
-					eliminar_por_pcb(pcb_a_eliminar, procesos_bloqueados);
-					sem_post(&m_cola_de_procesos_bloqueados_para_cada_archivo);
-					sem_post(&despertar_corto_plazo);
-				} else {
-					log_info(logger,"No se encontro ningun proceso con el PID indicado\n");
+
+				bool estaba_en_el_list = finalizar_proceso_si_esta_en_list(procesos_bloqueados, _encontrar_por_pid);
+
+				if (!estaba_en_el_list) {
+					//buscar en cola de bloqueados por recurso
+					sem_wait(&m_recurso_bloqueado);
+					t_list *procesos_bloqueados_por_recurso = dictionary_elements(recurso_bloqueado);
+					sem_post(&m_recurso_bloqueado);
+
+					bool estaba_en_el_list = finalizar_proceso_si_esta_en_list(procesos_bloqueados_por_recurso, _encontrar_por_pid);
+
+					if(!estaba_en_el_list){
+						log_error(logger,"No se encontro ningun proceso con el PID indicado");
+					}
 				}
 			}
 
@@ -202,16 +215,15 @@ void iniciar_planificacion() {
 
 void multiprogramacion(t_instruccion* comando) {
 	//Modificar el grado de multiprogramacion (no desalojar procesos)
-	int nuevo_grado_multiprogramacion = (long)comando->parametros[0];
+	int nuevo_grado_multiprogramacion = atoi(comando->parametros[0]);
 	if (grado_max_multiprogramacion == nuevo_grado_multiprogramacion){
 		log_info(logger, "El grado de multiprogramacion actual ya es %d", grado_max_multiprogramacion);
 	}else if (grado_max_multiprogramacion != nuevo_grado_multiprogramacion){
 		log_info(logger, "Cambiando grado de multiprogramacion de: %d a %d", grado_max_multiprogramacion, nuevo_grado_multiprogramacion);
 		grado_max_multiprogramacion = nuevo_grado_multiprogramacion;
 
-		sem_post(&despertar_planificacion_largo_plazo);
 	}else{
-		log_info(logger, "Se produjo un error al recibir el comando, por favor verificar");
+		log_error(logger, "Se produjo un error al recibir el comando, ya que paso algo imposible, por favor verificar");
 	}
 }
 void proceso_estado() {
@@ -225,7 +237,7 @@ void proceso_estado() {
 	sem_wait(&m_cola_ready);
 	int tamanio_cola_ready = queue_size(cola_ready);
 	for(int i = 0; i< tamanio_cola_ready; i++){
-		t_pcb* pcb = list_get(cola_ready->elements,i);
+		t_pcb* pcb = list_get(cola_ready->elements,i); // TODO ver si list_get no te lo saca de la lista
 		log_info(logger, "PID: %d ESTADO: %s \n", pcb->PID, pcb->proceso_estado);
 	}
 	sem_post(&m_cola_ready);
@@ -233,19 +245,29 @@ void proceso_estado() {
 	sem_wait(&m_cola_new);
 	int tamanio_cola_new = queue_size(cola_new);
 	for(int i = 0; i< tamanio_cola_new; i++){
-		t_pcb* pcb = list_get(cola_new->elements,i);
+		t_pcb* pcb = list_get(cola_new->elements,i); // TODO ver si list_get no te lo saca de la lista
 		log_info(logger, "PID: %d ESTADO: %s \n", pcb->PID, pcb->proceso_estado);
 	}
-	sem_post(&m_cola_ready);
+	sem_post(&m_cola_new);
 
 	sem_wait(&m_cola_de_procesos_bloqueados_para_cada_archivo);
 	t_list *procesos_bloqueados = dictionary_elements(colas_de_procesos_bloqueados_para_cada_archivo);
 	int tamanio_cola_bloqueados = list_size(procesos_bloqueados);
 	for(int i = 0; i< tamanio_cola_bloqueados; i++){
-		t_pcb* pcb = list_get(procesos_bloqueados,i);
+		t_pcb* pcb = list_get(procesos_bloqueados,i); // TODO ver si list_get no te lo saca de la lista
 		log_info(logger, "PID: %d ESTADO: %s \n", pcb->PID, pcb->proceso_estado);
 	}
 	sem_post(&m_cola_de_procesos_bloqueados_para_cada_archivo);
+
+
+	sem_wait(&m_recurso_bloqueado);
+	t_list *procesos_bloqueados_por_recurso = dictionary_elements(recurso_bloqueado);
+	int tamanio_cola_bloqueados_por_recurso = list_size(procesos_bloqueados_por_recurso);
+	for(int i = 0; i< tamanio_cola_bloqueados_por_recurso; i++){
+		t_pcb* pcb = list_get(procesos_bloqueados_por_recurso,i); // TODO ver si list_get no te lo saca de la lista
+		log_info(logger, "PID: %d ESTADO: %s \n", pcb->PID, pcb->proceso_estado);
+	}
+	sem_post(&m_recurso_bloqueado);
 }
 
 

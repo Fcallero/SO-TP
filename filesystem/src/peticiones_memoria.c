@@ -1,4 +1,4 @@
-
+#include "peticiones_memoria.h"
 
 
 void reservar_bloques(){

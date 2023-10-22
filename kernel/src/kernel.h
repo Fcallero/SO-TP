@@ -27,6 +27,7 @@
 #include "consola.h"
 
 extern sem_t memoria_lista;
+extern sem_t recibir_interrupcion;
 
 typedef struct{
 	int cliente_fd;

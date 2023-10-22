@@ -1,13 +1,14 @@
-/*
- * peticiones_kernel.h
- *
- *  Created on: Oct 12, 2023
- *      Author: utnso
- */
-
 #ifndef SRC_PETICIONES_KERNEL_H_
 #define SRC_PETICIONES_KERNEL_H_
 
+#include <stdio.h>
+#include <stdlib.h>
+#include "filesystem.h"
+
+
+extern int socket_fs;
+extern FILE* bloques;
+extern t_bitarray* bitarray_bloques_libres;//para modificar la fat
 
 void abrir_archivo();
 void crear_archivo();

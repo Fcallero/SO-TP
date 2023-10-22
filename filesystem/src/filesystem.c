@@ -1,10 +1,6 @@
 #include "filesystem.h"
 
-int socket_memoria;
-int socket_fs;
 FILE* fat;
-t_bitarray* bitarray_bloques_libres;
-FILE* bloques;
 
 int main(int argc, char* argv[]) {
 	//Declaraciones de variables para config:
@@ -58,15 +54,6 @@ int main(int argc, char* argv[]) {
 
 	/*-------------------------------CONEXIONES KERNEL---------------------------------------------------------------*/
 
-		// Realizar las conexiones y probarlas
-//		int result_conexion_memoria = conectar_memoria(ip_memoria, puerto_memoria);
-//
-//		if(result_conexion_memoria  == -1){
-//			log_error(logger, "No se pudo conectar con el modulo Memoria !!");
-//			terminar_programa(logger, config);
-//		}
-//		log_info(logger, "El Filesystem se conecto con el modulo Memoria correctamente");
-
 		//Esperar conexion de Kernel
 		socket_fs = iniciar_servidor(puerto_escucha);
 
@@ -91,9 +78,8 @@ int main(int argc, char* argv[]) {
 
 		int bloques_fd = fileno(bloques);
 
-		ftruncate(bloques_fd, tam_bloque);
+		ftruncate(bloques_fd, cant_bloques_total * tam_bloque);
 
-//manejar_peticiones_kernel(logger, socket_fs, socket_memoria, bloques, superbloque);
 		manejar_peticiones();
 
 	terminar_programa(logger, config);
@@ -118,7 +104,9 @@ t_config* iniciar_config(void){
  void terminar_programa(t_log* logger, t_config* config){
 	log_destroy(logger);
 	config_destroy(config);
-	close(socket_memoria);
+	bitarray_destroy(bitarray_bloques_libres);
+	fclose(fat);
+	fclose(bloques);
 	close(socket_fs);
  }
 
@@ -138,29 +126,6 @@ t_config* iniciar_config(void){
 
  	return archivo;
  }
-
- // conexiones
-int conectar_memoria(char* ip, char* puerto){
-
-	socket_memoria = crear_conexion(ip, puerto);
-
-	//enviar handshake
-	enviar_mensaje("OK", socket_memoria, HANDSHAKE);
-
-	op_code cod_op = recibir_operacion(socket_memoria);
-	if(cod_op != HANDSHAKE){
-		return -1;	}
-
-	int size;
-	char* buffer = recibir_buffer(&size, socket_memoria);
-
-
-	if(strcmp(buffer, "OK") != 0){
-		return -1;
-	}
-
-	return 0;
-}
 
 // atiende las peticiones de kernel y memoria de forma concurrente
 void manejar_peticiones(){
