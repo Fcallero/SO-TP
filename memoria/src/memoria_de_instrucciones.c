@@ -1,6 +1,4 @@
 #include "memoria_de_instrucciones.h"
-#include "memoria.h"
-
 
 void leer_pseudo(int cliente_fd){
 
@@ -10,13 +8,10 @@ void leer_pseudo(int cliente_fd){
 
 	recibir_path_y_pid(cliente_fd, &archivo_path, &pid);
 
-
 	char* path = string_new();
 	string_append(&path, path_instrucciones);
 	string_append(&path, "/");
 	string_append(&path, archivo_path);
-
-	//INICIAR_PROCESO PLANI_1 64 1
 
 	if(string_contains(path, "./")){
 		char* buffer = malloc(100*sizeof(char));
@@ -30,9 +25,10 @@ void leer_pseudo(int cliente_fd){
     log_info(logger, "path: %s", path);
 	FILE* archivo = fopen(path,"r");
 
+
 	//comprobar si el archivo existe
 	if(archivo == NULL){
-		log_error(logger, "Error en la apertura del archivo.");
+		log_error(logger, "Error en la apertura del archivo: Error: %d (%s)", errno, strerror(errno));
 		free(path);
 		return;
 	}
@@ -136,6 +132,7 @@ void enviar_instruccion_a_cpu(int cliente_cpu,int retardo_respuesta)
 	int pid ;
 
 	recibir_programcounter(cliente_cpu, &pid, &program_counter);
+
 
 	t_list* lista_instrucciones = dictionary_get(lista_instrucciones_porPID,string_itoa(pid));
 

@@ -72,7 +72,7 @@ char* listar_pids_cola_ready(void){
 // si el proceso no es new, no es necesario el socket de memoria
 void agregar_proceso_a_ready(int conexion_memoria, char* algoritmo_planificacion){
 	sem_wait(&m_cola_new);
-	t_pcb* proceso_new_a_ready = queue_pop(cola_new);
+	t_pcb* proceso_new_a_ready = (t_pcb *) queue_pop(cola_new);
 	sem_post(&m_cola_new);
 
 	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_new_a_ready->PID, "NEW", "READY");
@@ -214,12 +214,12 @@ void pasar_a_ready(t_pcb* proceso_bloqueado){
 }
 
 
-void agregar_cola_new(t_pcb* pcb_proceso){
+void agregar_cola_new(t_pcb** pcb_proceso){
 	sem_wait(&m_cola_new);
-	queue_push(cola_new, pcb_proceso);
+	queue_push(cola_new, *pcb_proceso);
 	sem_post(&m_cola_new);
 
-	log_info(logger, "Se crea el proceso %d en NEW", pcb_proceso->PID);
+	log_info(logger, "Se crea el proceso %d en NEW", (*pcb_proceso)->PID);
 }
 
 void pcb_args_destroy(t_pcb* pcb_a_destruir){

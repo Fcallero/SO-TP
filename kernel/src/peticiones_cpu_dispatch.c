@@ -30,6 +30,7 @@ char* listar_recursos_disponibles(int* recursos_disponibles, int cantidad_de_rec
 void* simular_sleep(void* arg){
 	uint32_t *tiempo_sleep = (uint32_t*) arg;
 
+
 	sem_wait(&m_proceso_ejecutando);
 	t_pcb* proceso_en_sleep = proceso_ejecutando;
 	sem_post(&m_proceso_ejecutando);
@@ -42,8 +43,14 @@ void* simular_sleep(void* arg){
 	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_en_sleep->PID, "BLOC","READY");
 
 	actualizar_estado_a_pcb(proceso_en_sleep, "READY");
+	sem_post(&m_proceso_ejecutando);
 
 	pasar_a_ready(proceso_en_sleep);
+
+	sem_wait(&m_proceso_ejecutando);
+	if(proceso_ejecutando == NULL){
+		poner_a_ejecutar_otro_proceso();
+	}
 	sem_post(&m_proceso_ejecutando);
 
 	return NULL;

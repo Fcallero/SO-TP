@@ -48,7 +48,7 @@ extern sem_t m_cola_de_procesos_bloqueados_para_cada_archivo;
 
 void inicializar_colas_y_semaforos();
 void *planificar_nuevos_procesos_largo_plazo(void *arg);
-void agregar_cola_new(t_pcb* pcb_proceso);
+void agregar_cola_new(t_pcb** pcb_proceso);
 
 void pasar_a_ready(t_pcb* proceso_bloqueado);
 
