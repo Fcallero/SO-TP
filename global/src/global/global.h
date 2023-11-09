@@ -129,4 +129,9 @@ typedef struct
 
 } t_pcb;
 
+typedef struct  {
+	char* nombre_recurso;
+	int instancias_en_posesion;
+} t_recurso;
+
 #endif /* GLOBAL_H_ */

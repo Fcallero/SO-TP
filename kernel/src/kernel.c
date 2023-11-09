@@ -7,9 +7,14 @@ int socket_memoria;
 int socket_fs;
 int grado_max_multiprogramacion;
 char **recursos;
-int *recursos_disponibles;
+int *recursos_disponible;
+int *recursos_totales;
 int quantum;
 char** instancias_recursos;
+int cant_recursos;
+t_dictionary *matriz_recursos_asignados;
+t_dictionary *matriz_recursos_pendientes;
+
 
 int main(int argc, char *argv[]) {
 
@@ -119,12 +124,14 @@ int main(int argc, char *argv[]) {
 
 	// creo array de int de recursos disponibles
 
-	int cantidad_de_recursos = string_array_size(instancias_recursos);
-	recursos_disponibles = malloc(sizeof(int) * cantidad_de_recursos);
+	cant_recursos = string_array_size(instancias_recursos);
+	recursos_totales = malloc(sizeof(int) * cant_recursos);
+	recursos_disponible = malloc(sizeof(int) * cant_recursos);
 
-	if (cantidad_de_recursos != 0) {
-		for (int i = 0; i < cantidad_de_recursos; i++) {
-			recursos_disponibles[i] = atoi(instancias_recursos[i]);
+	if (cant_recursos != 0) {
+		for (int i = 0; i < cant_recursos; i++) {
+			recursos_totales[i] = atoi(instancias_recursos[i]);
+			recursos_disponible[i] = atoi(instancias_recursos[i]);
 		}
 	}
 
@@ -132,6 +139,8 @@ int main(int argc, char *argv[]) {
 
 	// inicializo diccionarios para recursos bloqueados
 	recurso_bloqueado = dictionary_create();
+	matriz_recursos_asignados = dictionary_create();
+	matriz_recursos_pendientes = dictionary_create();
 	colas_de_procesos_bloqueados_para_cada_archivo = dictionary_create();
 
 	proceso_ejecutando = NULL;
@@ -143,6 +152,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	string_iterate_lines(recursos, _iterar_recursos);
+
 
 	//levanto 4 hilos para recibir peticiones de forma concurrente de los modulos
 
@@ -372,10 +382,10 @@ void* escuchar_peticiones_cpu_dispatch(void *args) {
 				case BLOQUEAR_PROCESO:
 					break;
 				case APROPIAR_RECURSOS:
-					apropiar_recursos(cliente_fd, recursos, recursos_disponibles, cantidad_de_recursos);
+					apropiar_recursos(cliente_fd, recursos, recursos_disponible, cantidad_de_recursos);
 					break;
 				case DESALOJAR_RECURSOS:
-					desalojar_recursos(cliente_fd, recursos, recursos_disponibles, cantidad_de_recursos);
+					desalojar_recursos(cliente_fd, recursos, recursos_disponible, cantidad_de_recursos);
 					break;
 				case DESALOJAR_PROCESO:
 					break;
@@ -408,7 +418,7 @@ void* escuchar_peticiones_cpu_dispatch(void *args) {
 					break;
 				case -1:
 					log_error(logger, "La CPU se desconecto. Terminando servidor ");
-					free(recursos_disponibles);
+					free(recursos_disponible);
 					return NULL;
 				default:
 					log_warning(logger,"CPU Operacion desconocida. No quieras meter la pata. cod_op: %d", cod_op );

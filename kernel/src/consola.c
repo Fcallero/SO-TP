@@ -127,7 +127,6 @@ void finalizar_proceso(t_instruccion *comando) {
 		return pcb_n->PID == pid_buscado;
 	}
 
-//TODO revisar si es necesario un mutex
 	//mutex de la variable compartida
 	sem_wait(&m_proceso_ejecutando);
 	if (proceso_ejecutando->PID == pid_buscado) {
