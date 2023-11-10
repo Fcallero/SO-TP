@@ -82,6 +82,41 @@ void iniciar_proceso(t_instruccion *comando) {
 
 }
 
+t_list *obtener_procesos_bloqueados_sin_repetir_de(t_list* lista_de_colas){
+	t_list *lista_de_procesos_sin_repetir = list_create();
+
+	void agregar_pcb_de_la_cola(void* arg){
+		t_queue *cola_n = (t_queue *)arg;
+
+		void buscar_proceso(void *args){
+			t_pcb *proceso_n = (t_pcb *) args;
+
+			if(list_size(lista_de_procesos_sin_repetir) == 0){
+				list_add(lista_de_procesos_sin_repetir, proceso_n);
+			} else {
+				//agregarlo si no esta repetido
+				bool es_proceso_n(void*args_proceso){
+					t_pcb *proceso_guardado_n = (t_pcb *) args_proceso;
+
+					return proceso_guardado_n->PID == proceso_n->PID;
+				}
+
+				t_pcb *proceso_guardado = list_find(lista_de_procesos_sin_repetir, es_proceso_n);
+
+				if(proceso_guardado == NULL){
+					list_add(lista_de_procesos_sin_repetir, proceso_n);
+				}
+			}
+		}
+
+		list_iterate(cola_n->elements, buscar_proceso);
+	}
+
+	list_iterate(lista_de_colas, agregar_pcb_de_la_cola);
+
+	return lista_de_procesos_sin_repetir;
+}
+
 void eliminar_por_pcb(t_pcb* pcb_a_eliminar, t_list* lista){
 
 	pcb_args_destroy(pcb_a_eliminar);
@@ -340,43 +375,58 @@ void proceso_estado() {
 	log_info(logger, "Lista de todos los procesos del sistema y su respectivo estado:");
 
 	sem_wait(&m_proceso_ejecutando);
+	if(proceso_ejecutando!= NULL){
 	log_info(logger, "PID: %d ESTADO: %s \n", proceso_ejecutando->PID, proceso_ejecutando->proceso_estado);
+	}
 	sem_post(&m_proceso_ejecutando);
+
 
 	sem_wait(&m_cola_ready);
 	int tamanio_cola_ready = queue_size(cola_ready);
-	for(int i = 0; i< tamanio_cola_ready; i++){
-		t_pcb* pcb = list_get(cola_ready->elements,i); // TODO ver si list_get no te lo saca de la lista
-		log_info(logger, "PID: %d ESTADO: %s \n", pcb->PID, pcb->proceso_estado);
+	if(tamanio_cola_ready > 0){
+		for(int i = 0; i< tamanio_cola_ready; i++){
+			t_pcb* pcb = list_get(cola_ready->elements,i);
+			log_info(logger, "PID: %d ESTADO: %s \n", pcb->PID, pcb->proceso_estado);
+		}
 	}
 	sem_post(&m_cola_ready);
 
 	sem_wait(&m_cola_new);
 	int tamanio_cola_new = queue_size(cola_new);
-	for(int i = 0; i< tamanio_cola_new; i++){
-		t_pcb* pcb = list_get(cola_new->elements,i); // TODO ver si list_get no te lo saca de la lista
-		log_info(logger, "PID: %d ESTADO: %s \n", pcb->PID, pcb->proceso_estado);
+	if(tamanio_cola_new > 0){
+		for(int i = 0; i< tamanio_cola_new; i++){
+			t_pcb* pcb = list_get(cola_new->elements,i);
+			log_info(logger, "PID: %d ESTADO: %s \n", pcb->PID, pcb->proceso_estado);
+		}
 	}
 	sem_post(&m_cola_new);
 
 	sem_wait(&m_cola_de_procesos_bloqueados_para_cada_archivo);
-	t_list *procesos_bloqueados = dictionary_elements(colas_de_procesos_bloqueados_para_cada_archivo);
-	int tamanio_cola_bloqueados = list_size(procesos_bloqueados);
-	for(int i = 0; i< tamanio_cola_bloqueados; i++){
-		t_pcb* pcb = list_get(procesos_bloqueados,i); // TODO ver si list_get no te lo saca de la lista
+	t_list *procesos_bloqueados_colas = dictionary_elements(colas_de_procesos_bloqueados_para_cada_archivo);
+	t_list* procesos_bloqueados_sin_repetir = obtener_procesos_bloqueados_sin_repetir_de(procesos_bloqueados_colas);
+	int tamanio_lista_procesos_bloqueados = list_size(procesos_bloqueados_sin_repetir);
+	for(int i = 0; i< tamanio_lista_procesos_bloqueados; i++){
+		t_pcb* pcb = list_get(procesos_bloqueados_sin_repetir,i);
+
 		log_info(logger, "PID: %d ESTADO: %s \n", pcb->PID, pcb->proceso_estado);
 	}
 	sem_post(&m_cola_de_procesos_bloqueados_para_cada_archivo);
 
 
 	sem_wait(&m_recurso_bloqueado);
-	t_list *procesos_bloqueados_por_recurso = dictionary_elements(recurso_bloqueado);
+	t_list *procesos_bloqueados_por_recurso_colas = dictionary_elements(recurso_bloqueado);
+	t_list *procesos_bloqueados_por_recurso = obtener_procesos_bloqueados_sin_repetir_de(procesos_bloqueados_por_recurso_colas);
 	int tamanio_cola_bloqueados_por_recurso = list_size(procesos_bloqueados_por_recurso);
 	for(int i = 0; i< tamanio_cola_bloqueados_por_recurso; i++){
-		t_pcb* pcb = list_get(procesos_bloqueados_por_recurso,i); // TODO ver si list_get no te lo saca de la lista
+		t_pcb* pcb = list_get(procesos_bloqueados_por_recurso,i);
 		log_info(logger, "PID: %d ESTADO: %s \n", pcb->PID, pcb->proceso_estado);
 	}
 	sem_post(&m_recurso_bloqueado);
+
+	list_destroy(procesos_bloqueados_por_recurso);
+	list_destroy(procesos_bloqueados_sin_repetir);
+	list_destroy(procesos_bloqueados_por_recurso_colas);
+	list_destroy(procesos_bloqueados_colas);
 }
 
 
