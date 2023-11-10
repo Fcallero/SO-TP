@@ -112,9 +112,8 @@ int obtener_indice_recurso(char** recursos, char* recurso_a_buscar){
 	if(string_array_is_empty(recursos)){
 		return -1;
 	}
-	log_info(logger, "buscando recurso");
+
 	while(indice_recurso < tamanio_recursos && !string_equals_ignore_case(recursos[indice_recurso], recurso_a_buscar)){
-		log_info(logger, "%s no es el recurso buscado", recursos[indice_recurso]);
 		indice_recurso++;
 	}
 	if(indice_recurso == tamanio_recursos){
@@ -149,7 +148,7 @@ char *obtener_proceso_que_puede_finalizar(t_list *recusos_disponible, t_dictiona
 
 		bool puede_sasitfacer_peticion(void* recurso_sin_parsear){
 			t_recurso *recurso = (t_recurso *)recurso_sin_parsear;
-			t_recurso* recurso_disponible = obtener_recurso_con_nombre(recusos_disponible, recurso->nombre_recurso);//todo aca hay seg fault
+			t_recurso* recurso_disponible = obtener_recurso_con_nombre(recusos_disponible, recurso->nombre_recurso);
 			return recurso->instancias_en_posesion <= recurso_disponible->instancias_en_posesion;
 		}
 
@@ -241,9 +240,15 @@ void loggear_deadlock(void *pid_sin_parsear){
 	int cantidad_recursos = list_size(recursos_asignados);
 
 	for(int i = 0; i<cantidad_recursos ; i++){
-		string_array_push(&lista_recursos,  ((t_recurso *) list_get(recursos_asignados,i))->nombre_recurso);
-		string_array_push(&lista_recursos, ", ");
+		t_recurso *recurso_asignado = (t_recurso *) list_get(recursos_asignados,i);
+
+		if(recurso_asignado->instancias_en_posesion > 0){
+			string_array_push(&lista_recursos,  recurso_asignado->nombre_recurso);
+			string_array_push(&lista_recursos, ", ");
+		}
 	}
+	//saco la ultima comma
+	string_array_pop(lista_recursos);
 
 	char* lista_recursos_asignados = pasar_a_string(lista_recursos);
 
@@ -369,6 +374,11 @@ void deteccion_de_deadlock(){
 
 		list_destroy(procesos_en_deadlock);
 	}
+
+	destroy_matriz(matriz_asignados_cop);
+	destroy_matriz(matriz_necesidad_cop);
+	destroy_lista_de_recursos(recursos_disponible_cop);
+	destroy_lista_de_recursos(recursos_asignados);
 }
 
 t_list *obtener_recursos_en_base_a_pid_en_matriz(t_dictionary **matriz, char *pid, int cantidad_de_recursos){
@@ -571,8 +581,6 @@ void desalojar_recursos(int socket_cliente,char** recursos, int* recurso_disponi
 void finalinzar_proceso(int socket_cliente){
 	t_contexto_ejec* contexto = recibir_contexto_de_ejecucion(socket_cliente);
 
-	deteccion_de_deadlock();
-
 	sem_wait(&m_proceso_ejecutando);
 	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_ejecutando->PID, "EXEC","EXIT");
 
@@ -597,4 +605,59 @@ void finalinzar_proceso(int socket_cliente){
 	sem_post(&m_proceso_ejecutando);
 
 	poner_a_ejecutar_otro_proceso();
+}
+
+
+
+
+void destroy_lista_de_recursos(t_list* lista_recursos){
+	void eliminar_recurso(void *arg){
+		t_recurso *recurso_n = (t_recurso *)arg;
+
+		free(recurso_n->nombre_recurso);
+		free(recurso_n);
+	}
+
+	list_destroy_and_destroy_elements(lista_recursos, eliminar_recurso);
+}
+
+void destroy_proceso_en_matriz(t_dictionary *matriz, char *pid){
+	void eliminar_recursos(void *args){
+		t_list *recusos_a_borrar = (t_list *) args;
+
+		destroy_lista_de_recursos(recusos_a_borrar);
+	}
+
+	dictionary_remove_and_destroy(matriz, pid, eliminar_recursos);
+}
+void destroy_matriz(t_dictionary *matriz){
+
+	t_list *pids_procesos = dictionary_keys(matriz);
+
+	void destruir_proceso(void *args){
+		char *pid = (char *)args;
+
+		destroy_proceso_en_matriz(matriz, pid);
+	}
+
+	list_iterate(pids_procesos, destruir_proceso);
+
+	list_destroy(pids_procesos);
+}
+
+t_list *duplicar_lista_recursos(t_list *a_duplicar){
+	t_list *recursos_del_proceso_dup = list_create();
+
+	void duplicar_recursos(void *arg){
+		t_recurso *recurso_n = (t_recurso *)arg;
+
+		t_recurso *recuso_n_dup = recurso_new(recurso_n->nombre_recurso);
+		recuso_n_dup->instancias_en_posesion = recurso_n->instancias_en_posesion;
+
+		list_add(recursos_del_proceso_dup, recuso_n_dup);
+	}
+
+	list_iterate(a_duplicar, duplicar_recursos);
+
+	return recursos_del_proceso_dup;
 }

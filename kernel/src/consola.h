@@ -30,6 +30,9 @@ extern t_pcb* proceso_ejecutando;
 extern pthread_mutex_t m_planificador_largo_plazo;
 extern pthread_mutex_t m_planificador_corto_plazo;
 
+extern int *recursos_disponible;
+extern int cant_recursos;
+
 void levantar_consola();
 void destroy_proceso_ejecutando();
 void poner_a_ejecutar_otro_proceso();

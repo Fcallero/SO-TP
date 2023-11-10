@@ -86,7 +86,11 @@ void eliminar_por_pcb(t_pcb* pcb_a_eliminar, t_list* lista){
 
 	pcb_args_destroy(pcb_a_eliminar);
 
-	list_remove_element(lista, pcb_a_eliminar);
+	bool fue_eliminado = list_remove_element(lista, pcb_a_eliminar);
+
+	if(!fue_eliminado){
+		 log_error(logger, "no se encontro el pcb a eliminar en la lista dada");
+	}
 }
 
 void avisar_memoria_finalizar_proceso(t_pcb* proceso_a_finalizar, char* estado_anterior){
@@ -99,7 +103,7 @@ void avisar_memoria_finalizar_proceso(t_pcb* proceso_a_finalizar, char* estado_a
 	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_finalizar->PID, estado_anterior,"EXIT");
 }
 
-bool finalizar_proceso_si_esta_en_list(t_list* procesos_bloqueado, bool(*closure)(void*)){
+bool finalizar_proceso_si_esta_en_list(t_list* procesos_bloqueado, bool(*closure)(void*), char *estado_anterior){
 	//buscar en cola de bloqueados por recurso
 	t_pcb* pcb_a_eliminar = list_find(procesos_bloqueado, closure);
 
@@ -107,17 +111,103 @@ bool finalizar_proceso_si_esta_en_list(t_list* procesos_bloqueado, bool(*closure
 		return false;
 	}
 
-	avisar_memoria_finalizar_proceso(pcb_a_eliminar, "BLOC");
+	avisar_memoria_finalizar_proceso(pcb_a_eliminar, estado_anterior);
 
-	sem_wait(&m_recurso_bloqueado);
 	eliminar_por_pcb(pcb_a_eliminar, procesos_bloqueado);
-	sem_post(&m_recurso_bloqueado);
+
 	return true;
 }
 
+bool finalizar_proceso_si_esta_en_alguna_queue_del_list(t_list* lista_de_colas, bool(*condicion)(void*), char *estado_anterior){
+	bool fue_eliminada = false;
+
+	void bucar_si_esta_en_alugna_cola(void *args){
+		t_queue *cola_bloqueado = (t_queue *) args;
+
+		if(finalizar_proceso_si_esta_en_list(cola_bloqueado->elements, condicion, estado_anterior)){
+			fue_eliminada = true;
+		}
+	}
+
+	list_iterate(lista_de_colas, bucar_si_esta_en_alugna_cola);
+
+	return fue_eliminada;
+}
+
+
+void liberar_recursos_de(int pid_proceso_a_liberar){
+	char *pid = string_itoa(pid_proceso_a_liberar);
+
+	t_list *recursos_del_proceso = dictionary_get(matriz_recursos_asignados, pid);
+	t_list *recursos_del_proceso_dup = duplicar_lista_recursos(recursos_del_proceso);
+
+
+	void actualizar_recurso_disponible(void *arg){
+		t_recurso *recurso_n = (t_recurso *) arg;
+
+		int indice_recurso = obtener_indice_recurso(recursos, recurso_n->nombre_recurso);
+
+		recursos_disponible[indice_recurso] ++;
+
+	}
+
+	list_iterate(recursos_del_proceso, actualizar_recurso_disponible);
+
+	destroy_proceso_en_matriz(matriz_recursos_pendientes, pid);
+	destroy_proceso_en_matriz(matriz_recursos_asignados, pid);
+
+	deteccion_de_deadlock();
+
+	//desbloqueo a los procesos en caso de que esten bloqueados por algun recurso liberado
+
+	void desbloquear_por_recurso_liberado(void *args){
+		t_recurso *recurso_n = (t_recurso *)args;
+
+		if(recurso_n->instancias_en_posesion > 0){
+			char *nombre_recurso = recurso_n->nombre_recurso;
+			t_queue* cola_bloqueados= (t_queue*) dictionary_get(recurso_bloqueado, nombre_recurso);
+
+			int cantidad_procesos_bloqueados = queue_size(cola_bloqueados);
+
+			if(cantidad_procesos_bloqueados > 0){
+				t_pcb *proceso_desbloqueado = queue_pop(cola_bloqueados);
+				char *pid_desbloqueado = string_itoa(proceso_desbloqueado->PID);
+
+				log_info(logger, "PID: %s - Estado Anterior: %s - Estado Actual: %s", pid_desbloqueado, "BLOC","READY");
+
+				int indice_recurso = obtener_indice_recurso(recursos, recurso_n->nombre_recurso);
+
+				//actualizo los recursos disponibles para que no se le actualize a otro proceso
+				recursos_disponible[indice_recurso] --;
+
+				decrementar_recurso_en_matriz(&matriz_recursos_pendientes, nombre_recurso, pid_desbloqueado, cant_recursos);
+				incrementar_recurso_en_matriz(&matriz_recursos_asignados, nombre_recurso, pid_desbloqueado, cant_recursos);
+
+				pasar_a_ready(proceso_desbloqueado);
+			}
+		}
+	}
+
+
+	list_iterate(recursos_del_proceso_dup, desbloquear_por_recurso_liberado);
+
+	destroy_lista_de_recursos(recursos_del_proceso_dup);
+}
+
+void liberar_archivos_de(int pid_proceso_a_liberar){
+	char *pid = string_itoa(pid_proceso_a_liberar);
+
+	//TODO liberar archivos
+
+	deteccion_de_deadlock();
+
+	//desbloqueo a un proceso en caso de que este bloqueado por el archivo
+
+}
+
+
 void finalizar_proceso(t_instruccion *comando) {
 	//Liberar recursos, archivos ,memoria y finalizar el proceso por EXIT
-
 
 	//Tomo el PID de el comando por consola
 	int pid_buscado = atoi(comando->parametros[0]);
@@ -132,9 +222,14 @@ void finalizar_proceso(t_instruccion *comando) {
 		return pcb_n->PID == pid_buscado;
 	}
 
+	//Liberar recursos, archivos
+	liberar_recursos_de(pid_buscado);
+	liberar_archivos_de(pid_buscado);
+
+
 	//mutex de la variable compartida
 	sem_wait(&m_proceso_ejecutando);
-	if (proceso_ejecutando->PID == pid_buscado) {
+	if (proceso_ejecutando != NULL && proceso_ejecutando->PID == pid_buscado) {
 		//Creo mensaje de INT
 		sem_post(&m_proceso_ejecutando);
 		char* mensaje = string_new();
@@ -158,13 +253,13 @@ void finalizar_proceso(t_instruccion *comando) {
 
 		//Buscar en cola de ready
 		sem_wait(&m_cola_ready);
-		bool estaba_en_el_list = finalizar_proceso_si_esta_en_list(cola_ready->elements, _encontrar_por_pid);
+		bool estaba_en_el_list = finalizar_proceso_si_esta_en_list(cola_ready->elements, _encontrar_por_pid, "READY");
 		sem_post(&m_cola_ready);
 
 		if (!estaba_en_el_list) {
 			//Buscar en cola de new
 			sem_wait(&m_cola_new);
-			bool estaba_en_el_list = finalizar_proceso_si_esta_en_list(cola_new->elements, _encontrar_por_pid);
+			bool estaba_en_el_list = finalizar_proceso_si_esta_en_list(cola_new->elements, _encontrar_por_pid, "NEW");
 			sem_post(&m_cola_new);
 
 			if (!estaba_en_el_list) {
@@ -173,7 +268,7 @@ void finalizar_proceso(t_instruccion *comando) {
 				t_list *procesos_bloqueados = dictionary_elements(colas_de_procesos_bloqueados_para_cada_archivo);
 				sem_post(&m_cola_de_procesos_bloqueados_para_cada_archivo);
 
-				bool estaba_en_el_list = finalizar_proceso_si_esta_en_list(procesos_bloqueados, _encontrar_por_pid);
+				bool estaba_en_el_list = finalizar_proceso_si_esta_en_alguna_queue_del_list(procesos_bloqueados, _encontrar_por_pid, "BLOC");
 
 				if (!estaba_en_el_list) {
 					//buscar en cola de bloqueados por recurso
@@ -181,7 +276,7 @@ void finalizar_proceso(t_instruccion *comando) {
 					t_list *procesos_bloqueados_por_recurso = dictionary_elements(recurso_bloqueado);
 					sem_post(&m_recurso_bloqueado);
 
-					bool estaba_en_el_list = finalizar_proceso_si_esta_en_list(procesos_bloqueados_por_recurso, _encontrar_por_pid);
+					bool estaba_en_el_list = finalizar_proceso_si_esta_en_alguna_queue_del_list(procesos_bloqueados_por_recurso, _encontrar_por_pid, "BLOC");
 
 					if(!estaba_en_el_list){
 						log_error(logger,"No se encontro ningun proceso con el PID indicado");
@@ -190,6 +285,16 @@ void finalizar_proceso(t_instruccion *comando) {
 			}
 
 		}
+	}
+
+	log_info(logger, "Finaliza el proceso %d - Motivo: SUCCESS", pid_buscado);
+
+	sem_wait(&m_proceso_ejecutando);
+	if(proceso_ejecutando == NULL){
+		sem_post(&m_proceso_ejecutando);
+		poner_a_ejecutar_otro_proceso();
+	}else {
+		sem_post(&m_proceso_ejecutando);
 	}
 
 }

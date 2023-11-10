@@ -33,4 +33,13 @@ void desalojar_recursos(int socket_cliente, char** recursos, int* recurso_dispon
 void finalinzar_proceso(int socket_cliente);
 void deteccion_de_deadlock();
 
+t_list *duplicar_lista_recursos(t_list *a_duplicar);
+int obtener_indice_recurso(char** recursos, char* recurso_a_buscar);
+void incrementar_recurso_en_matriz(t_dictionary **matriz, char *nombre_recurso, char *pid, int cantidad_de_recursos);
+void decrementar_recurso_en_matriz(t_dictionary **matriz, char *nombre_recurso, char *pid, int cantidad_de_recursos);
+
+void destroy_lista_de_recursos(t_list* lista_recursos);
+void destroy_proceso_en_matriz(t_dictionary *matriz, char *pid);
+void destroy_matriz(t_dictionary *matriz);
+
 #endif /* SRC_PETICIONES_CPU_DISPATCH_H_ */
