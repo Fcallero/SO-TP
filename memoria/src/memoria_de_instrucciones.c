@@ -78,7 +78,7 @@ void leer_pseudo(int cliente_fd){
 		char* token = strtok(cadena," ");
 		ptr_inst->opcode = token;
 
-		ptr_inst->opcode_lenght = string_length(ptr_inst->opcode);
+		ptr_inst->opcode_lenght = strlen(ptr_inst->opcode) + 1;
 
 
 		ptr_inst->parametros[0] = NULL;
@@ -110,8 +110,6 @@ void leer_pseudo(int cliente_fd){
 		} else {
 			ptr_inst->parametro3_lenght = 0;
 		}
-
-		//ya el t_instruccion esta completo, hay que agregarlo en la cola
 
 		list_add(lista_instrucciones,ptr_inst);
 

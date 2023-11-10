@@ -54,8 +54,8 @@ void crear_contexto_y_enviar_a_CPU(t_pcb* proceso_a_ejecutar){
 void planificar_corto_plazo_fifo() {
 	sem_wait(&despertar_corto_plazo);
 	pthread_mutex_lock(&m_planificador_corto_plazo);
-	sem_wait(&m_cola_ready);
 
+	sem_wait(&m_cola_ready);
 	if (queue_size(cola_ready) == 0) {
 		sem_post(&m_cola_ready);
 		pthread_mutex_unlock(&m_planificador_corto_plazo);

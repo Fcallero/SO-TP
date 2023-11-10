@@ -203,7 +203,7 @@ void* atender_cliente(void *args) {
 				enviar_instruccion_a_cpu(cliente_fd,retardo_respuesta);
 				break;
 			case FINALIZAR_PROCESO_MEMORIA:
-				finalizar_proceso();
+				finalizar_proceso(cliente_fd);
 				break;
 			case ACCESO_A_PAGINA:
 				devolver_marco();
@@ -234,8 +234,12 @@ void* atender_cliente(void *args) {
 /* Estas mover a otros archivos en un futuro */
 
 
-void finalizar_proceso(int cliente_consola, int server_filesystem){
+void finalizar_proceso(int cliente_fd){
 	//recibe la orden de la consola de kernel
+	int size;
+	void* buffer = recibir_buffer(&size, cliente_fd);
+	int pid;
+	memcpy(&pid,buffer,sizeof(int));
 
 	/*op_code opcode = recibir_operacion(cliente_consola);
 	if(opcode != FINALIZAR_PROCESO_MEMORIA)

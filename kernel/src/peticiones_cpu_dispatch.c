@@ -28,8 +28,11 @@ char* listar_recursos_disponibles(int* recursos_disponibles, int cantidad_de_rec
 
 
 void* simular_sleep(void* arg){
-	uint32_t *tiempo_sleep = (uint32_t*) arg;
+	struct t_arg_tiempo{
+		uint32_t tiempo_sleep;
+	} *arg_tiempo = arg ;
 
+	uint32_t tiempo_sleep = arg_tiempo->tiempo_sleep;
 
 	sem_wait(&m_proceso_ejecutando);
 	t_pcb* proceso_en_sleep = proceso_ejecutando;
@@ -37,7 +40,7 @@ void* simular_sleep(void* arg){
 
 	sem_post(&esperar_proceso_ejecutando);
 
-	esperar_por((*tiempo_sleep) *1000);
+	esperar_por((tiempo_sleep) *1000);
 
 	sem_wait(&m_proceso_ejecutando);
 	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_en_sleep->PID, "BLOC","READY");
@@ -49,10 +52,11 @@ void* simular_sleep(void* arg){
 
 	sem_wait(&m_proceso_ejecutando);
 	if(proceso_ejecutando == NULL){
-		poner_a_ejecutar_otro_proceso();
+		sem_post(&despertar_corto_plazo);
 	}
 	sem_post(&m_proceso_ejecutando);
 
+	free(arg_tiempo);
 	return NULL;
 }
 
@@ -67,7 +71,13 @@ void manejar_sleep(int socket_cliente){
 
 	uint32_t tiempo_sleep = atoi(instruccion->parametros[0]);
 
-	pthread_create(&hilo_simulacion, NULL, simular_sleep, (void *) &tiempo_sleep);
+	struct t_arg_tiempo{
+		uint32_t tiempo_sleep;
+	} *arg_tiempo = malloc(sizeof(struct t_arg_tiempo)) ;
+
+	arg_tiempo->tiempo_sleep = tiempo_sleep;
+
+	pthread_create(&hilo_simulacion, NULL, simular_sleep, (void *) arg_tiempo);
 
 	pthread_detach(hilo_simulacion);
 
@@ -102,10 +112,9 @@ int obtener_indice_recurso(char** recursos, char* recurso_a_buscar){
 	if(string_array_is_empty(recursos)){
 		return -1;
 	}
-
-
-
-	while(indice_recurso < tamanio_recursos && strcmp(recurso_a_buscar, recursos[indice_recurso]) != 0 ){
+	log_info(logger, "buscando recurso");
+	while(indice_recurso < tamanio_recursos && !string_equals_ignore_case(recursos[indice_recurso], recurso_a_buscar)){
+		log_info(logger, "%s no es el recurso buscado", recursos[indice_recurso]);
 		indice_recurso++;
 	}
 	if(indice_recurso == tamanio_recursos){
@@ -141,7 +150,7 @@ char *obtener_proceso_que_puede_finalizar(t_list *recusos_disponible, t_dictiona
 		bool puede_sasitfacer_peticion(void* recurso_sin_parsear){
 			t_recurso *recurso = (t_recurso *)recurso_sin_parsear;
 			t_recurso* recurso_disponible = obtener_recurso_con_nombre(recusos_disponible, recurso->nombre_recurso);
-			return recurso->instancias_en_posesion <= recurso_disponible->instancias_en_posesion;
+			return recurso->instancias_en_posesion <= recurso_disponible->instancias_en_posesion; // TODO SEGFAULT ACA
 		}
 
 		if(list_all_satisfy(recursos_pendientes, puede_sasitfacer_peticion) && (
@@ -357,6 +366,7 @@ t_list *obtener_recursos_en_base_a_pid_en_matriz(t_dictionary **matriz, char *pi
 		for(int i = 0; i<cantidad_de_recursos; i++){
 			t_recurso * recurso_n = malloc(sizeof(t_recurso));
 			recurso_n->nombre_recurso = strdup(recursos[i]);
+			recurso_n->instancias_en_posesion = 0;
 
 			list_add(recursos_a_devolver, recurso_n);
 		}
@@ -453,7 +463,11 @@ void apropiar_recursos(int socket_cliente, char** recursos, int* recurso_disponi
 
 	recurso_disponible[indice_recurso] --;
 
-	if(recurso_disponible[indice_recurso] <= 0){
+	if(recurso_disponible[indice_recurso] < 0){
+
+		//lamo a esta funcion para inicializar la matriz de recursos asignados para la deteccion de deadlock
+		obtener_recursos_en_base_a_pid_en_matriz(&matriz_recursos_asignados, pid, cantidad_de_recursos);
+
 		sem_wait(&m_proceso_ejecutando);
 		bloquear_proceso_por_recurso(proceso_ejecutando, recursos[indice_recurso], cantidad_de_recursos);
 		sem_post(&m_proceso_ejecutando);
@@ -502,25 +516,34 @@ void desalojar_recursos(int socket_cliente,char** recursos, int* recurso_disponi
 
 	recurso_disponible[indice_recurso] ++;
 
+	t_list *recursos_del_proceso = obtener_recursos_en_base_a_pid_en_matriz(&matriz_recursos_asignados, pid, cantidad_de_recursos);
+
+	t_recurso *recurso_buscado = obtener_recurso_con_nombre(recursos_del_proceso, nombre_recurso);
+
+	if(recurso_buscado->instancias_en_posesion > 0){ // si este proceso solicito el recurso
+		decrementar_recurso_en_matriz(&matriz_recursos_asignados, nombre_recurso, pid, cantidad_de_recursos);
+	} else { //este proceso no solicito una instancia del recurso
+		finalizar_por_invalid_resource_proceso_ejecutando(&contexto);
+		return;
+	}
+
 	t_queue* cola_bloqueados= (t_queue*) dictionary_get(recurso_bloqueado,recursos[indice_recurso]);
 
 	int cantidad_procesos_bloqueados = queue_size(cola_bloqueados);
 
 	if(cantidad_procesos_bloqueados > 0){
 		t_pcb* proceso_desbloqueado = queue_pop(cola_bloqueados);
+		char * pid_desbloqueado = string_itoa(proceso_desbloqueado->PID);
 
-		log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_desbloqueado->PID, "BLOC","READY");
+		log_info(logger, "PID: %s - Estado Anterior: %s - Estado Actual: %s", pid_desbloqueado, "BLOC","READY");
 
 		//actualizo los recursos disponibles para que no se le actualize a otro proceso
 		recurso_disponible[indice_recurso] --;
 
-		decrementar_recurso_en_matriz(&matriz_recursos_asignados, nombre_recurso, pid, cantidad_de_recursos);
-		decrementar_recurso_en_matriz(&matriz_recursos_pendientes, nombre_recurso, pid, cantidad_de_recursos);
+		decrementar_recurso_en_matriz(&matriz_recursos_pendientes, nombre_recurso, pid_desbloqueado, cantidad_de_recursos);
+		incrementar_recurso_en_matriz(&matriz_recursos_asignados, nombre_recurso, pid_desbloqueado, cantidad_de_recursos);
 
 		pasar_a_ready(proceso_desbloqueado);
-	} else { // significa que no habia ningun proceso bloqueado
-		finalizar_por_invalid_resource_proceso_ejecutando(&contexto);
-		return;
 	}
 
 	logear_instancias(pid, recursos[indice_recurso], recurso_disponible, cantidad_de_recursos);
