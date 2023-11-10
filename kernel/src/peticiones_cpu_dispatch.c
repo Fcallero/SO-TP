@@ -12,18 +12,24 @@ void poner_a_ejecutar_otro_proceso(){
 }
 
 char* listar_recursos_disponibles(int* recursos_disponibles, int cantidad_de_recursos){
-		char** recursos_disponibles_string_array = string_array_new();
+	char** recursos_disponibles_string_array = string_array_new();
 
-		for(int i =0; i< cantidad_de_recursos; i++){
-			int diponibilidad_recurso_n = recursos_disponibles[i];
+	for(int i =0; i< cantidad_de_recursos; i++){
+		int diponibilidad_recurso_n = recursos_disponibles[i];
+		char *coma = malloc(3);
+		strcpy(coma, ", ");
 
-			string_array_push(&recursos_disponibles_string_array, string_itoa(diponibilidad_recurso_n));
-			string_array_push(&recursos_disponibles_string_array,"," );
-		}
+		string_array_push(&recursos_disponibles_string_array, string_itoa(diponibilidad_recurso_n));
+		string_array_push(&recursos_disponibles_string_array,coma );
+	}
 
-		string_array_pop(recursos_disponibles_string_array);
+	free(string_array_pop(recursos_disponibles_string_array));
 
-		return pasar_a_string(recursos_disponibles_string_array) ;
+	char* lista_recursos_disponibles = pasar_a_string(recursos_disponibles_string_array);
+
+	string_array_destroy(recursos_disponibles_string_array);
+
+	return lista_recursos_disponibles;
 }
 
 
@@ -243,14 +249,19 @@ void loggear_deadlock(void *pid_sin_parsear){
 		t_recurso *recurso_asignado = (t_recurso *) list_get(recursos_asignados,i);
 
 		if(recurso_asignado->instancias_en_posesion > 0){
-			string_array_push(&lista_recursos,  recurso_asignado->nombre_recurso);
-			string_array_push(&lista_recursos, ", ");
+			char *coma = malloc(3);
+			strcpy(coma, ", ");
+
+			string_array_push(&lista_recursos,  strdup(recurso_asignado->nombre_recurso));
+			string_array_push(&lista_recursos, coma);
 		}
 	}
 	//saco la ultima comma
 	string_array_pop(lista_recursos);
 
 	char* lista_recursos_asignados = pasar_a_string(lista_recursos);
+
+	string_array_destroy(lista_recursos);
 
 	bool es_recurso_solicitado(void *recurso_sin_parsear){
 		t_recurso *recurso = (t_recurso *) recurso_sin_parsear;
@@ -260,6 +271,8 @@ void loggear_deadlock(void *pid_sin_parsear){
 	t_recurso *recurso_requerido = list_find(recursos_pendientes, es_recurso_solicitado);
 
 	log_info(logger, "Deadlock detectado: %s - Recursos en posesión %s - Recurso requerido: %s", pid, lista_recursos_asignados, recurso_requerido->nombre_recurso);
+
+	free(lista_recursos_asignados);
 }
 
 t_list *obtener_procesos_en_deadlock(t_dictionary *matriz_necesidad, t_dictionary *matriz_asignados){
@@ -643,6 +656,7 @@ void destroy_matriz(t_dictionary *matriz){
 	list_iterate(pids_procesos, destruir_proceso);
 
 	list_destroy(pids_procesos);
+	dictionary_destroy(matriz);
 }
 
 t_list *duplicar_lista_recursos(t_list *a_duplicar){

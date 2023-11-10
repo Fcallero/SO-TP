@@ -5,14 +5,21 @@ t_dictionary *colas_de_procesos_bloqueados_para_cada_archivo;
 bool planificacion_detenida = false;
 int grado_max_multiprogramacion;
 
+void destroy_commando(t_instruccion *comando){
 
+	free(comando->opcode);
+	free(comando->parametros[0]);
+	free(comando->parametros[1]);
+	free(comando->parametros[2]);
+	free(comando);
+}
 
 t_instruccion* armar_comando(char *cadena) {
 
 	t_instruccion *comando = malloc(sizeof(t_instruccion));
 
 
-	char *token = strtok(cadena, " "); // obtiene el primer elemento en token
+	char *token = strtok(strdup(cadena), " "); // obtiene el primer elemento en token
 	string_to_upper(token); //paso la cadena a mayuscula
 	comando->opcode = token;
 
@@ -26,7 +33,7 @@ t_instruccion* armar_comando(char *cadena) {
 
 	while (token != NULL) { //Ingresa si el parametro no es NULL
 
-		comando->parametros[i] = token; //Carga el parametro en el array de la struct
+		comando->parametros[i] = strdup(token); //Carga el parametro en el array de la struct
 		token = strtok(NULL, " "); // obtiene el siguiente elemento
 		i++; //Avanza en el array
 	}
@@ -80,6 +87,7 @@ void iniciar_proceso(t_instruccion *comando) {
 
 	sem_post(&despertar_planificacion_largo_plazo);
 
+	destroy_commando(comando);
 }
 
 t_list *obtener_procesos_bloqueados_sin_repetir_de(t_list* lista_de_colas){
@@ -332,6 +340,7 @@ void finalizar_proceso(t_instruccion *comando) {
 		sem_post(&m_proceso_ejecutando);
 	}
 
+	destroy_commando(comando);
 }
 
 void detener_planificacion() {
@@ -369,6 +378,8 @@ void multiprogramacion(t_instruccion* comando) {
 	}else{
 		log_error(logger, "Se produjo un error al recibir el comando, ya que paso algo imposible, por favor verificar");
 	}
+
+	destroy_commando(comando);
 }
 void proceso_estado() {
 	//Listara por consola todos los estados y los procesos que se encuentran dentro de ellos
@@ -450,19 +461,23 @@ void levantar_consola() {
 			finalizar_proceso(comando);
 
 		} else if (strcmp(comando->opcode, "DETENER_PLANIFICACION") == 0) {
+			destroy_commando(comando);
 			detener_planificacion();
 
 		} else if (strcmp(comando->opcode, "INICIAR_PLANIFICACION") == 0) {
+			destroy_commando(comando);
 			iniciar_planificacion();
 
 		} else if (strcmp(comando->opcode, "MULTIPROGRAMACION") == 0) {
 			multiprogramacion(comando);
 
 		} else if (strcmp(comando->opcode, "PROCESO_ESTADO") == 0) {
+			destroy_commando(comando);
 			proceso_estado();
 
 		} else {
 			log_error(logger,"Comando desconocido campeon, leete la documentacion de nuevo :p");
+			destroy_commando(comando);
 		}
 
 		free(linea);
