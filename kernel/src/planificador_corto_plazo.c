@@ -40,7 +40,7 @@ void notificar_desalojo_cpu_interrupt(){
 
 void crear_contexto_y_enviar_a_CPU(t_pcb* proceso_a_ejecutar){
 	t_contexto_ejec* contexto_ejecucion = malloc(sizeof(t_contexto_ejec));
-	contexto_ejecucion->instruccion = malloc(sizeof(t_instruccion));
+	contexto_ejecucion->instruccion = NULL;
 	contexto_ejecucion->program_counter = proceso_a_ejecutar->program_counter;
 	contexto_ejecucion->pid = proceso_a_ejecutar->PID;
 	contexto_ejecucion->registros_CPU = proceso_a_ejecutar->registros_CPU;

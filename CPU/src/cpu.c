@@ -350,13 +350,13 @@ void devolver_a_kernel(t_contexto_ejec *contexto, op_code code,
 
 	agregar_a_paquete_sin_agregar_tamanio(paquete_contexto,&(contexto->registros_CPU->DX), sizeof(uint32_t));
 
-	agregar_a_paquete(paquete_contexto, contexto->instruccion->opcode,sizeof(contexto->instruccion->opcode_lenght));
+	agregar_a_paquete(paquete_contexto, contexto->instruccion->opcode,contexto->instruccion->opcode_lenght);
 
-	agregar_a_paquete(paquete_contexto, contexto->instruccion->parametros[0],sizeof(contexto->instruccion->parametro1_lenght));
+	agregar_a_paquete(paquete_contexto, contexto->instruccion->parametros[0],contexto->instruccion->parametro1_lenght);
 
-	agregar_a_paquete(paquete_contexto, contexto->instruccion->parametros[1],sizeof(contexto->instruccion->parametro2_lenght));
+	agregar_a_paquete(paquete_contexto, contexto->instruccion->parametros[1],contexto->instruccion->parametro2_lenght);
 
-	agregar_a_paquete(paquete_contexto, contexto->instruccion->parametros[2],sizeof(contexto->instruccion->parametro3_lenght));
+	agregar_a_paquete(paquete_contexto, contexto->instruccion->parametros[2],contexto->instruccion->parametro3_lenght);
 
 	enviar_paquete(paquete_contexto, socket_cliente);
 

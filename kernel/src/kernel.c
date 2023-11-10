@@ -153,7 +153,6 @@ int main(int argc, char *argv[]) {
 
 	string_iterate_lines(recursos, _iterar_recursos);
 
-
 	//levanto 4 hilos para recibir peticiones de forma concurrente de los modulos
 
 	pthread_t hilo_peticiones_cpu_dispatch, hilo_peticiones_cpu_interrupt,

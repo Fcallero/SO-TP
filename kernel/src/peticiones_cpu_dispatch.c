@@ -149,8 +149,8 @@ char *obtener_proceso_que_puede_finalizar(t_list *recusos_disponible, t_dictiona
 
 		bool puede_sasitfacer_peticion(void* recurso_sin_parsear){
 			t_recurso *recurso = (t_recurso *)recurso_sin_parsear;
-			t_recurso* recurso_disponible = obtener_recurso_con_nombre(recusos_disponible, recurso->nombre_recurso);
-			return recurso->instancias_en_posesion <= recurso_disponible->instancias_en_posesion; // TODO SEGFAULT ACA
+			t_recurso* recurso_disponible = obtener_recurso_con_nombre(recusos_disponible, recurso->nombre_recurso);//todo aca hay seg fault
+			return recurso->instancias_en_posesion <= recurso_disponible->instancias_en_posesion;
 		}
 
 		if(list_all_satisfy(recursos_pendientes, puede_sasitfacer_peticion) && (
@@ -193,6 +193,12 @@ bool finalizaron_todos_los_procesos(t_dictionary *matriz_necesidad, t_dictionary
 	return procesos_finalizados == dictionary_size(matriz_necesidad);
 }
 
+t_recurso *recurso_new(char *nombre_recurso){
+	t_recurso *recurso = malloc(sizeof(t_recurso));
+	recurso->nombre_recurso = strdup(nombre_recurso);
+	recurso->instancias_en_posesion = 0;
+	return recurso;
+}
 
 void duplicar_diccionario(t_dictionary** duplicado, t_dictionary *a_duplicar){
 
@@ -202,12 +208,21 @@ void duplicar_diccionario(t_dictionary** duplicado, t_dictionary *a_duplicar){
 	t_list_iterator *iterador_elementos = list_iterator_create(elementos);
 
 	while(list_iterator_has_next(iterador_elementos)){
-		t_recurso *elemento_n = list_iterator_next(iterador_elementos);
+		t_list *elemento_n = list_iterator_next(iterador_elementos);
 		char *key_n = list_get(keys, list_iterator_index(iterador_elementos));
 
-		t_recurso *elemento_n_dup = malloc(sizeof(t_recurso));
-		elemento_n_dup->instancias_en_posesion = elemento_n->instancias_en_posesion;
-		elemento_n_dup->nombre_recurso = strdup(elemento_n->nombre_recurso);
+		t_list *elemento_n_dup = list_create();
+
+		void  duplicar_recursos(void* args){
+			t_recurso *recurso_n = (t_recurso *) args;
+			t_recurso *recurso_n_dup = recurso_new(recurso_n->nombre_recurso);
+			recurso_n_dup->instancias_en_posesion = recurso_n->instancias_en_posesion;
+
+			list_add(elemento_n_dup, recurso_n_dup);
+		}
+
+		list_iterate(elemento_n, duplicar_recursos);
+
 
 		dictionary_put(*duplicado, strdup(key_n), elemento_n_dup);
 	}
@@ -266,6 +281,7 @@ t_list *obtener_procesos_en_deadlock(t_dictionary *matriz_necesidad, t_dictionar
 	return procesos_en_deadlock;
 }
 
+
 void calcular_recursos_asignados(t_list **recursos_asignados){
 	void contar_recursos_asignados(char *pid, void *recursos_sin_parsear){
 		t_list *recursos = (t_list *) recursos_sin_parsear;
@@ -275,9 +291,8 @@ void calcular_recursos_asignados(t_list **recursos_asignados){
 			t_recurso *recurso_asignado_buscado = obtener_recurso_con_nombre(*recursos_asignados, recurso->nombre_recurso);
 
 			if(recurso_asignado_buscado == NULL){
-				t_recurso *recurso_asignado = malloc(sizeof(t_recurso));
+				t_recurso *recurso_asignado = recurso_new(recurso->nombre_recurso);
 
-				recurso_asignado->nombre_recurso = strdup(recurso->nombre_recurso);
 				recurso_asignado->instancias_en_posesion += recurso->instancias_en_posesion;
 
 				list_add(*recursos_asignados, recurso_asignado);
@@ -298,9 +313,8 @@ void calcular_recursos_disponible(t_list **recursos_disponible, t_list *recursos
 	while(list_iterator_has_next(iterador_recursos_asignados)){
 		t_recurso* recurso_asignado = list_iterator_next(iterador_recursos_asignados);
 
-		t_recurso *recurso_disponible = malloc(sizeof(t_recurso));
+		t_recurso *recurso_disponible = recurso_new(recurso_asignado->nombre_recurso);
 
-		recurso_disponible->nombre_recurso = strdup(recurso_asignado->nombre_recurso);
 		recurso_disponible->instancias_en_posesion = recursos_totales[list_iterator_index(iterador_recursos_asignados)] - recurso_asignado->instancias_en_posesion;
 
 		list_add(*recursos_disponible, recurso_disponible);
@@ -364,9 +378,7 @@ t_list *obtener_recursos_en_base_a_pid_en_matriz(t_dictionary **matriz, char *pi
 		recursos_a_devolver = list_create();
 
 		for(int i = 0; i<cantidad_de_recursos; i++){
-			t_recurso * recurso_n = malloc(sizeof(t_recurso));
-			recurso_n->nombre_recurso = strdup(recursos[i]);
-			recurso_n->instancias_en_posesion = 0;
+			t_recurso * recurso_n = recurso_new(recursos[i]);
 
 			list_add(recursos_a_devolver, recurso_n);
 		}
@@ -566,12 +578,12 @@ void finalinzar_proceso(int socket_cliente){
 
 	actualizar_estado_a_pcb(proceso_ejecutando, "EXIT");
 
-	/* TODO pedir eliminar proceso memoria
+
 	t_paquete *paquete = crear_paquete(FINALIZAR_PROCESO_MEMORIA);
 	agregar_a_paquete_sin_agregar_tamanio(paquete,&(proceso_ejecutando->PID),sizeof(int));
 	enviar_paquete(paquete,socket_memoria);
 	eliminar_paquete(paquete);
-	*/
+
 
 	log_info(logger, "Finaliza el proceso %d - Motivo: SUCCESS", proceso_ejecutando->PID);
 

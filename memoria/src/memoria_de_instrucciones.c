@@ -22,7 +22,6 @@ void leer_pseudo(int cliente_fd){
 		path = string_replace(path, "~/", "/home/utnso/");
 	}
 
-    log_info(logger, "path: %s", path);
 	FILE* archivo = fopen(path,"r");
 
 
