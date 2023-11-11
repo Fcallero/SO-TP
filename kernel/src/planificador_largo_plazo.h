@@ -46,6 +46,7 @@ extern sem_t despertar_planificacion_largo_plazo;
 extern sem_t m_proceso_ejecutando;
 extern sem_t m_recurso_bloqueado;
 extern sem_t m_cola_de_procesos_bloqueados_para_cada_archivo;
+extern sem_t espero_desalojo_CPU;
 
 void inicializar_colas_y_semaforos();
 void *planificar_nuevos_procesos_largo_plazo(void *arg);

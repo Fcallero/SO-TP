@@ -378,6 +378,8 @@ void multiprogramacion(t_instruccion* comando) {
 	destroy_commando(comando);
 }
 
+//TODO falta testear la prueba de errores
+
 //TODO cambiar logs de estado por "Estado: <NOMBRE_ESTADO> - Procesos: <PID_1>, <PID_2>, <PID_N>" por cada estado
 void proceso_estado() {
 	//Listara por consola todos los estados y los procesos que se encuentran dentro de ellos

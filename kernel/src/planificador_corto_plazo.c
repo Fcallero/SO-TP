@@ -17,25 +17,7 @@ void notificar_desalojo_cpu_interrupt(){
 	//el mensaje es el motivo del desalojo (usado solo para un log en cpu)
 	enviar_mensaje("Desalojo por fin de quantum", socket_cpu_interrupt, INTERRUPCION);
 
-	op_code operacion = recibir_operacion(socket_cpu_dispatch);
-
-	if(operacion != INTERRUPCION){
-		log_error(logger, "no se pudo recibir el contexto de ejecucion por desalojo de fin de quantum");
-		return;
-	}
-
-	t_contexto_ejec *contexto = recibir_contexto_de_ejecucion(socket_cpu_dispatch);
-
-	sem_wait(&m_proceso_ejecutando);
-	proceso_ejecutando->program_counter = contexto->program_counter;
-	proceso_ejecutando->registros_CPU->AX = contexto->registros_CPU->AX;
-	proceso_ejecutando->registros_CPU->BX = contexto->registros_CPU->BX;
-	proceso_ejecutando->registros_CPU->CX = contexto->registros_CPU->CX;
-	proceso_ejecutando->registros_CPU->DX = contexto->registros_CPU->DX;
-	sem_post(&m_proceso_ejecutando);
-
-
-	contexto_ejecucion_destroy(contexto);
+	sem_wait(&espero_desalojo_CPU);
 }
 
 void crear_contexto_y_enviar_a_CPU(t_pcb* proceso_a_ejecutar){
@@ -132,17 +114,38 @@ void planificar_corto_plazo_round_robbin() {
 	esperar_por(quantum);
 
 	sem_wait(&m_proceso_ejecutando);
+	if(proceso_ejecutando == NULL){
+		sem_post(&m_proceso_ejecutando);
+		sem_wait(&m_cola_ready);
+		int tam_procesos_en_ready = queue_size(cola_ready);
+		sem_post(&m_cola_ready);
+		sem_wait(&m_cola_new);
+		int tam_procesos_en_new = queue_size(cola_new);
+		sem_post(&m_cola_new);
 
-	log_info(logger, "PID: %d - Desalojado por fin de Quantum",
-			proceso_a_ejecutar->PID);
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s",
-			proceso_a_ejecutar->PID, "EXEC", "READY");
+		if(tam_procesos_en_ready > 0){
+			sem_post(&despertar_corto_plazo);
+		} else if(tam_procesos_en_new >0){
+			sem_post(&despertar_planificacion_largo_plazo);
+		}
+
+		pthread_mutex_unlock(&m_planificador_corto_plazo);
+		return;
+	} else{
+		sem_post(&m_proceso_ejecutando);
+	}
+
+	sem_wait(&m_proceso_ejecutando);
+
+	log_info(logger, "PID: %d - Desalojado por fin de Quantum", proceso_a_ejecutar->PID);
+	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_ejecutar->PID, "EXEC", "READY");
 	actualizar_estado_a_pcb(proceso_a_ejecutar, "READY");
+	sem_post(&m_proceso_ejecutando);
 
 	notificar_desalojo_cpu_interrupt();
 
+	sem_wait(&m_proceso_ejecutando);
 	proceso_ejecutando = NULL;
-
 	sem_post(&m_proceso_ejecutando);
 
 	pasar_a_ready(proceso_a_ejecutar);

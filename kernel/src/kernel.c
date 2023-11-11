@@ -415,6 +415,21 @@ void* escuchar_peticiones_cpu_dispatch(void *args) {
 					break;
 				case WRITE_MEMORY:
 					break;
+				case INTERRUPCION:
+					t_contexto_ejec *contexto = recibir_contexto_de_ejecucion(socket_cpu_dispatch);
+
+					sem_wait(&m_proceso_ejecutando);
+					proceso_ejecutando->program_counter = contexto->program_counter;
+					proceso_ejecutando->registros_CPU->AX = contexto->registros_CPU->AX;
+					proceso_ejecutando->registros_CPU->BX = contexto->registros_CPU->BX;
+					proceso_ejecutando->registros_CPU->CX = contexto->registros_CPU->CX;
+					proceso_ejecutando->registros_CPU->DX = contexto->registros_CPU->DX;
+					sem_post(&m_proceso_ejecutando);
+
+					contexto_ejecucion_destroy(contexto);
+					sem_post(&espero_desalojo_CPU);
+
+					break;
 				case -1:
 					log_error(logger, "La CPU se desconecto. Terminando servidor ");
 					free(recursos_disponible);

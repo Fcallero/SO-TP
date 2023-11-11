@@ -315,10 +315,15 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 		}
 
 		//CHECK INTERRUPT
-		if (hay_interrupcion_pendiente) {
+		if (hay_interrupcion_pendiente && continuar_con_el_ciclo_instruccion) {
 			continuar_con_el_ciclo_instruccion = false;
 			devolver_a_kernel(contexto_actual, INTERRUPCION, socket_kernel);
+			hay_interrupcion_pendiente = false;
+		} else if(hay_interrupcion_pendiente){
+			continuar_con_el_ciclo_instruccion = false;
+			hay_interrupcion_pendiente = false;
 		}
+
 	}
 
 	contexto_ejecucion_destroy(contexto_actual);

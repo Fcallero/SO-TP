@@ -15,6 +15,7 @@ sem_t m_cola_de_procesos_bloqueados_para_cada_archivo;
 sem_t despertar_planificacion_largo_plazo;
 sem_t memoria_lista;
 sem_t recibir_interrupcion;
+sem_t espero_desalojo_CPU;
 t_dictionary* colas_de_procesos_bloqueados_para_cada_archivo;
 t_dictionary* recurso_bloqueado;
 pthread_mutex_t m_planificador_largo_plazo;
@@ -33,6 +34,7 @@ void inicializar_colas_y_semaforos(){
 	sem_init(&despertar_planificacion_largo_plazo,0,0);
 	sem_init(&memoria_lista,0,0);
 	sem_init(&recibir_interrupcion, 0, 0);
+	sem_init(&espero_desalojo_CPU, 0, 0);
 	pthread_mutex_init(&m_planificador_largo_plazo, NULL);
 	pthread_mutex_init(&m_planificador_corto_plazo, NULL);
 }
