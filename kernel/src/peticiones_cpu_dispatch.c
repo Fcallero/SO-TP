@@ -536,6 +536,7 @@ void desalojar_recursos(int socket_cliente,char** recursos, int* recurso_disponi
 	if(recurso_buscado->instancias_en_posesion > 0){ // si este proceso solicito el recurso
 		decrementar_recurso_en_matriz(&matriz_recursos_asignados, nombre_recurso, pid, cantidad_de_recursos);
 	} else { //este proceso no solicito una instancia del recurso
+		log_info(logger, "Finaliza el proceso %d por recurso no tomado", contexto->pid);
 		finalizar_por_invalid_resource_proceso_ejecutando(&contexto);
 		return;
 	}

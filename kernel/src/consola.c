@@ -385,7 +385,6 @@ void multiprogramacion(t_instruccion* comando) {
 	destroy_commando(comando);
 }
 
-//TODO falta testear la prueba de errores
 
 void listar_pids_diccionario(char **pids, t_dictionary *diccionario){
 	t_list *procesos_bloqueados_colas = dictionary_elements(diccionario);
@@ -428,6 +427,8 @@ void proceso_estado() {
 	sem_wait(&m_proceso_ejecutando);
 	if(proceso_ejecutando!= NULL){
 		log_info(logger, "Estado: %s - Procesos: %d","EXEC", proceso_ejecutando->PID);
+	} else {
+		log_info(logger, "Estado: EXEC - Procesos: ");
 	}
 	sem_post(&m_proceso_ejecutando);
 
