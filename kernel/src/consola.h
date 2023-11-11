@@ -35,7 +35,6 @@ extern int cant_recursos;
 
 void levantar_consola();
 void destroy_proceso_ejecutando();
-void poner_a_ejecutar_otro_proceso();
 
 
 #endif /* SRC_CONSOLA_H_ */

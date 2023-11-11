@@ -175,7 +175,7 @@ void *planificar_nuevos_procesos_largo_plazo(void *arg){
 		procesos_en_memoria_total ++;
 
 
-		if(tamanio_cola_new != 0 && procesos_en_memoria_total < grado_max_multiprogramacion){
+		if(tamanio_cola_new != 0 && procesos_en_memoria_total <= grado_max_multiprogramacion){
 
 			//verificar si se lo puede admitir a la cola de ready
 			agregar_proceso_a_ready(socket_memoria, algoritmo_planificacion);

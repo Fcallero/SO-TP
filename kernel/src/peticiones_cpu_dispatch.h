@@ -27,6 +27,8 @@ extern t_dictionary *matriz_recursos_pendientes;
 extern int *recursos_totales;
 extern char	**recursos;
 
+void poner_a_ejecutar_otro_proceso();
+
 void manejar_sleep(int socket_cliente);
 void apropiar_recursos(int socket_cliente, char** recursos, int* recurso_disponible, int cantidad_de_recursos);
 void desalojar_recursos(int socket_cliente, char** recursos, int* recurso_disponible, int cantidad_de_recursos);

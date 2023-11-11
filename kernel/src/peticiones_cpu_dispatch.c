@@ -8,7 +8,18 @@ void poner_a_ejecutar_otro_proceso(){
 	proceso_ejecutando = NULL;
 	sem_post(&m_proceso_ejecutando);
 
-	sem_post(&despertar_corto_plazo);
+	sem_wait(&m_cola_ready);
+	sem_wait(&m_cola_new);
+
+	if(queue_size(cola_ready) == 0 && queue_size(cola_new) > 0){
+		sem_post(&m_cola_ready);
+		sem_post(&m_cola_new);
+		sem_post(&despertar_planificacion_largo_plazo);
+	} else {
+		sem_post(&m_cola_ready);
+		sem_post(&m_cola_new);
+		sem_post(&despertar_corto_plazo);
+	}
 }
 
 char* listar_recursos_disponibles(int* recursos_disponibles, int cantidad_de_recursos){

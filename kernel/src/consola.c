@@ -335,6 +335,7 @@ void finalizar_proceso(t_instruccion *comando) {
 	sem_wait(&m_proceso_ejecutando);
 	if(proceso_ejecutando == NULL){
 		sem_post(&m_proceso_ejecutando);
+
 		poner_a_ejecutar_otro_proceso();
 	}else {
 		sem_post(&m_proceso_ejecutando);
@@ -351,6 +352,7 @@ void detener_planificacion() {
 		pthread_mutex_lock(&m_planificador_largo_plazo);
 		pthread_mutex_lock(&m_planificador_corto_plazo);
 		planificacion_detenida = true;
+		log_info(logger, "PAUSA DE PLANIFICACIÓN");
 	}
 }
 
@@ -362,25 +364,21 @@ void iniciar_planificacion() {
 		pthread_mutex_unlock(&m_planificador_largo_plazo);
 		pthread_mutex_unlock(&m_planificador_corto_plazo);
 		planificacion_detenida = false;
+		log_info(logger, "INICIO DE PLANIFICACIÓN");
 	}
 }
-
 
 void multiprogramacion(t_instruccion* comando) {
 	//Modificar el grado de multiprogramacion (no desalojar procesos)
 	int nuevo_grado_multiprogramacion = atoi(comando->parametros[0]);
-	if (grado_max_multiprogramacion == nuevo_grado_multiprogramacion){
-		log_info(logger, "El grado de multiprogramacion actual ya es %d", grado_max_multiprogramacion);
-	}else if (grado_max_multiprogramacion != nuevo_grado_multiprogramacion){
-		log_info(logger, "Cambiando grado de multiprogramacion de: %d a %d", grado_max_multiprogramacion, nuevo_grado_multiprogramacion);
-		grado_max_multiprogramacion = nuevo_grado_multiprogramacion;
 
-	}else{
-		log_error(logger, "Se produjo un error al recibir el comando, ya que paso algo imposible, por favor verificar");
-	}
+	grado_max_multiprogramacion = nuevo_grado_multiprogramacion;
+	log_info(logger, "Grado Anterior: %d - Grado Actual: %d", grado_max_multiprogramacion, nuevo_grado_multiprogramacion);
 
 	destroy_commando(comando);
 }
+
+//TODO cambiar logs de estado por "Estado: <NOMBRE_ESTADO> - Procesos: <PID_1>, <PID_2>, <PID_N>" por cada estado
 void proceso_estado() {
 	//Listara por consola todos los estados y los procesos que se encuentran dentro de ellos
 	log_info(logger, "Lista de todos los procesos del sistema y su respectivo estado:");
