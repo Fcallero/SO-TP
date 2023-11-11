@@ -392,10 +392,12 @@ void* escuchar_peticiones_cpu_dispatch(void *args) {
 					manejar_sleep(cliente_fd);
 					break;
 				case ABRIR_ARCHIVO:
+					enviar_a_fs_crear_o_abrir_archivo (socket_cpu_dispatch, socket_fs);
 					break;
 				case CERRAR_ARCHIVO:
 					break;
 				case TRUNCAR_ARCHIVO:
+					enviar_a_fs_truncar_archivo(socket_cpu_dispatch, socket_fs);
 					break;
 				case APUNTAR_ARCHIVO:
 					break;
@@ -403,8 +405,9 @@ void* escuchar_peticiones_cpu_dispatch(void *args) {
 					break;
 				case ESCRIBIR_ARCHIVO:
 					break;
-				case CREAR_ARCHIVO:
-					break;
+				/*case CREAR_ARCHIVO: CREO QUE NO ES NECESAIO, TODA LA FUNCION OCURRE EN ABRIR ARCHIVO
+					enviar_a_fs_crear_o_abrir_archivo (socket_cpu_dispatch, socket_fs);
+					break;*/
 				case ACCESO_A_PAGINA:
 					break;
 				case PAGE_FAULT:

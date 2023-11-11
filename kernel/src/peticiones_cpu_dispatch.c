@@ -1,6 +1,8 @@
 #include "peticiones_cpu_dispatch.h"
 
 sem_t esperar_proceso_ejecutando;
+sem_t read_lock;
+sem_t write_lock;
 
 void poner_a_ejecutar_otro_proceso(){
 
@@ -656,4 +658,82 @@ t_list *duplicar_lista_recursos(t_list *a_duplicar){
 	list_iterate(a_duplicar, duplicar_recursos);
 
 	return recursos_del_proceso_dup;
+}
+
+void enviar_a_fs_truncar_archivo(int socket_cpu, int socket_filesystem)
+{
+	/* recibe de CPU la orden de truncar (F_TRUNCATE). Cuando recibe, manda la orden a filesystem*/
+	op_code* opcode = recibir_operacion(socket_cpu);
+	if(opcode != TRUNCAR_ARCHIVO)
+	{
+		log_error(logger,"No reconozco la instruccion");
+		//aca deberia terminar el programa, pongo un return, cualquier cosa lo sacan
+		return;
+	}
+	int desplazamiento = 0;
+	t_contexto_ejec* contexto = recibir_contexto_de_ejecucion(socket_cpu);
+
+	//ya recibimos la instruccion con los parametros, ahora hay que mandarle a filesystem la orden
+	t_paquete* paquete = crear_paquete(TRUNCAR_ARCHIVO);
+	agregar_a_paquete_sin_agregar_tamanio(paquete, &(contexto->pid),sizeof(int));
+	agregar_a_paquete(paquete, contexto->instruccion->parametros[0],sizeof(contexto->instruccion->parametro1_lenght));
+	agregar_a_paquete(paquete, contexto->instruccion->parametros[1],sizeof(contexto->instruccion->parametro2_lenght));
+	enviar_paquete(paquete, socket_filesystem);
+	eliminar_paquete(paquete);
+	//ahora debe bloquear el proceso. cuando termine, desbloquea y sigue normalmente.
+
+
+	//TODO bloquear y deslobquear el proceso. (creo que se hace con wait y signal)
+
+	log_info(logger,"PID: %i - Archivo: %c - Tamaño: %i",contexto->pid, contexto->instruccion->parametros[0], contexto->instruccion->parametros[1]);
+}
+
+void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, int socket_filesystem)
+{
+	op_code* opcode = recibir_operacion(socket_cpu);
+	if(opcode != ABRIR_ARCHIVO)
+	{
+		log_error(logger,"No reconozco la instruccion");
+		//aca deberia terminar el programa, pongo un return, cualquier cosa lo sacan
+		return;
+	}
+	//recibe contexto
+	t_contexto_ejec* contexto = recibir_contexto_de_ejecucion(socket_cpu);
+	//ABRIR_ARCHIVO TAMBIEN DEFINE LA CREACION DEL ARCHIVO EN CASO DE QUE NO EXISTA, NECESITAMOS VERIFICAR QUE EL
+	//ARCHIVO NO EXISTA PARA APLICAR LA CREACION DEL ARCHIVO
+
+	//mandamos la orden
+	t_paquete* paquete = crear_paquete(ABRIR_ARCHIVO);
+	agregar_a_paquete_sin_agregar_tamanio(paquete, &(contexto->pid),sizeof(int));
+	agregar_a_paquete(paquete, contexto->instruccion->parametros[0],sizeof(contexto->instruccion->parametro1_lenght));
+	agregar_a_paquete(paquete, contexto->instruccion->parametros[1],sizeof(contexto->instruccion->parametro2_lenght));
+	enviar_paquete(paquete, socket_filesystem);
+	eliminar_paquete(paquete);
+	//esperamos una respuesata del fs: SI EXISTE, MANDARA EL TAM DEL ARCHIVO; SI NO EXISTE, MANDARA UN -1
+	// Y MANDAREMOS ORDEN DE CREAR EL ARCHIVO
+	if(atoi(recibir_mensaje(socket_filesystem))==-1) //el archivo no existe
+	{
+		t_paquete* paquete_crear = crear_paquete(CREAR_ARCHIVO);
+		agregar_a_paquete_sin_agregar_tamanio(paquete_crear, &(contexto->pid),sizeof(int));
+		agregar_a_paquete(paquete_crear, contexto->instruccion->parametros[0],sizeof(contexto->instruccion->parametro1_lenght));
+		agregar_a_paquete(paquete_crear, contexto->instruccion->parametros[1],sizeof(contexto->instruccion->parametro2_lenght));
+		enviar_paquete(paquete_crear, socket_filesystem);
+		eliminar_paquete(paquete_crear);
+		return;
+	}else{ // existe el archivo
+		if (contexto->instruccion->parametros[1] == "W") //MODO ESCRITURA
+		{
+			//TODO escritura
+			sem_wait(write_lock);
+			sem_wait();
+			return;
+		}else if(contexto->instruccion->parametros[1] == "R")//MODO LECTURA
+		{
+			//TODO lectura
+			sem_wait(read_lock);
+			sem_wait();
+			return;
+		}
+	}
+	log_info(logger,"PID %i - ABRIR ARCHIVO: %c",contexto->pid, contexto->instruccion->parametros[0]);
 }

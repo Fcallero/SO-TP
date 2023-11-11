@@ -43,5 +43,6 @@ void decrementar_recurso_en_matriz(t_dictionary **matriz, char *nombre_recurso, 
 void destroy_lista_de_recursos(t_list* lista_recursos);
 void destroy_proceso_en_matriz(t_dictionary *matriz, char *pid);
 void destroy_matriz(t_dictionary *matriz);
-
+void enviar_a_fs_truncar_archivo(int socket_cpu, int socket_filesystem);
+void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, int socket_filesystem);
 #endif /* SRC_PETICIONES_CPU_DISPATCH_H_ */
