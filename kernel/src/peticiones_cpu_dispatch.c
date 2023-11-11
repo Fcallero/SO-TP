@@ -22,27 +22,6 @@ void poner_a_ejecutar_otro_proceso(){
 	}
 }
 
-char* listar_recursos_disponibles(int* recursos_disponibles, int cantidad_de_recursos){
-	char** recursos_disponibles_string_array = string_array_new();
-
-	for(int i =0; i< cantidad_de_recursos; i++){
-		int diponibilidad_recurso_n = recursos_disponibles[i];
-		char *coma = malloc(3);
-		strcpy(coma, ", ");
-
-		string_array_push(&recursos_disponibles_string_array, string_itoa(diponibilidad_recurso_n));
-		string_array_push(&recursos_disponibles_string_array,coma );
-	}
-
-	free(string_array_pop(recursos_disponibles_string_array));
-
-	char* lista_recursos_disponibles = pasar_a_string(recursos_disponibles_string_array);
-
-	string_array_destroy(recursos_disponibles_string_array);
-
-	return lista_recursos_disponibles;
-}
-
 
 void* simular_sleep(void* arg){
 	struct t_arg_tiempo{
@@ -251,28 +230,11 @@ void loggear_deadlock(void *pid_sin_parsear){
 	t_list *recursos_asignados = dictionary_get(matriz_recursos_asignados, pid);
 	t_list *recursos_pendientes = dictionary_get(matriz_recursos_pendientes, pid);
 
-
-	char **lista_recursos = string_array_new();
-
-	int cantidad_recursos = list_size(recursos_asignados);
-
-	for(int i = 0; i<cantidad_recursos ; i++){
-		t_recurso *recurso_asignado = (t_recurso *) list_get(recursos_asignados,i);
-
-		if(recurso_asignado->instancias_en_posesion > 0){
-			char *coma = malloc(3);
-			strcpy(coma, ", ");
-
-			string_array_push(&lista_recursos,  strdup(recurso_asignado->nombre_recurso));
-			string_array_push(&lista_recursos, coma);
-		}
+	bool tiene_instancias(t_recurso *recurso_n){
+		return recurso_n->instancias_en_posesion > 0 ;
 	}
-	//saco la ultima comma
-	string_array_pop(lista_recursos);
 
-	char* lista_recursos_asignados = pasar_a_string(lista_recursos);
-
-	string_array_destroy(lista_recursos);
+	char *lista_recursos_asignados =listar_recursos_lista_recursos_por_condicion(recursos_asignados, tiene_instancias);
 
 	bool es_recurso_solicitado(void *recurso_sin_parsear){
 		t_recurso *recurso = (t_recurso *) recurso_sin_parsear;
@@ -468,7 +430,12 @@ void finalizar_por_invalid_resource_proceso_ejecutando(t_contexto_ejec** context
 
 	log_info(logger, "Finaliza el proceso %d - Motivo: INVALID_RESOURCE", proceso_ejecutando->PID);
 	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_ejecutando->PID, "EXEC","EXIT");
+
+	sem_wait(&m_cola_exit);
+	queue_push(cola_exit, string_itoa(proceso_ejecutando->PID));
+	sem_post(&m_cola_exit);
 	sem_post(&m_proceso_ejecutando);
+
 
 	contexto_ejecucion_destroy(*contexto);
 
@@ -619,6 +586,9 @@ void finalinzar_proceso(int socket_cliente){
 
 	log_info(logger, "Finaliza el proceso %d - Motivo: SUCCESS", proceso_ejecutando->PID);
 
+	sem_wait(&m_cola_exit);
+	queue_push(cola_exit, string_itoa(proceso_ejecutando->PID));
+	sem_post(&m_cola_exit);
 	sem_post(&m_proceso_ejecutando);
 
 	contexto_ejecucion_destroy(contexto);

@@ -3,7 +3,6 @@
 
 
 #include<signal.h>
-
 #include "global.h"
 
 typedef struct
@@ -28,6 +27,9 @@ void liberar_conexion(int socket_cliente);
 void eliminar_paquete(t_paquete* paquete);
 char* pasar_a_string(char** string_array);
 void esperar_por(int milisegundos_a_esperar);
-
+char *listar_pids_cola(t_queue* cola_con_pids);
+char *listar_pids_cola_de_strings(t_queue* cola_con_pids);
+char *listar_recursos_lista_recursos_por_condicion(t_list* lista_con_recursos, bool (*evaluar)(t_recurso *));
+char* listar_recursos_disponibles(int* recursos_disponibles, int cantidad_de_recursos);
 
 #endif /* UTILS_CLIENTE_H_ */

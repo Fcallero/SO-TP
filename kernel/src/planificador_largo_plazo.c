@@ -2,6 +2,7 @@
 
 t_queue* cola_new;
 t_queue* cola_ready;
+t_queue* cola_exit;
 t_pcb* proceso_ejecutando;
 char* algoritmo_planificacion;
 
@@ -9,6 +10,7 @@ char* algoritmo_planificacion;
 sem_t despertar_corto_plazo;
 sem_t m_cola_ready;
 sem_t m_cola_new;
+sem_t m_cola_exit;
 sem_t m_proceso_ejecutando;
 sem_t m_recurso_bloqueado;
 sem_t m_cola_de_procesos_bloqueados_para_cada_archivo;
@@ -25,8 +27,10 @@ pthread_mutex_t m_planificador_corto_plazo;
 void inicializar_colas_y_semaforos(){
 	cola_new = queue_create();
 	cola_ready = queue_create();
+	cola_exit = queue_create();
 	sem_init(&m_cola_ready,0,1);
 	sem_init(&m_cola_new, 0, 1);
+	sem_init(&m_cola_exit, 0, 1);
 	sem_init(&m_proceso_ejecutando, 0, 1);
 	sem_init(&despertar_corto_plazo,0,0);
 	sem_init(&m_recurso_bloqueado, 0, 1);
@@ -37,38 +41,6 @@ void inicializar_colas_y_semaforos(){
 	sem_init(&espero_desalojo_CPU, 0, 0);
 	pthread_mutex_init(&m_planificador_largo_plazo, NULL);
 	pthread_mutex_init(&m_planificador_corto_plazo, NULL);
-}
-
-
-
-char* listar_pids_cola_ready(void){
-
-	char** array_pids = string_array_new();
-
-
-	t_list* lista_ready = cola_ready->elements;
-
-	int tamano_cola_ready = queue_size(cola_ready);
-
-	for(int i =0; i< tamano_cola_ready; i++){
-
-		t_pcb* item = list_get(lista_ready, i);
-
-		char *PID_string = string_itoa(item->PID);
-
-		string_array_push(&array_pids, PID_string);
-		string_array_push(&array_pids, ",");
-	}
-
-	//saco la ultima comma
-	string_array_pop(array_pids);
-
-
-	char* string_pids = pasar_a_string(array_pids);
-
-	//string_array_destroy(array_pids);
-
-	return string_pids ;
 }
 
 // si el proceso no es new, no es necesario el socket de memoria
@@ -99,7 +71,7 @@ void agregar_proceso_a_ready(int conexion_memoria, char* algoritmo_planificacion
 
 	sem_wait(&m_cola_ready);
 	queue_push(cola_ready, proceso_new_a_ready);
-	char *pids = listar_pids_cola_ready();
+	char *pids = listar_pids_cola(cola_ready);
 	sem_post(&m_cola_ready);
 
 	log_info(logger, "Cola Ready %s: [%s]",algoritmo_planificacion, pids);
@@ -196,8 +168,7 @@ void pasar_a_ready(t_pcb* proceso_bloqueado){
 	queue_push(cola_ready, proceso_bloqueado);
 	int procesos_en_ready = queue_size(cola_ready);
 
-	char *pids = listar_pids_cola_ready();
-
+	char *pids = listar_pids_cola(cola_ready);
 	sem_post(&m_cola_ready);
 
 

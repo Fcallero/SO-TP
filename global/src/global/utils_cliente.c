@@ -128,8 +128,86 @@ char* pasar_a_string(char** string_array){
 	return string;
 }
 
+char *listar_pids_cola(t_queue* cola_con_pids){
+	char* pids = string_new();
+
+	t_list* lista_cola = cola_con_pids->elements;
+
+	void unir_pids(void *arg_pcb_n){
+		t_pcb *pcb_n = (t_pcb *) arg_pcb_n;
+
+		if(string_length(pids) == 0){
+			string_append_with_format(&pids, "%d", pcb_n->PID);
+		} else {
+			string_append_with_format(&pids, ", %d", pcb_n->PID);
+		}
+	}
+
+	list_iterate(lista_cola, unir_pids);
+
+	return pids ;
+}
+
+char *listar_pids_cola_de_strings(t_queue* cola_con_pids){
+	char* pids = string_new();
+
+	t_list* lista_cola = cola_con_pids->elements;
+
+	void unir_pids(void *arg_pcb_n){
+		char *pid_n = (char *) arg_pcb_n;
+
+		if(string_length(pids) == 0){
+			string_append_with_format(&pids, "%s", pid_n);
+		} else {
+			string_append_with_format(&pids, ", %s", pid_n);
+		}
+	}
+
+	list_iterate(lista_cola, unir_pids);
+
+	return pids ;
+}
+
+char *listar_recursos_lista_recursos_por_condicion(t_list* lista_con_recursos, bool (*evaluar)(t_recurso *)){
+	char *nombres = string_new();
+
+	void apendear_recurso_si_cumple_condicion(void *arg_recurso){
+		t_recurso *recurso_n = (t_recurso *) arg_recurso;
+
+		if(evaluar(recurso_n)){
+			if(string_length(nombres) == 0){
+				string_append_with_format(&nombres, "%s", recurso_n->nombre_recurso);
+			} else {
+				string_append_with_format(&nombres, ", %s", recurso_n->nombre_recurso);
+			}
+		}
+	}
+
+	list_iterate(lista_con_recursos, apendear_recurso_si_cumple_condicion);
+
+	return nombres;
+}
+
+char* listar_recursos_disponibles(int* recursos_disponibles, int cantidad_de_recursos){
+	char* lista_recursos_disponibles= string_new();
+
+	for(int i =0; i< cantidad_de_recursos; i++){
+		int diponibilidad_recurso_n = recursos_disponibles[i];
+
+		if(string_length(lista_recursos_disponibles) == 0){
+			string_append_with_format(&lista_recursos_disponibles, "%d", diponibilidad_recurso_n);
+		} else {
+			string_append_with_format(&lista_recursos_disponibles, ", %d", diponibilidad_recurso_n);
+		}
+	}
+
+	return lista_recursos_disponibles;
+}
+
 void esperar_por(int milisegundos_a_esperar){
 	// el * 1000 es para pasarlo a microsegundos
 	usleep(milisegundos_a_esperar*1000);
 }
+
+
 

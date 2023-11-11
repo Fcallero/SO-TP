@@ -35,12 +35,14 @@ extern t_dictionary *colas_de_procesos_bloqueados_para_cada_archivo;
 
 extern t_queue *cola_new;
 extern t_queue *cola_ready;
+extern t_queue *cola_exit;
 extern t_pcb *proceso_ejecutando;
 extern char *algoritmo_planificacion;
 extern int quantum;
 
 extern sem_t m_cola_ready;
 extern sem_t m_cola_new;
+extern sem_t m_cola_exit;
 extern sem_t despertar_corto_plazo;
 extern sem_t despertar_planificacion_largo_plazo;
 extern sem_t m_proceso_ejecutando;

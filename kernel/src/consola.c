@@ -1,9 +1,7 @@
 #include "consola.h"
-sem_t despertar_planificacion_largo_plazo;
-t_pcb *proceso_ejecutando;
-t_dictionary *colas_de_procesos_bloqueados_para_cada_archivo;
+
 bool planificacion_detenida = false;
-int grado_max_multiprogramacion;
+
 
 void destroy_commando(t_instruccion *comando){
 
@@ -182,6 +180,11 @@ void liberar_recursos_de(int pid_proceso_a_liberar){
 	char *pid = string_itoa(pid_proceso_a_liberar);
 
 	t_list *recursos_del_proceso = dictionary_get(matriz_recursos_asignados, pid);
+
+	//si la matriz no tenia a este proceso, se va porque no hay nada que liberar
+	if(recursos_del_proceso == NULL){
+		return;
+	}
 	t_list *recursos_del_proceso_dup = duplicar_lista_recursos(recursos_del_proceso);
 
 
@@ -330,6 +333,10 @@ void finalizar_proceso(t_instruccion *comando) {
 		}
 	}
 
+	sem_wait(&m_cola_exit);
+	queue_push(cola_exit, strdup(comando->parametros[0]));
+	sem_post(&m_cola_exit);
+
 	log_info(logger, "Finaliza el proceso %d - Motivo: SUCCESS", pid_buscado);
 
 	sem_wait(&m_proceso_ejecutando);
@@ -372,72 +379,85 @@ void multiprogramacion(t_instruccion* comando) {
 	//Modificar el grado de multiprogramacion (no desalojar procesos)
 	int nuevo_grado_multiprogramacion = atoi(comando->parametros[0]);
 
-	grado_max_multiprogramacion = nuevo_grado_multiprogramacion;
 	log_info(logger, "Grado Anterior: %d - Grado Actual: %d", grado_max_multiprogramacion, nuevo_grado_multiprogramacion);
+	grado_max_multiprogramacion = nuevo_grado_multiprogramacion;
 
 	destroy_commando(comando);
 }
 
 //TODO falta testear la prueba de errores
 
-//TODO cambiar logs de estado por "Estado: <NOMBRE_ESTADO> - Procesos: <PID_1>, <PID_2>, <PID_N>" por cada estado
+void listar_pids_diccionario(char **pids, t_dictionary *diccionario){
+	t_list *procesos_bloqueados_colas = dictionary_elements(diccionario);
+	t_list* procesos_bloqueados_sin_repetir = obtener_procesos_bloqueados_sin_repetir_de(procesos_bloqueados_colas);
+
+	void unir_pids(void *arg_pcb_n){
+		t_pcb *cola_n =(t_pcb *) arg_pcb_n;
+
+		if(string_length(*pids) == 0){
+			string_append_with_format(pids, "%d", cola_n->PID);
+		} else {
+			string_append_with_format(pids, ", %d", cola_n->PID);
+		}
+	}
+
+	list_iterate(procesos_bloqueados_sin_repetir, unir_pids);
+
+	list_destroy(procesos_bloqueados_sin_repetir);
+	list_destroy(procesos_bloqueados_colas);
+}
+
+void log_estado_de_cola(char *estado, t_queue *cola){
+	char *pids = listar_pids_cola(cola);
+
+	log_info(logger, "Estado: %s - Procesos: %s",estado, pids);
+	free(pids);
+}
+
+void log_estado_de_cola_strings(char *estado, t_queue *cola){
+	char *pids = listar_pids_cola_de_strings(cola);
+
+	log_info(logger, "Estado: %s - Procesos: %s",estado, pids);
+	free(pids);
+}
+
 void proceso_estado() {
 	//Listara por consola todos los estados y los procesos que se encuentran dentro de ellos
 	log_info(logger, "Lista de todos los procesos del sistema y su respectivo estado:");
 
 	sem_wait(&m_proceso_ejecutando);
 	if(proceso_ejecutando!= NULL){
-	log_info(logger, "PID: %d ESTADO: %s \n", proceso_ejecutando->PID, proceso_ejecutando->proceso_estado);
+		log_info(logger, "Estado: %s - Procesos: %d","EXEC", proceso_ejecutando->PID);
 	}
 	sem_post(&m_proceso_ejecutando);
 
 
-	sem_wait(&m_cola_ready);
-	int tamanio_cola_ready = queue_size(cola_ready);
-	if(tamanio_cola_ready > 0){
-		for(int i = 0; i< tamanio_cola_ready; i++){
-			t_pcb* pcb = list_get(cola_ready->elements,i);
-			log_info(logger, "PID: %d ESTADO: %s \n", pcb->PID, pcb->proceso_estado);
-		}
-	}
-	sem_post(&m_cola_ready);
-
 	sem_wait(&m_cola_new);
-	int tamanio_cola_new = queue_size(cola_new);
-	if(tamanio_cola_new > 0){
-		for(int i = 0; i< tamanio_cola_new; i++){
-			t_pcb* pcb = list_get(cola_new->elements,i);
-			log_info(logger, "PID: %d ESTADO: %s \n", pcb->PID, pcb->proceso_estado);
-		}
-	}
+	log_estado_de_cola("NEW", cola_new);
 	sem_post(&m_cola_new);
 
-	sem_wait(&m_cola_de_procesos_bloqueados_para_cada_archivo);
-	t_list *procesos_bloqueados_colas = dictionary_elements(colas_de_procesos_bloqueados_para_cada_archivo);
-	t_list* procesos_bloqueados_sin_repetir = obtener_procesos_bloqueados_sin_repetir_de(procesos_bloqueados_colas);
-	int tamanio_lista_procesos_bloqueados = list_size(procesos_bloqueados_sin_repetir);
-	for(int i = 0; i< tamanio_lista_procesos_bloqueados; i++){
-		t_pcb* pcb = list_get(procesos_bloqueados_sin_repetir,i);
+	sem_wait(&m_cola_ready);
+	log_estado_de_cola("READY", cola_ready);
+	sem_post(&m_cola_ready);
 
-		log_info(logger, "PID: %d ESTADO: %s \n", pcb->PID, pcb->proceso_estado);
-	}
+	char *pids_en_bloc = string_new();
+
+	sem_wait(&m_cola_de_procesos_bloqueados_para_cada_archivo);
+	listar_pids_diccionario(&pids_en_bloc, colas_de_procesos_bloqueados_para_cada_archivo);
 	sem_post(&m_cola_de_procesos_bloqueados_para_cada_archivo);
 
 
 	sem_wait(&m_recurso_bloqueado);
-	t_list *procesos_bloqueados_por_recurso_colas = dictionary_elements(recurso_bloqueado);
-	t_list *procesos_bloqueados_por_recurso = obtener_procesos_bloqueados_sin_repetir_de(procesos_bloqueados_por_recurso_colas);
-	int tamanio_cola_bloqueados_por_recurso = list_size(procesos_bloqueados_por_recurso);
-	for(int i = 0; i< tamanio_cola_bloqueados_por_recurso; i++){
-		t_pcb* pcb = list_get(procesos_bloqueados_por_recurso,i);
-		log_info(logger, "PID: %d ESTADO: %s \n", pcb->PID, pcb->proceso_estado);
-	}
+	listar_pids_diccionario(&pids_en_bloc, recurso_bloqueado);
 	sem_post(&m_recurso_bloqueado);
 
-	list_destroy(procesos_bloqueados_por_recurso);
-	list_destroy(procesos_bloqueados_sin_repetir);
-	list_destroy(procesos_bloqueados_por_recurso_colas);
-	list_destroy(procesos_bloqueados_colas);
+	log_info(logger, "Estado: %s - Procesos: %s","BLOC", pids_en_bloc);
+
+	free(pids_en_bloc);
+
+	sem_wait(&m_cola_exit);
+	log_estado_de_cola_strings("EXIT", cola_exit);
+	sem_post(&m_cola_exit);
 }
 
 
@@ -475,6 +495,9 @@ void levantar_consola() {
 			destroy_commando(comando);
 			proceso_estado();
 
+		} else if(strcmp(comando->opcode, "EXIT") == 0){
+			destroy_commando(comando);
+			break;
 		} else {
 			log_error(logger,"Comando desconocido campeon, leete la documentacion de nuevo :p");
 			destroy_commando(comando);
