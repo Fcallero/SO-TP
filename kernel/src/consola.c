@@ -73,8 +73,9 @@ void iniciar_proceso(t_instruccion *comando) {
 
 	pcb_proceso->comando = malloc(sizeof(t_instruccion));
 	pcb_proceso->comando->parametros[0] = strdup(comando->parametros[0]);
+	pcb_proceso->comando->parametros[1] = strdup(comando->parametros[1]);
 	pcb_proceso->comando->parametro1_lenght = comando->parametro1_lenght;
-	pcb_proceso->comando->parametro2_lenght = 0;
+	pcb_proceso->comando->parametro2_lenght = comando->parametro2_lenght;
 	pcb_proceso->comando->parametro3_lenght = 0;
 
 	//este malloc para evitar el segmentation fault en el envio del contexto de ejecución a cpu

@@ -241,6 +241,8 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 			bool es_pagefault = decodificar_direccion_logica(&contexto_actual);
 
 			if (es_pagefault) {
+				//pongo -- porque no deberia mover el program counter
+				contexto_actual->program_counter--;
 				devolver_a_kernel(contexto_actual, PAGE_FAULT, socket_kernel);
 				continuar_con_el_ciclo_instruccion = false;
 			} else {
@@ -252,6 +254,8 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 			bool es_pagefault = decodificar_direccion_logica(&contexto_actual);
 
 			if (es_pagefault) {
+				//pongo -- porque no deberia mover el program counter
+				contexto_actual->program_counter--;
 				devolver_a_kernel(contexto_actual, PAGE_FAULT, socket_kernel);
 				continuar_con_el_ciclo_instruccion = false;
 			} else {
@@ -275,6 +279,8 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 			bool es_pagefault = decodificar_direccion_logica(&contexto_actual);
 
 			if(es_pagefault){
+				//pongo -- porque no deberia mover el program counter
+				contexto_actual->program_counter--;
 				devolver_a_kernel(contexto_actual, PAGE_FAULT, socket_kernel);
 			} else {
 				devolver_a_kernel(contexto_actual, LEER_ARCHIVO, socket_kernel);
@@ -286,6 +292,8 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 			bool es_pagefault = decodificar_direccion_logica(&contexto_actual);
 
 			if(es_pagefault){
+				//pongo -- porque no deberia mover el program counter
+				contexto_actual->program_counter--;
 				devolver_a_kernel(contexto_actual, PAGE_FAULT, socket_kernel);
 			} else {
 				devolver_a_kernel(contexto_actual, ESCRIBIR_ARCHIVO, socket_kernel);

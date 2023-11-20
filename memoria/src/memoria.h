@@ -26,9 +26,9 @@ extern int socket_fs;
 
 typedef struct{
 	int marco;
-	int presencia;
-	int modificado;
-	int posicion_swap;
+	bool presencia;
+	bool modificado;
+	uint32_t posicion_swap;
 }t_tabla_de_paginas;
 
 typedef struct{
@@ -38,6 +38,13 @@ typedef struct{
 	uint64_t tam_pagina;
 	uint64_t tam_memoria;
 }t_arg_atender_cliente;
+
+typedef struct{
+	int pid;
+	int numero_marco;
+	bool esLibre;
+	int posicion_inicio_marco;
+}t_situacion_marco;
 
 t_dictionary* lista_instrucciones_porPID;
 t_config* iniciar_config(void);
@@ -51,6 +58,11 @@ void *atender_cliente(void* args);
 /*Estas mover a otro archivo en un futuro*/
 void finalizar_proceso();
 void devolver_marco();
-void manejar_pagefault();
+void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina);
+void crear_proceso(int cliente_fd);
+bool memoria_llena();
+int aplicarFifo();
+int aplicarLru();
+void reemplazar_marco(void*contenido_bloque,int pid,t_tabla_de_paginas*pagina_a_actualizar,t_situacion_marco* marco_a_guardar);
 
 #endif

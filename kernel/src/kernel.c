@@ -142,7 +142,7 @@ int main(int argc, char *argv[]) {
 	matriz_recursos_asignados = dictionary_create();
 	matriz_recursos_pendientes = dictionary_create();
 	colas_de_procesos_bloqueados_para_cada_archivo = dictionary_create();
-
+	colas_de_procesos_bloqueados_por_pf =dictionary_create();
 	proceso_ejecutando = NULL;
 
 	void _iterar_recursos(char *nombre_recurso) {
@@ -411,6 +411,7 @@ void* escuchar_peticiones_cpu_dispatch(void *args) {
 				case ACCESO_A_PAGINA:
 					break;
 				case PAGE_FAULT:
+					manejar_page_fault(socket_cpu_dispatch);
 					break;
 				case FINALIZAR_PROCESO_MEMORIA:
 					break;

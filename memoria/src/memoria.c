@@ -4,8 +4,9 @@ int socket_memoria;
 int socket_fs;
 void* espacio_usuario;
 int tam_pagina;
-t_tabla_de_paginas* tabla_de_paginas;
 char* path_instrucciones;
+t_dictionary* paginas_por_PID;
+t_list* situacion_marcos;
 
 int main(int argc, char *argv[]) {
 
@@ -72,10 +73,15 @@ int main(int argc, char *argv[]) {
 	log_info(logger, "La memoria esta lista para recibir peticiones");
 	/*-------------------------------- CREAR STRUCTS -------------------------------*/
 
+	//diccionario de paginas por PID
+	paginas_por_PID=dictionary_create(); //----------------------------
+
+	//lista de marcos y modificado
+	situacion_marcos=list_create();
+
 	//espacio de usuario
 	espacio_usuario = malloc(tam_memoria);
 	lista_instrucciones_porPID=dictionary_create();
-	//memoria de instrucciones
 
 
 	//manejo de peticiones
@@ -202,6 +208,9 @@ void* atender_cliente(void *args) {
 			case INSTRUCCION:
 				enviar_instruccion_a_cpu(cliente_fd,retardo_respuesta);
 				break;
+			case CREAR_PROCESO:
+				crear_proceso(cliente_fd);
+				break;
 			case FINALIZAR_PROCESO_MEMORIA:
 				finalizar_proceso(cliente_fd);
 				break;
@@ -209,7 +218,7 @@ void* atender_cliente(void *args) {
 				devolver_marco();
 				break;
 			case PAGE_FAULT:
-				manejar_pagefault();
+				manejar_pagefault(algoritmo_reemplazo,cliente_fd,tam_pagina);
 				break;
 			case READ_MEMORY:
 				break;
@@ -227,9 +236,8 @@ void* atender_cliente(void *args) {
 	return NULL;
 }
 
+
 //Funciones kernel TODO (luego separar en un include)
-
-
 
 /* Estas mover a otros archivos en un futuro */
 
@@ -261,10 +269,216 @@ void finalizar_proceso(int cliente_fd){
 
 }
 
-void devolver_marco(){
+void crear_proceso(int cliente_fd){
+
+	int size;
+	void* buffer = recibir_buffer(&size, cliente_fd);
+	int tamanio;
+	int pid;
+	memcpy(&tamanio,buffer,sizeof(int));
+	memcpy(&pid,buffer+sizeof(int),sizeof(int));
+
+
+
+	 t_paquete* paquete = crear_paquete(INICIAR_PROCESO);
+
+	 agregar_a_paquete_sin_agregar_tamanio(paquete,&tamanio,sizeof(int));
+	 enviar_paquete(paquete,socket_fs);
+
+	 eliminar_paquete(paquete);
+
+	 int cod_op = recibir_operacion(socket_fs);
+
+	 if(cod_op!=INICIAR_PROCESO){
+		 log_error(logger, "No se pudo recibir bloques asignados. Terminando servidor");
+		 return;
+	 }
+
+	 //TODO hacer funcion en fs que mande para memoria el puntero uint32 del primer bloque
+	 void* buffer_fs = recibir_buffer(&size, socket_fs);
+	 uint32_t posicion_en_swap;
+
+	 memcpy(&posicion_en_swap,buffer_fs,sizeof(uint32_t));
+
+	 t_tabla_de_paginas* tabla_por_proceso = malloc(sizeof(t_tabla_de_paginas));
+
+	 //cuando ocurra un PF se modificara este marco
+	 tabla_por_proceso->marco = 0;
+	 tabla_por_proceso->presencia = false;
+	 tabla_por_proceso->modificado = false;
+	 tabla_por_proceso->posicion_swap = posicion_en_swap;
+
+	 t_list* lista_de_marcos_x_procesos=list_create();
+	 list_add(lista_de_marcos_x_procesos,tabla_por_proceso);
+	 dictionary_put(paginas_por_PID,string_itoa(pid),lista_de_marcos_x_procesos);
+
+	 free(buffer);
+	 free(buffer_fs);
+
 
 }
 
-void manejar_pagefault(){
+
+void devolver_marco(){
+
+	//devuelve a cpu agsdghahdfh
+
+}
+/*
+ *
+ * typedef struct{
+	int marco;
+	int presencia;
+	int modificado;
+	uint32_t posicion_swap;
+}t_tabla_de_paginas;
+
+typedef struct{
+	uint64_t cliente_fd;
+	char* algoritmo_reemplazo;
+	uint64_t retardo_respuesta;
+	uint64_t tam_pagina;
+	uint64_t tam_memoria;
+}t_arg_atender_cliente;
+
+	//diccionario de paginas por PID
+	paginas_por_PID=dictionary_create(); //----------------------------
+
+	//lista de marcos y modificado
+	situacion_marcos=list_create();
+ */
+
+void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
+
+
+	int size;
+	void* buffer = recibir_buffer(&size, cliente_fd);
+	int numero_pagina;
+	int pid;
+	//recibo la pagina y pid
+	memcpy(&numero_pagina,buffer,sizeof(int));
+	memcpy(&pid,buffer+sizeof(int),sizeof(int));
+
+	t_list* paginas_del_proceso =dictionary_get(paginas_por_PID,string_itoa(pid));
+	t_tabla_de_paginas* pagina_a_actualizar =list_get(paginas_del_proceso,numero_pagina);
+
+	 t_paquete* paquete = crear_paquete(LEER_CONTENIDO_PAGINA);
+
+	 agregar_a_paquete_sin_agregar_tamanio(paquete,&(pagina_a_actualizar->posicion_swap),sizeof(int));
+	 enviar_paquete(paquete,socket_fs);
+
+	 eliminar_paquete(paquete);
+
+	 int cod_op = recibir_operacion(socket_fs);
+
+	 if(cod_op!=LEER_CONTENIDO_PAGINA){
+		 log_error(logger, "No se pudo recibir el contenido del bloque. Terminando servidor ");
+		 return;
+	 }
+
+	 //TODO hacer funcion en fs que mande para memoria el puntero uint32 del primer bloque
+	 void* contenido_bloque = recibir_buffer(&size, socket_fs);
+
+
+
+	if(memoria_llena()){
+		int numero_marco;
+
+		if(strcmp(algoritmo_reemplazo,"FIFO")==0){
+			numero_marco=aplicarFifo();
+		}else{
+			numero_marco=aplicarLru();
+		}
+		t_tabla_de_paginas* marco;
+		void esMarco(char* pid, void* marcos){
+
+			t_list* lista_marcos=marcos;
+			bool esMarcoBuscado(void* args){
+				t_tabla_de_paginas* marco_x =(t_tabla_de_paginas*)args;
+				return numero_marco==marco_x->marco;
+			}
+
+			t_tabla_de_paginas* marco_buscado=list_find(lista_marcos,esMarcoBuscado);
+			if((marco_buscado!=NULL) && (marco_buscado->presencia==true) ){
+				marco=marco_buscado;
+			}
+		}
+
+		dictionary_iterator(paginas_por_PID,esMarco);
+		//TODO
+		if(marco->modificado)
+		{
+			//escribir pagina en filesystem el contenido que esta en espacio de usuario de este marco
+		}
+
+		//modifico el hayado
+		marco->presencia=false;
+		marco->modificado=false;
+
+		bool esMarcoSolicitado(void* args){
+			t_situacion_marco* marco_x =(t_situacion_marco*)args;
+			return marco_x->numero_marco==marco->marco;
+		}
+		t_situacion_marco* marco_a_guardar = list_find(situacion_marcos,esMarcoSolicitado);
+		reemplazar_marco(contenido_bloque,pid,pagina_a_actualizar,marco_a_guardar);
+	}else{
+		bool esMarcoLibre(void* args){
+			t_situacion_marco* marco_x =(t_situacion_marco*)args;
+			return marco_x->esLibre;
+		}
+
+		t_situacion_marco* marco_a_guardar = list_find(situacion_marcos,esMarcoLibre);
+		reemplazar_marco(contenido_bloque,pid,pagina_a_actualizar,marco_a_guardar);
+
+
+
+	}
+
+	enviar_mensaje("OK",cliente_fd,PAGE_FAULT);
+/**->->->->->->->->->->->->->->->->->vv
+ * pid
+ *
+ * typedef struct{
+	int marco;
+	bool presencia;
+	bool modificado;
+	uint32_t posicion_swap;
+}t_tabla_de_paginas;
+ *
+ * typedef struct{
+	int pid;
+	int numero_marco;
+	bool esLibre;
+	int posicion_inicio_marco;
+}t_situacion_marco;
+ */
+}
+
+void reemplazar_marco(void*contenido_bloque,int pid,t_tabla_de_paginas*pagina_a_actualizar,t_situacion_marco* marco_a_guardar){
+/*
+	bool esMarcoLibre(void* args){
+		t_situacion_marco* marco_x =(t_situacion_marco*)args;
+		return marco_x->esLibre;
+	}
+
+	t_situacion_marco* marco_a_guardar = list_find(situacion_marcos,esMarcoLibre);*/
+	memcpy(espacio_usuario+marco_a_guardar->posicion_inicio_marco,contenido_bloque,tam_pagina);
+	marco_a_guardar->esLibre=false;
+	marco_a_guardar->pid=pid;
+
+
+	pagina_a_actualizar->marco=marco_a_guardar->numero_marco;
+	pagina_a_actualizar->presencia=true;
+}
+
+bool memoria_llena(){
+
+}
+
+int aplicarFifo(){
+
+}
+
+int aplicarLru(){
 
 }

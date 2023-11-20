@@ -697,8 +697,9 @@ void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, int socket_filesystem)
 	eliminar_paquete(paquete);
 	//esperamos una respuesata del fs: SI EXISTE, MANDARA EL TAM DEL ARCHIVO; SI NO EXISTE, MANDARA UN -1
 	// Y MANDAREMOS ORDEN DE CREAR EL ARCHIVO
-	op_code* opcode;
-	opcode = recibir_operacion(socket_filesystem);
+
+	//ahi arregle este warning xd
+	int opcode = recibir_operacion(socket_filesystem);
 	if(opcode == MENSAJE){
 		if(atoi(recibir_mensaje(socket_filesystem))==-1) //el archivo no existe
 		{
@@ -716,13 +717,13 @@ void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, int socket_filesystem)
 			if (contexto->instruccion->parametros[1] == "W") //MODO ESCRITURA
 			{
 				//TODO escritura
-				sem_wait(write_lock);
-				sem_wait();
+				//sem_wait(write_lock);
+				//sem_wait();
 			}else if(contexto->instruccion->parametros[1] == "R")//MODO LECTURA
 			{
 				//TODO lectura
-				sem_wait(read_lock);
-				sem_wait();
+				//sem_wait(read_lock);
+				//sem_wait();
 			}
 		}
 	}
@@ -730,3 +731,79 @@ void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, int socket_filesystem)
 	contexto_ejecucion_destroy(contexto);
 	return;
 }
+
+
+void* hilo_que_maneja_pf(void* args){
+
+
+
+	struct t_arg_page_fault {
+		int numero_pagina;
+		int pid;
+	}*args_page_fault = args;
+
+
+	int numero_pagina = args_page_fault->numero_pagina;
+	int pid = args_page_fault->pid;
+
+	sem_wait(&m_proceso_ejecutando);
+	t_pcb* proceso_a_bloquear = proceso_ejecutando;
+	sem_post(&m_proceso_ejecutando);
+
+	char* pid_del_bloqueado=string_itoa(proceso_a_bloquear->PID);
+	dictionary_put(colas_de_procesos_bloqueados_por_pf,pid_del_bloqueado,proceso_a_bloquear);
+
+	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", pid, "EXEC","BLOC");
+	//TODO aca falta recibir la pagina por cpu
+	log_info(logger, "Page Fault PID: %d - Pagina: %d  ", pid,numero_pagina);
+
+	poner_a_ejecutar_otro_proceso();
+	t_paquete* paquete= crear_paquete(PAGE_FAULT);
+
+		agregar_a_paquete_sin_agregar_tamanio(paquete,&numero_pagina,sizeof(int));
+		agregar_a_paquete_sin_agregar_tamanio(paquete,&pid,sizeof(int));
+		enviar_paquete(paquete,socket_memoria);
+
+		eliminar_paquete(paquete);
+
+		 int cod_op = recibir_operacion(socket_memoria);
+
+
+		 if(cod_op!=PAGE_FAULT){
+			 log_error(logger, "No se pudo recibir bloques asignados. Terminando servidor");
+			 return NULL;
+		 }
+		 //aca deberia llegar un ok
+		 char* mensaje = recibir_mensaje(socket_memoria);
+
+
+		 if(strcmp(mensaje,"OK")==0){
+			 t_pcb* proceso_a_ready = dictionary_get(colas_de_procesos_bloqueados_por_pf,pid_del_bloqueado);
+			 actualizar_estado_a_pcb(proceso_a_ready, "READY");
+			 pasar_a_ready(proceso_a_ready);
+		 }
+
+		 free(args_page_fault);
+   return NULL;
+}
+
+void manejar_page_fault(int socket_cliente){
+
+	t_contexto_ejec* contexto = recibir_contexto_de_ejecucion(socket_cliente);
+
+	//TODO cambiar lo necesario en cpu para traer la pagina UnU
+	int numero_pagina;
+	pthread_t hilo_pf;
+
+	struct t_arg_page_fault {
+		int numero_pagina;
+		int pid;
+	}*args_page_fault = malloc(sizeof(struct t_arg_page_fault));
+	args_page_fault->numero_pagina=numero_pagina;
+	args_page_fault->pid=contexto->pid;
+
+	pthread_create(&hilo_pf,NULL,hilo_que_maneja_pf,(void*)args_page_fault);
+	pthread_detach(hilo_pf);
+
+}
+

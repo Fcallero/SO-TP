@@ -19,6 +19,7 @@ sem_t memoria_lista;
 sem_t recibir_interrupcion;
 sem_t espero_desalojo_CPU;
 t_dictionary* colas_de_procesos_bloqueados_para_cada_archivo;
+t_dictionary* colas_de_procesos_bloqueados_por_pf;
 t_dictionary* recurso_bloqueado;
 pthread_mutex_t m_planificador_largo_plazo;
 pthread_mutex_t m_planificador_corto_plazo;
@@ -54,16 +55,32 @@ void agregar_proceso_a_ready(int conexion_memoria, char* algoritmo_planificacion
 	actualizar_estado_a_pcb(proceso_new_a_ready, "READY");
 
 	//envio a memoria de instrucciones
-	t_paquete* paquete = crear_paquete(INICIAR_PROCESO);
+	t_paquete* paquete_instrucciones = crear_paquete(INICIAR_PROCESO);
 
-	agregar_a_paquete(paquete, proceso_new_a_ready->comando->parametros[0],proceso_new_a_ready->comando->parametro1_lenght);
-	agregar_a_paquete_sin_agregar_tamanio(paquete,&(proceso_new_a_ready->PID),sizeof(int));
-	enviar_paquete(paquete,socket_memoria);
+	agregar_a_paquete(paquete_instrucciones, proceso_new_a_ready->comando->parametros[0],proceso_new_a_ready->comando->parametro1_lenght);
+	agregar_a_paquete_sin_agregar_tamanio(paquete_instrucciones,&(proceso_new_a_ready->PID),sizeof(int));
+	enviar_paquete(paquete_instrucciones,socket_memoria);
 
-	eliminar_paquete(paquete);
+	eliminar_paquete(paquete_instrucciones);
+
+
 
 	//espero a que termine memoria
 	sem_wait(&memoria_lista);
+
+
+	t_paquete* paquete_tamanio = crear_paquete(CREAR_PROCESO);
+
+	//agrego el tamanio de proceso
+
+	int tamanio_proceso =atoi(proceso_new_a_ready->comando->parametros[1]);
+
+	agregar_a_paquete_sin_agregar_tamanio(paquete_tamanio,&tamanio_proceso,sizeof(int));
+	agregar_a_paquete_sin_agregar_tamanio(paquete_tamanio,&(proceso_new_a_ready->PID),sizeof(int));
+
+	enviar_paquete(paquete_tamanio,socket_memoria);
+
+	eliminar_paquete(paquete_tamanio);
 
 
 	free(proceso_new_a_ready->comando);//el comando luego no se va a usar, lo libero

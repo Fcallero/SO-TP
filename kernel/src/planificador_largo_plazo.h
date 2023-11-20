@@ -30,8 +30,10 @@ extern int socket_memoria;
 extern int socket_fs;
 extern int grado_max_multiprogramacion;
 
-extern t_dictionary *recurso_bloqueado;
-extern t_dictionary *colas_de_procesos_bloqueados_para_cada_archivo;
+
+extern t_dictionary* recurso_bloqueado;
+extern t_dictionary* colas_de_procesos_bloqueados_para_cada_archivo;
+extern t_dictionary* colas_de_procesos_bloqueados_por_pf;
 
 extern t_queue *cola_new;
 extern t_queue *cola_ready;
