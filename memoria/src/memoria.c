@@ -79,6 +79,15 @@ int main(int argc, char *argv[]) {
 	//lista de marcos y modificado
 	situacion_marcos=list_create();
 
+	int cantidad_marcos = tam_memoria / tam_pagina;
+
+	for(int i =0; i<cantidad_marcos; i++){
+		t_situacion_marco * marco_n = malloc(sizeof(t_situacion_marco));
+
+		marco_n->esLibre = true;
+		list_add(situacion_marcos, marco_n);
+	}
+
 	//espacio de usuario
 	espacio_usuario = malloc(tam_memoria);
 	lista_instrucciones_porPID=dictionary_create();
@@ -187,7 +196,6 @@ void* atender_cliente(void *args) {
 	char* algoritmo_reemplazo = argumentos->algoritmo_reemplazo;
 	uint64_t retardo_respuesta = argumentos->retardo_respuesta;
 	uint64_t tam_pagina = argumentos->tam_pagina;
-	uint64_t tam_memoria = argumentos->tam_memoria;
 
 	while (1) {
 		int cod_op = recibir_operacion(cliente_fd);
@@ -473,6 +481,18 @@ void reemplazar_marco(void*contenido_bloque,int pid,t_tabla_de_paginas*pagina_a_
 
 bool memoria_llena(){
 
+	bool es_marco_libre(void *elemento){
+		t_situacion_marco *situacion_marco_n = (t_situacion_marco*) elemento;
+		return situacion_marco_n->esLibre;
+	}
+
+	t_list* marcos_libres = list_filter(situacion_marcos, es_marco_libre);
+
+	int cant_marcos_libres = list_size(marcos_libres);
+
+	list_destroy(marcos_libres);
+
+	return cant_marcos_libres == 0;
 }
 
 int aplicarFifo(){
