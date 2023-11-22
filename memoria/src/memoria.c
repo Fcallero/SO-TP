@@ -7,6 +7,7 @@ int tam_pagina;
 char* path_instrucciones;
 t_dictionary* paginas_por_PID;
 t_list* situacion_marcos;
+t_queue* referencias_paginas;
 
 int main(int argc, char *argv[]) {
 
@@ -92,6 +93,8 @@ int main(int argc, char *argv[]) {
 	espacio_usuario = malloc(tam_memoria);
 	lista_instrucciones_porPID=dictionary_create();
 
+	//lista de referencias a las paginas
+	referencias_paginas=queue_create();
 
 	//manejo de peticiones
 	manejar_pedidos_memoria(algoritmo_reemplazo,retardo_respuesta,tam_pagina,tam_memoria);
@@ -223,14 +226,16 @@ void* atender_cliente(void *args) {
 				finalizar_proceso(cliente_fd);
 				break;
 			case ACCESO_A_PAGINA:
-				devolver_marco();
+				devolver_marco(cliente_fd);
 				break;
 			case PAGE_FAULT:
 				manejar_pagefault(algoritmo_reemplazo,cliente_fd,tam_pagina);
 				break;
 			case READ_MEMORY:
+				read_memory();
 				break;
 			case WRITE_MEMORY:
+				write_memory();
 				break;
 			case -1:
 				log_error(logger, "El cliente se desconecto. Terminando servidor");
@@ -245,11 +250,6 @@ void* atender_cliente(void *args) {
 }
 
 
-//Funciones kernel TODO (luego separar en un include)
-
-/* Estas mover a otros archivos en un futuro */
-
-
 void finalizar_proceso(int cliente_fd){
 	//recibe la orden de la consola de kernel
 	int size;
@@ -257,24 +257,28 @@ void finalizar_proceso(int cliente_fd){
 	int pid;
 	memcpy(&pid,buffer,sizeof(int));
 
-	/*op_code opcode = recibir_operacion(cliente_consola);
-	if(opcode != FINALIZAR_PROCESO_MEMORIA)
-	{
-		log_error(logger, "Error de Operacion! codigo de operacion recibido: %d", opcode);
+	char* pid_string=string_itoa(pid);
+
+	t_list* lista_de_marcos = dictionary_get(paginas_por_PID,pid_string);
+
+	//destruir
+	list_destroy_and_destroy_elements(lista_de_marcos, free);
+
+
+	dictionary_remove(paginas_por_PID,pid_string);
+
+	//marcar como libres
+	void marcarLibre (void* args){
+		t_situacion_marco* marco_x= (t_situacion_marco*)args;
+
+		if(marco_x->pid==pid){
+			marco_x->esLibre=true;
+		}
 	}
 
-	t_paquete *paquete = recibir_paquete(cliente_consola);
-	int pid;
-	memcpy(pid,paquete->buffer,sizeof(int));
+	list_iterate(situacion_marcos,marcarLibre);
 
-	free(pcb_a_eliminar);
-	//
-
-	//mando a filesystem
-	enviar_mensaje("Marcar como libre las paginas correspondiente del SWAP", server_filesystem,FINALIZAR_PROCESO_FS);
-
-	*/
-
+	free(buffer);
 }
 
 void crear_proceso(int cliente_fd){
@@ -325,36 +329,42 @@ void crear_proceso(int cliente_fd){
 
 
 }
+//----------IMPORTANTE------------IMPORTANTE-----------------
+//TODO aca hay que agregar un push de las paginas a la queue global-----referencias_paginas-----
+void devolver_marco(int cliente_fd){
 
+	int size;
+	void* buffer = recibir_buffer(&size, cliente_fd);
+	int numero_pagina;
+	int pid_entero;
 
-void devolver_marco(){
+		//recibo la pagina y pid
+	memcpy(&numero_pagina,buffer,sizeof(int));
+	memcpy(&pid_entero,buffer+sizeof(int),sizeof(int));
 
-	//devuelve a cpu agsdghahdfh
+	//obtengo el valor
+	char*pid_string=string_itoa(pid_entero);
+
+	t_list* lista_de_marcos = dictionary_get(paginas_por_PID,pid_string);
+
+	t_tabla_de_paginas* entrada_de_pagina =list_get(lista_de_marcos,numero_pagina);
+
+	//a cpu  por ACCESO_A_PAGINA
+	if(entrada_de_pagina->presencia){
+		t_paquete* paquete=crear_paquete(ACCESO_A_PAGINA);
+		agregar_a_paquete_sin_agregar_tamanio(paquete,&(entrada_de_pagina->marco),sizeof(int));
+
+		enviar_paquete(paquete,cliente_fd);
+	}
+	else{
+		enviar_mensaje("No se encontro en memoria el marco buscado :(",cliente_fd,PAGE_FAULT);
+
+	}
+
+	free(buffer);
 
 }
-/*
- *
- * typedef struct{
-	int marco;
-	int presencia;
-	int modificado;
-	uint32_t posicion_swap;
-}t_tabla_de_paginas;
 
-typedef struct{
-	uint64_t cliente_fd;
-	char* algoritmo_reemplazo;
-	uint64_t retardo_respuesta;
-	uint64_t tam_pagina;
-	uint64_t tam_memoria;
-}t_arg_atender_cliente;
-
-	//diccionario de paginas por PID
-	paginas_por_PID=dictionary_create(); //----------------------------
-
-	//lista de marcos y modificado
-	situacion_marcos=list_create();
- */
 
 void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 
@@ -443,33 +453,13 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 	}
 
 	enviar_mensaje("OK",cliente_fd,PAGE_FAULT);
-/**->->->->->->->->->->->->->->->->->vv
- * pid
- *
- * typedef struct{
-	int marco;
-	bool presencia;
-	bool modificado;
-	uint32_t posicion_swap;
-}t_tabla_de_paginas;
- *
- * typedef struct{
-	int pid;
-	int numero_marco;
-	bool esLibre;
-	int posicion_inicio_marco;
-}t_situacion_marco;
- */
+
 }
 
-void reemplazar_marco(void*contenido_bloque,int pid,t_tabla_de_paginas*pagina_a_actualizar,t_situacion_marco* marco_a_guardar){
-/*
-	bool esMarcoLibre(void* args){
-		t_situacion_marco* marco_x =(t_situacion_marco*)args;
-		return marco_x->esLibre;
-	}
 
-	t_situacion_marco* marco_a_guardar = list_find(situacion_marcos,esMarcoLibre);*/
+
+void reemplazar_marco(void*contenido_bloque,int pid,t_tabla_de_paginas*pagina_a_actualizar,t_situacion_marco* marco_a_guardar){
+
 	memcpy(espacio_usuario+marco_a_guardar->posicion_inicio_marco,contenido_bloque,tam_pagina);
 	marco_a_guardar->esLibre=false;
 	marco_a_guardar->pid=pid;
@@ -495,10 +485,105 @@ bool memoria_llena(){
 	return cant_marcos_libres == 0;
 }
 
+
 int aplicarFifo(){
+
+	int marco_victima=-1;
+
+	for(int i=0;queue_size(referencias_paginas)>i;i++){
+
+		t_referenciaXpid* referencia_victima=(t_referenciaXpid*)queue_pop(referencias_paginas);
+		int numero_pagina_a_buscar=referencia_victima->numero_pagina;
+		char* pid_pagina_a_buscar=referencia_victima->pid;
+
+		void esPaginaPresente(char*pid,void*args){
+			t_list* entradas_x=(t_list*)args;
+			t_tabla_de_paginas* entrada_pagina=list_get(entradas_x, numero_pagina_a_buscar);
+
+
+			if(entrada_pagina->presencia && (strcmp(pid_pagina_a_buscar,pid)==0)){
+				marco_victima=entrada_pagina->marco;
+			}
+
+		}
+
+
+		dictionary_iterator(paginas_por_PID, esPaginaPresente);
+
+		if(marco_victima!=-1){
+			break;
+		}
+	}
+
+
+	return marco_victima;
+}
+
+
+int aplicarLru(){
+
+	struct auxiliar{
+		int marco;
+	};
+
+
+	t_queue* cola_auxiliar=queue_create();
+	t_list* lista_referencias_paginas=referencias_paginas->elements ;
+
+	for(int i=0;queue_size(referencias_paginas)>i;i++){
+
+
+
+		t_referenciaXpid* referencia_victima=(t_referenciaXpid*)list_get(lista_referencias_paginas,i);
+		int numero_pagina_a_buscar=referencia_victima->numero_pagina;
+		char* pid_pagina_a_buscar=referencia_victima->pid;
+
+
+		void esPaginaPresente(char*pid,void*args){
+			t_list* entradas_x=(t_list*)args;
+			t_tabla_de_paginas* entrada_pagina=list_get(entradas_x, numero_pagina_a_buscar);
+
+
+			if(entrada_pagina->presencia && (strcmp(pid_pagina_a_buscar,pid)==0)){
+
+				t_list* ultimas_referencias=list_slice(lista_referencias_paginas, i, (list_size(lista_referencias_paginas)-i));
+
+				bool esMismaReferencia(void*args){
+					t_referenciaXpid* referencia_x=(t_referenciaXpid*)args;
+
+					return referencia_x->numero_pagina == referencia_victima->numero_pagina &&
+							(strcmp(referencia_x->pid,referencia_victima->pid)==0) ;
+				}
+
+				int cantidad_referencias=list_count_satisfying(ultimas_referencias, esMismaReferencia);
+
+				if(cantidad_referencias==1){
+					struct auxiliar* marco_auxiliar=malloc(sizeof(struct auxiliar));
+					marco_auxiliar->marco=entrada_pagina->marco;
+					queue_push(cola_auxiliar,(void*)marco_auxiliar);
+				}
+
+			}
+
+		}
+
+
+		dictionary_iterator(paginas_por_PID, esPaginaPresente);
+
+
+	}
+
+		struct auxiliar* marco_auxiliar=queue_pop(cola_auxiliar);
+
+	return marco_auxiliar->marco;
 
 }
 
-int aplicarLru(){
+//TODO estas 2:
+void read_memory(){
+
+}
+
+void write_memory(){
 
 }

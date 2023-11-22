@@ -46,6 +46,11 @@ typedef struct{
 	int posicion_inicio_marco;
 }t_situacion_marco;
 
+typedef struct{
+	char* pid;
+	int numero_pagina;
+}t_referenciaXpid;
+
 t_dictionary* lista_instrucciones_porPID;
 t_config* iniciar_config(void);
 t_log* iniciar_logger(void);
@@ -57,12 +62,15 @@ void *atender_cliente(void* args);
 
 /*Estas mover a otro archivo en un futuro*/
 void finalizar_proceso();
-void devolver_marco();
+void devolver_marco(int cliente_fd);
 void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina);
 void crear_proceso(int cliente_fd);
 bool memoria_llena();
 int aplicarFifo();
 int aplicarLru();
 void reemplazar_marco(void*contenido_bloque,int pid,t_tabla_de_paginas*pagina_a_actualizar,t_situacion_marco* marco_a_guardar);
+
+void read_memory();
+void write_memory();
 
 #endif

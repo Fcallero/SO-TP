@@ -125,10 +125,11 @@ uint32_t obtener_valor_del_registro(char* registro_a_leer, t_contexto_ejec** con
 	return valor_leido;
 }
 
-int solicitar_marco(int numero_pagina){
+int solicitar_marco(int numero_pagina, int pid){
 	t_paquete* paquete = crear_paquete(ACCESO_A_PAGINA);
 
 	agregar_a_paquete_sin_agregar_tamanio(paquete, &numero_pagina, sizeof(int));
+	agregar_a_paquete_sin_agregar_tamanio(paquete, &pid, sizeof(int));
 
 	enviar_paquete(paquete, socket_memoria);
 	eliminar_paquete(paquete);
@@ -147,6 +148,7 @@ int solicitar_marco(int numero_pagina){
 		return marco_pagina;
 
 	} else if(cod_op == PAGE_FAULT) { // sino significaria page fault
+
 		char* mensaje = recibir_mensaje(socket_memoria);
 		log_info(logger, "Se recibio: \"%s\" de memoria", mensaje);
 		free(mensaje);
@@ -163,7 +165,7 @@ int traducir_direccion_logica(int direccion_logica, int pid){
 
 	int desplazamiento = direccion_logica - numero_pagina * tamano_pagina;
 
-	int marco_pagina = solicitar_marco(numero_pagina);
+	int marco_pagina = solicitar_marco(numero_pagina,pid);
 
 	if(marco_pagina == -1){
 		log_info(logger, "Page Fault PID: %d - Página: %d", pid, numero_pagina);
