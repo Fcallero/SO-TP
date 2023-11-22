@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "filesystem.h"
+#include "peticiones_kernel.h"
 
 extern int socket_fs;
 extern FILE* bloques;

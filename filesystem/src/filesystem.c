@@ -6,6 +6,8 @@ int tam_bloque;
 uint32_t *bits_fat; //Array con tabla FAT
 char **array_bloques; //Array bloques
 
+int primer_bloque_fat;
+
 int main(int argc, char* argv[]) {
 	//Declaraciones de variables para config:
 
@@ -110,6 +112,8 @@ int main(int argc, char* argv[]) {
 	        array_bloques[i] = &bit_bloques[i * tam_bloque];
 		}
 
+		primer_bloque_fat=cant_bloques_swap+1;//bloque 0 de la fat
+
 		manejar_peticiones();
 
 
@@ -211,8 +215,8 @@ void *atender_cliente(void* args){
 			case ESCRIBIR_ARCHIVO:
 				// escribir_archivo();
 				break;
-			case NUEVO_PROCESO_FS:
-				// reservar_bloques();
+			case INICIAR_PROCESO:
+				reservar_bloques(tam_bloque,cliente_fd);
 				break;
 			case FINALIZAR_PROCESO_FS:
 				// marcar_bloques_libres();

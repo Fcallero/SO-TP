@@ -276,11 +276,12 @@ void truncar_archivo(uint64_t cliente_fd){
 }
 
 
-
 void leer_archivo(){
+
 
 }
 
 void escribir_archivo(){
+
 
 }

@@ -20,6 +20,6 @@ void cerrar_archivo();
 void truncar_archivo(uint64_t cliente_fd);
 void leer_archivo();
 void escribir_archivo();
-
+void agregar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_agregar);
 
 #endif /* SRC_PETICIONES_KERNEL_H_ */
