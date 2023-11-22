@@ -14,6 +14,7 @@ char** instancias_recursos;
 int cant_recursos;
 t_dictionary *matriz_recursos_asignados;
 t_dictionary *matriz_recursos_pendientes;
+t_dictionary *tabla_global_de_archivos_abiertos;
 
 
 int main(int argc, char *argv[]) {
@@ -137,10 +138,11 @@ int main(int argc, char *argv[]) {
 
 	inicializar_colas_y_semaforos();
 
-	// inicializo diccionarios para recursos bloqueados
+	// inicializo diccionarios para recursos bloqueados y archivos
 	recurso_bloqueado = dictionary_create();
 	matriz_recursos_asignados = dictionary_create();
 	matriz_recursos_pendientes = dictionary_create();
+	tabla_global_de_archivos_abiertos = dictionary_create();
 	colas_de_procesos_bloqueados_para_cada_archivo = dictionary_create();
 	colas_de_procesos_bloqueados_por_pf =dictionary_create();
 	proceso_ejecutando = NULL;
@@ -325,7 +327,7 @@ int conectar_cpu_interrupt(char *ip, char *puerto) {
 //aca se maneja las peticiones de todos los modulos menos los de CPU
 void* manejar_peticiones_modulos(void *args) {
 	t_args_manejar_peticiones_modulos * args_hilo = (t_args_manejar_peticiones_modulos *) args;
-	int cliente_fd = args_hilo->cliente_fd; 
+	int cliente_fd = args_hilo->cliente_fd;
 
 	while (1) {
 

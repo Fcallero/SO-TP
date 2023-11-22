@@ -1,6 +1,10 @@
 #include "filesystem.h"
 
 FILE* fat;
+char* path_fcb;
+int tam_bloque;
+uint32_t *bits_fat; //Array con tabla FAT
+char **array_bloques; //Array bloques
 
 int main(int argc, char* argv[]) {
 	//Declaraciones de variables para config:
@@ -10,10 +14,8 @@ int main(int argc, char* argv[]) {
 		char* puerto_escucha;
 		char* path_fat;
 		char* path_bloques;
-		char* path_fcb;
 		int cant_bloques_total;
 		int cant_bloques_swap;
-		int tam_bloque;
 		int retardo_acceso_bloque;
 		int retardo_acceso_fat;
 
@@ -52,6 +54,13 @@ int main(int argc, char* argv[]) {
 			terminar_programa(logger, config);
 		}
 
+		//Remplazo path con ruta base
+/*
+		path_fat = string_replace(path_bitmap, "~", "/home/utnso");
+		path_bloques = string_replace(path_bloques, "~", "/home/utnso");
+		path_fcb = string_replace(path_fcb, "~", "/home/utnso");
+		*/
+
 	/*-------------------------------CONEXIONES KERNEL---------------------------------------------------------------*/
 
 		//Esperar conexion de Kernel
@@ -59,29 +68,54 @@ int main(int argc, char* argv[]) {
 
 		log_info(logger, "Filesystem esta listo para recibir peticiones");
 
-		//Levantar estructuras de FS
-		int tamanio_fat = (cant_bloques_total - cant_bloques_swap) * sizeof(uint32_t);
+		//Levantar diccionarios
+		fcb_por_archivo = dictionary_create();
+
+
+		//Levantar FAT y calcular el tamaño
+		int tamanio_fat = (cant_bloques_total - cant_bloques_swap) * sizeof(uint32_t); //Expresado en bytes
 		fat = levantar_archivo_binario(path_fat);
 
-		//Truncar fat para que tenga el tamaño correcto
 
-		//trunco el archivo para que tenga el tamaño del bitmap
+		//Obtengo el file descriptor de la FAT y trunco el archivo para que tenga el tamaño correcto
 		int fat_fd = fileno(fat);
 		ftruncate(fat_fd, tamanio_fat);
 
-		//	osea si modifico algo en el bits_bitmap, tambien se moficica en el archivo
-		char* bits_fat = mmap(NULL, tamanio_fat, PROT_WRITE, MAP_SHARED, fat_fd, 0);
+		// Mapeo la FAT a memoria y chequeo errores
+		bits_fat = mmap(NULL, tamanio_fat, PROT_READ|PROT_WRITE, MAP_SHARED, fat_fd, 0);
 
-		bitarray_bloques_libres = bitarray_create_with_mode(bits_fat, tamanio_fat, MSB_FIRST);
+		// Verificar si el mapeo fue exitoso
+		if (bits_fat == MAP_FAILED) {
+		    perror("Error al mapear la FAT a memoria");
+		    // Manejar el error apropiadamente
+		    exit(EXIT_FAILURE);
+		}
 
+		//Levanto archivo de bloques, un archivo que contiene todos los bloques de nuestro FS. Obtengo el FD y lo trunco al tamaño necesario
 		bloques = levantar_archivo_binario(path_bloques);
 
 		int bloques_fd = fileno(bloques);
 
 		ftruncate(bloques_fd, cant_bloques_total * tam_bloque);
 
+		//mapeo el archivo de bloques
+		char* bit_bloques = mmap(NULL, cant_bloques_total * tam_bloque, PROT_WRITE, MAP_SHARED, bloques_fd, 0);
+
+
+	//	bitarray_bloques = bitarray_create_with_mode(bit_bloques, cant_bloques_total * tam_bloque, MSB_FIRST);
+
+		//Creo un array de bloques para manejar el archivo binario con la estructura correcta y les asigno por referencia los valores del mapeo de bloques
+		char **array_bloques = malloc(cant_bloques_total * tam_bloque);
+		for (int i = 0; i < cant_bloques_total; i++) {
+	        array_bloques[i] = &bit_bloques[i * tam_bloque];
+		}
+
 		manejar_peticiones();
 
+
+	munmap(bits_fat,  tamanio_fat);
+	fclose(bloques);
+	fclose(fat);
 	terminar_programa(logger, config);
     return 0;
 }
@@ -104,7 +138,7 @@ t_config* iniciar_config(void){
  void terminar_programa(t_log* logger, t_config* config){
 	log_destroy(logger);
 	config_destroy(config);
-	bitarray_destroy(bitarray_bloques_libres);
+	// bitarray_destroy(bitarray_bloques_libres);
 	fclose(fat);
 	fclose(bloques);
 	close(socket_fs);
@@ -160,28 +194,28 @@ void *atender_cliente(void* args){
 				recibir_handshake(cliente_fd);
 				break;
 			case ABRIR_ARCHIVO:
-				abrir_archivo();
+				abrir_archivo(cliente_fd);
 				break;
 			case CREAR_ARCHIVO:
-				crear_archivo();
+				crear_archivo(cliente_fd);
 				break;
 			case CERRAR_ARCHIVO:
-				cerrar_archivo();
+				// cerrar_archivo();
 				break;
 			case TRUNCAR_ARCHIVO:
-				truncar_archivo();
+				truncar_archivo(cliente_fd);
 					break;
 			case LEER_ARCHIVO:
-				leer_archivo();
+				// leer_archivo();
 				break;
 			case ESCRIBIR_ARCHIVO:
-				escribir_archivo();
+				// escribir_archivo();
 				break;
 			case NUEVO_PROCESO_FS:
-				reservar_bloques();
+				// reservar_bloques();
 				break;
 			case FINALIZAR_PROCESO_FS:
-				marcar_bloques_libres();
+				// marcar_bloques_libres();
 				break;
 			case -1:
 				log_error(logger, "El cliente se desconecto. Terminando servidor");
@@ -194,3 +228,4 @@ void *atender_cliente(void* args){
 
 	return NULL;
 }
+

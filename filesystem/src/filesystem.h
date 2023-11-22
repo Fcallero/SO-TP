@@ -24,9 +24,11 @@
 #include "peticiones_memoria.h"
 #include "peticiones_kernel.h"
 
+
 int socket_fs;
 FILE* bloques;
-t_bitarray* bitarray_bloques_libres;//para modificar la fat
+// t_bitarray* bitarray_bloques;//para modificar la fat
+t_dictionary* fcb_por_archivo;
 
 typedef struct{
 	uint64_t cliente_fd;

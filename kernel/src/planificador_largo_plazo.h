@@ -34,6 +34,9 @@ extern int grado_max_multiprogramacion;
 extern t_dictionary* recurso_bloqueado;
 extern t_dictionary* colas_de_procesos_bloqueados_para_cada_archivo;
 extern t_dictionary* colas_de_procesos_bloqueados_por_pf;
+extern t_dictionary *tabla_global_de_archivos_abiertos;
+
+
 
 extern t_queue *cola_new;
 extern t_queue *cola_ready;
@@ -51,6 +54,7 @@ extern sem_t m_proceso_ejecutando;
 extern sem_t m_recurso_bloqueado;
 extern sem_t m_cola_de_procesos_bloqueados_para_cada_archivo;
 extern sem_t espero_desalojo_CPU;
+extern sem_t m_tabla_global_de_archivos_abiertos;
 
 void inicializar_colas_y_semaforos();
 void *planificar_nuevos_procesos_largo_plazo(void *arg);

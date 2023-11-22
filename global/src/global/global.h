@@ -111,6 +111,7 @@ typedef struct{
 typedef struct{
 	char* nombre_archivo;
 	int puntero_posicion; // se usa para el fseek
+	char modo_apertura;
 }t_tabla_de_archivos_por_proceso;
 
 typedef struct
