@@ -11,6 +11,7 @@ extern uint32_t *bits_fat; //Array con tabla FAT
 extern char* path_fcb;
 extern int socket_fs;
 extern FILE* bloques;
+extern char** array_bloques;
 
 void abrir_archivo(uint64_t cliente_fd);
 void crear_archivo(uint64_t cliente_fd);

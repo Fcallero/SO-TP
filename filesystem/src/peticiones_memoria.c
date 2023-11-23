@@ -1,7 +1,5 @@
 #include "peticiones_memoria.h"
 
-//void agregar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_agregar)
-
 uint32_t asignar_bloque_libre_bitarray_desde(uint32_t puntero_inicio){
 
 	while(bitarray_test_bit(bitarray_bloques,puntero_inicio)){
@@ -15,11 +13,6 @@ uint32_t asignar_bloque_libre_bitarray_desde(uint32_t puntero_inicio){
 
 void liberar_bloque_bitarray(uint32_t puntero_bloque){
 	bitarray_clean_bit(bitarray_bloques,puntero_bloque);
-}
-
-void guardar_en_puntero(uint32_t puntero, void *contenido){
-	fseek(bloques,puntero*tam_bloque , SEEK_SET);
-	fwrite(contenido, tam_bloque, 1, bloques);
 }
 
 void *leer_bloque_swap(uint32_t puntero){
@@ -51,7 +44,7 @@ void reservar_bloques(int cliente_fd){
 		punteros_x_paginas[i]= puntero_n_bloque;
 
 		//marcar \0 al los bloques en el archivo de bloques
-		guardar_en_puntero(puntero_n_bloque, basura);
+		strncpy(array_bloques[puntero_n_bloque], basura, tam_bloque);
 	}
 
 
@@ -95,7 +88,7 @@ void marcar_bloques_libres(int cliente_fd){
 	//libero bloques
 	char *basura = string_repeat('\0', tam_bloque);
 	for(int i = 0; i<cant_paginas; i++){
-		guardar_en_puntero(punteros[i], basura);
+		strncpy(array_bloques[punteros[i]], basura, tam_bloque);
 	}
 
 	free(basura);

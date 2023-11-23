@@ -193,7 +193,10 @@ void sacar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_sacar, int bloques_act
 		}else{
 		//Si aun debo seguir truncando libero la posicion de la fat y el bloque de datos
 			bits_fat[posicion_fat] = 0;
-			guardar_en_puntero(posicion_fat, 0);
+			// Creo que esto | no es necesario, por las dudas lo comento
+			//				 v
+			//uint32_t cero =0;
+			//memcpy(array_bloques[posicion_fat], &cero, tam_bloque)
 		}
 
 		//Decremento las variables de bloques a sacar  bloques actuales para ir actualizando los bucles
