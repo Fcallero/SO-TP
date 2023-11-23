@@ -4,8 +4,8 @@ FILE* fat;
 char* path_fcb;
 int tam_bloque;
 uint32_t *bits_fat; //Array con tabla FAT
-char **array_bloques; //Array bloques
-
+//char **array_bloques; //Array bloques
+t_bitarray *bitarray_bloques;
 int primer_bloque_fat;
 
 int main(int argc, char* argv[]) {
@@ -101,17 +101,19 @@ int main(int argc, char* argv[]) {
 		ftruncate(bloques_fd, cant_bloques_total * tam_bloque);
 
 		//mapeo el archivo de bloques
+
+		void *bit_bloques_swap = malloc(cant_bloques_swap);
+
+		bitarray_bloques = bitarray_create_with_mode(bit_bloques_swap, cant_bloques_swap * tam_bloque, MSB_FIRST);
+
+		/*
 		char* bit_bloques = mmap(NULL, cant_bloques_total * tam_bloque, PROT_WRITE, MAP_SHARED, bloques_fd, 0);
-
-
-	//	bitarray_bloques = bitarray_create_with_mode(bit_bloques, cant_bloques_total * tam_bloque, MSB_FIRST);
-
 		//Creo un array de bloques para manejar el archivo binario con la estructura correcta y les asigno por referencia los valores del mapeo de bloques
 		char **array_bloques = malloc(cant_bloques_total * tam_bloque);
 		for (int i = 0; i < cant_bloques_total; i++) {
 	        array_bloques[i] = &bit_bloques[i * tam_bloque];
 		}
-
+*/
 		primer_bloque_fat=cant_bloques_swap+1;//bloque 0 de la fat
 
 		manejar_peticiones();
@@ -216,10 +218,13 @@ void *atender_cliente(void* args){
 				// escribir_archivo();
 				break;
 			case INICIAR_PROCESO:
-				reservar_bloques(tam_bloque,cliente_fd);
+				reservar_bloques(cliente_fd);
 				break;
 			case FINALIZAR_PROCESO_FS:
-				// marcar_bloques_libres();
+				marcar_bloques_libres(cliente_fd);
+				break;
+			case LEER_CONTENIDO_PAGINA:
+				devolver_contenido_pagina(cliente_fd);
 				break;
 			case -1:
 				log_error(logger, "El cliente se desconecto. Terminando servidor");

@@ -150,7 +150,7 @@ void agregar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_agregar){
 
 	//Creo un auxiliar para contar los bloques que me quedan por agregar y los voy agregando
 	int bloques_restantes_por_agregar = bloques_a_agregar;
-	int aux_busqueda = 1; //Voy a utilizar este auxiliar para recorrer la fat y encontrar los bloques libres
+	uint32_t aux_busqueda = 1; //Voy a utilizar este auxiliar para recorrer la fat y encontrar los bloques libres
 
 	//Inicio el bucle para agregar bloques
 	while(bloques_restantes_por_agregar != 0){
@@ -193,7 +193,7 @@ void sacar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_sacar, int bloques_act
 		}else{
 		//Si aun debo seguir truncando libero la posicion de la fat y el bloque de datos
 			bits_fat[posicion_fat] = 0;
-			array_bloques[posicion_fat] = 0;
+			guardar_en_puntero(posicion_fat, 0);
 		}
 
 		//Decremento las variables de bloques a sacar  bloques actuales para ir actualizando los bucles

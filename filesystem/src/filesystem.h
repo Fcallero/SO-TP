@@ -27,7 +27,6 @@
 
 int socket_fs;
 FILE* bloques;
-// t_bitarray* bitarray_bloques;//para modificar la fat
 t_dictionary* fcb_por_archivo;
 
 typedef struct{

@@ -261,13 +261,27 @@ void finalizar_proceso(int cliente_fd){
 
 	t_list* lista_de_marcos = dictionary_get(paginas_por_PID,pid_string);
 
-	//destruir
-	list_destroy_and_destroy_elements(lista_de_marcos, free);
 
+	//creo array de punteros para enviar a FS
+	int cant_paginas_proceso = list_size(lista_de_marcos);
+	uint32_t punteros[cant_paginas_proceso];
+
+	t_list_iterator* iterador_lista = list_iterator_create(lista_de_marcos);
+
+	while(list_iterator_has_next(iterador_lista)){
+		t_tabla_de_paginas* entrada_tabla_n = list_iterator_next(iterador_lista);
+
+		punteros[list_iterator_index(iterador_lista)] = entrada_tabla_n->posicion_swap;
+	}
+	list_iterator_destroy(iterador_lista);
+
+	//destruir TP
+	list_destroy_and_destroy_elements(lista_de_marcos, free);
 
 	dictionary_remove(paginas_por_PID,pid_string);
 
-	//marcar como libres
+
+	//marcar como libres a los marcos
 	void marcarLibre (void* args){
 		t_situacion_marco* marco_x= (t_situacion_marco*)args;
 
@@ -277,6 +291,18 @@ void finalizar_proceso(int cliente_fd){
 	}
 
 	list_iterate(situacion_marcos,marcarLibre);
+
+	//avisar a FS para que libere los bloques
+	t_paquete* paquete = crear_paquete(FINALIZAR_PROCESO_FS);
+
+	agregar_a_paquete_sin_agregar_tamanio(paquete, &cant_paginas_proceso, sizeof(int));
+	for(int i= 0; i<cant_paginas_proceso; i++){
+		agregar_a_paquete_sin_agregar_tamanio(paquete, &(punteros[i]), sizeof(uint32_t));
+	}
+
+	enviar_paquete(paquete, socket_fs);
+
+	eliminar_paquete(paquete);
 
 	free(buffer);
 }
@@ -306,28 +332,37 @@ void crear_proceso(int cliente_fd){
 		 return;
 	 }
 
-	 //TODO hacer funcion en fs que mande para memoria el puntero uint32 del primer bloque
 	 void* buffer_fs = recibir_buffer(&size, socket_fs);
-	 uint32_t posicion_en_swap;
+	 int desplazamiento = 0;
+	int cant_paginas;
+	t_list* lista_de_marcos_x_procesos=list_create();
 
-	 memcpy(&posicion_en_swap,buffer_fs,sizeof(uint32_t));
+	memcpy(&cant_paginas, buffer, sizeof(int));
+	desplazamiento+= sizeof(int);
 
-	 t_tabla_de_paginas* tabla_por_proceso = malloc(sizeof(t_tabla_de_paginas));
+	uint32_t punteros[cant_paginas];
 
-	 //cuando ocurra un PF se modificara este marco
-	 tabla_por_proceso->marco = 0;
-	 tabla_por_proceso->presencia = false;
-	 tabla_por_proceso->modificado = false;
-	 tabla_por_proceso->posicion_swap = posicion_en_swap;
+	for(int i = 0; i<cant_paginas; i++){
+		memcpy(&(punteros[i]), buffer+desplazamiento, sizeof(uint32_t));
+		desplazamiento+=sizeof(uint32_t);
 
-	 t_list* lista_de_marcos_x_procesos=list_create();
-	 list_add(lista_de_marcos_x_procesos,tabla_por_proceso);
+		//crea una entrada por cada pagina y coloca su posicion en swap correspondiente para cada pagina
+		 t_tabla_de_paginas* tabla_por_proceso = malloc(sizeof(t_tabla_de_paginas));
+
+		 //cuando ocurra un PF se modificara este marco
+		 tabla_por_proceso->marco = 0;
+		 tabla_por_proceso->presencia = false;
+		 tabla_por_proceso->modificado = false;
+		 tabla_por_proceso->posicion_swap = punteros[i];
+
+		 list_add(lista_de_marcos_x_procesos,tabla_por_proceso);
+	}
+
+
 	 dictionary_put(paginas_por_PID,string_itoa(pid),lista_de_marcos_x_procesos);
 
 	 free(buffer);
 	 free(buffer_fs);
-
-
 }
 //----------IMPORTANTE------------IMPORTANTE-----------------
 //TODO aca hay que agregar un push de las paginas a la queue global-----referencias_paginas-----
@@ -365,9 +400,7 @@ void devolver_marco(int cliente_fd){
 
 }
 
-
 void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
-
 
 	int size;
 	void* buffer = recibir_buffer(&size, cliente_fd);
@@ -394,10 +427,7 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 		 return;
 	 }
 
-	 //TODO hacer funcion en fs que mande para memoria el puntero uint32 del primer bloque
 	 void* contenido_bloque = recibir_buffer(&size, socket_fs);
-
-
 
 	if(memoria_llena()){
 		int numero_marco;
@@ -423,10 +453,10 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 		}
 
 		dictionary_iterator(paginas_por_PID,esMarco);
-		//TODO
+
 		if(marco->modificado)
 		{
-			//escribir pagina en filesystem el contenido que esta en espacio de usuario de este marco
+			// TODO escribir pagina en filesystem el contenido que esta en espacio de usuario de este marco
 		}
 
 		//modifico el hayado
