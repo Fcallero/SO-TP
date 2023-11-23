@@ -67,7 +67,7 @@ void abrir_archivo(uint64_t cliente_fd){
 
 			log_info(logger, "El archivo %s no se encontro ", nombre_archivo);
 			//Doy aviso a Kernel
-			enviar_mensaje("ERROR", cliente_fd, ABRIR_ARCHIVO);
+			enviar_mensaje("-1", cliente_fd, MENSAJE);
 
 		}
 
