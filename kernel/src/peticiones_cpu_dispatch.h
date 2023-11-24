@@ -47,5 +47,6 @@ void enviar_a_fs_truncar_archivo(int socket_cpu, int socket_filesystem);
 void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, int socket_filesystem);
 void manejar_page_fault(int socket_cliente);
 
+void enviar_instruccion(t_instruccion* instruccion, int socket_a_enviar, int opcode);
 
 #endif /* SRC_PETICIONES_CPU_DISPATCH_H_ */

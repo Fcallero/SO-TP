@@ -18,7 +18,6 @@ void reservar_bloques(int cliente_fd);
 void marcar_bloques_libres(int cliente_fd);
 void devolver_contenido_pagina(int cliente_fd);
 
-void guardar_en_puntero(uint32_t puntero, void *contenido);
 
 #endif /* SRC_PETICIONES_MEMORIA_H_ */
 

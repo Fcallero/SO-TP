@@ -660,74 +660,163 @@ t_list *duplicar_lista_recursos(t_list *a_duplicar){
 	return recursos_del_proceso_dup;
 }
 
+void bloquear_por_espera_a_fs(t_pcb* proceso_a_bloquear, char*nombre_archivo){
+	//Si no existe el archivo en el diccionario, lo creo.
+	if(!dictionary_has_key(colas_de_procesos_bloqueados_para_cada_archivo, nombre_archivo)){
+
+		log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_bloquear->PID, "EXEC","BLOC");
+
+		t_queue* cola_bloqueados = queue_create();
+		queue_push(cola_bloqueados, proceso_a_bloquear);
+
+		dictionary_put(colas_de_procesos_bloqueados_para_cada_archivo, nombre_archivo, cola_bloqueados);
+
+		// Si existe agrego el elemento a la cola
+	}else{
+		log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_bloquear->PID, "EXEC","BLOC");
+
+		//Creo una cola, le asigno la cola del diccionario y la remuevo
+		t_queue* cola_bloqueados = dictionary_get(colas_de_procesos_bloqueados_para_cada_archivo, nombre_archivo);
+		//cargo el proceso a bloquear en la cola
+
+		queue_push(cola_bloqueados, proceso_a_bloquear);
+	}
+
+	poner_a_ejecutar_otro_proceso();
+}
+
+void desbloquear_por_espera_a_fs(int pid, char*nombre_archivo){
+	if(dictionary_has_key(colas_de_procesos_bloqueados_para_cada_archivo, nombre_archivo)){
+		t_queue* cola_bloqueados = dictionary_get(colas_de_procesos_bloqueados_para_cada_archivo, nombre_archivo);
+
+		bool pid_encontrado = false;
+		t_pcb* pcb_a_desbloquear;
+		//esto lo hago asi para no tener que cambiar en donde se usa esta cola,
+		// pero lo mas conveniente seria usar otro diccionario dentro del diccionario de procesos_bloqueados
+		// donde se mapea el pcb con el pid, para encontrarlo mas rápido
+		while(!pid_encontrado){
+			pcb_a_desbloquear = queue_pop(cola_bloqueados);
+
+			if(pcb_a_desbloquear->PID == pid){
+				pid_encontrado = true;
+			}else {
+				queue_push(cola_bloqueados, pcb_a_desbloquear);
+			}
+		}
+		log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", pid, "BLOC","READY");
+
+		pasar_a_ready(pcb_a_desbloquear);
+	}
+}
+
+void enviar_instruccion(t_instruccion* instruccion, int socket_a_enviar, int opcode){
+	t_paquete* paquete = crear_paquete(opcode);
+	agregar_a_paquete(paquete, instruccion->opcode,sizeof(instruccion->opcode_lenght));
+	agregar_a_paquete(paquete, instruccion->parametros[0],sizeof(instruccion->parametro1_lenght));
+	agregar_a_paquete(paquete, instruccion->parametros[1],sizeof(instruccion->parametro2_lenght));
+	agregar_a_paquete(paquete, instruccion->parametros[2],sizeof(instruccion->parametro3_lenght));
+	enviar_paquete(paquete, socket_a_enviar);
+	eliminar_paquete(paquete);
+}
+
 void enviar_a_fs_truncar_archivo(int socket_cpu, int socket_filesystem)
 {
 	t_contexto_ejec* contexto = recibir_contexto_de_ejecucion(socket_cpu);
 
+	char* nombre_archivo = strdup(contexto->instruccion->parametros[0]);
+	char* tamanio_archivo = strdup(contexto->instruccion->parametros[1]);
+
+	log_info(logger,"PID: %d - Archivo: %s - Tamaño: %s",contexto->pid, nombre_archivo, tamanio_archivo);
+
 	//ya recibimos la instruccion con los parametros, ahora hay que mandarle a filesystem la orden
-	t_paquete* paquete = crear_paquete(TRUNCAR_ARCHIVO);
-	agregar_a_paquete_sin_agregar_tamanio(paquete, &(contexto->pid),sizeof(int));
-	agregar_a_paquete(paquete, contexto->instruccion->parametros[0],sizeof(contexto->instruccion->parametro1_lenght));
-	agregar_a_paquete(paquete, contexto->instruccion->parametros[1],sizeof(contexto->instruccion->parametro2_lenght));
-	enviar_paquete(paquete, socket_filesystem);
-	eliminar_paquete(paquete);
-	//ahora debe bloquear el proceso. cuando termine, desbloquea y sigue normalmente.
+	enviar_instruccion(contexto->instruccion, socket_filesystem, TRUNCAR_ARCHIVO);
 
+	//bloquear mientras espera a FS y desbloquear el proceso cuando termina FS.
 
-	//TODO bloquear y deslobquear el proceso. (creo que se hace con wait y signal)
+	sem_wait(&m_proceso_ejecutando);
+	bloquear_por_espera_a_fs(proceso_ejecutando, nombre_archivo);
+	sem_post(&m_proceso_ejecutando);
 
-	log_info(logger,"PID: %i - Archivo: %c - Tamaño: %i",contexto->pid, contexto->instruccion->parametros[0], contexto->instruccion->parametros[1]);
+	int opcode = recibir_operacion(socket_filesystem);
+
+	if(opcode != TRUNCAR_ARCHIVO){
+		log_error(logger, "No se pudo truncar el archivo, hubo un error");
+		return ;
+	}
+
+	char * mensaje = recibir_mensaje(socket_filesystem);
+
+	log_info(logger, "se reicibio un %s de FS, archivo truncado correctamente ", mensaje);
+
+	desbloquear_por_espera_a_fs(contexto->pid, nombre_archivo);
+
 	contexto_ejecucion_destroy(contexto);
 	return;
 }
 
 void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, int socket_filesystem)
 {
-	//recibe contexto
 	t_contexto_ejec* contexto = recibir_contexto_de_ejecucion(socket_cpu);
 	//ABRIR_ARCHIVO TAMBIEN DEFINE LA CREACION DEL ARCHIVO EN CASO DE QUE NO EXISTA, NECESITAMOS VERIFICAR QUE EL
 	//ARCHIVO NO EXISTA PARA APLICAR LA CREACION DEL ARCHIVO
 
+	char* nombre_archivo = strdup(contexto->instruccion->parametros[0]);
+	log_info(logger,"PID %d - ABRIR ARCHIVO: %s",contexto->pid, nombre_archivo);
+
 	//mandamos la orden
-	t_paquete* paquete = crear_paquete(ABRIR_ARCHIVO);
-	agregar_a_paquete_sin_agregar_tamanio(paquete, &(contexto->pid),sizeof(int));
-	agregar_a_paquete(paquete, contexto->instruccion->parametros[0],sizeof(contexto->instruccion->parametro1_lenght));
-	agregar_a_paquete(paquete, contexto->instruccion->parametros[1],sizeof(contexto->instruccion->parametro2_lenght));
-	enviar_paquete(paquete, socket_filesystem);
-	eliminar_paquete(paquete);
+	enviar_instruccion(contexto->instruccion, socket_filesystem, ABRIR_ARCHIVO);
+
 	//esperamos una respuesata del fs: SI EXISTE, MANDARA EL TAM DEL ARCHIVO; SI NO EXISTE, MANDARA UN -1
 	// Y MANDAREMOS ORDEN DE CREAR EL ARCHIVO
 
-	//ahi arregle este warning xd
+	sem_wait(&m_proceso_ejecutando);
+	bloquear_por_espera_a_fs(proceso_ejecutando, nombre_archivo);
+	sem_post(&m_proceso_ejecutando);
+
 	int opcode = recibir_operacion(socket_filesystem);
 	if(opcode == MENSAJE){
 		if(atoi(recibir_mensaje(socket_filesystem))==-1) //el archivo no existe
 		{
-			t_paquete* paquete_crear = crear_paquete(CREAR_ARCHIVO);
-			agregar_a_paquete_sin_agregar_tamanio(paquete_crear, &(contexto->pid),sizeof(int));
-			agregar_a_paquete(paquete_crear, contexto->instruccion->parametros[0],sizeof(contexto->instruccion->parametro1_lenght));
-			agregar_a_paquete(paquete_crear, contexto->instruccion->parametros[1],sizeof(contexto->instruccion->parametro2_lenght));
-			enviar_paquete(paquete_crear, socket_filesystem);
-			eliminar_paquete(paquete_crear);
+			//mandamos la orden
+			enviar_instruccion(contexto->instruccion, socket_filesystem, CREAR_ARCHIVO);
+
+			//epero la respuesta de la creacion del archivo
+			int opcode = recibir_operacion(socket_filesystem);
+
+			if(opcode != CREAR_ARCHIVO){
+				log_error(logger, "No se pudo crear el archivo, hubo un error");
+				return;
+			}
+
+			char *mensaje = recibir_mensaje(socket_filesystem);
+			log_info(logger, "Se recibio %s de Filesystem, arhivo creado exitosamente", mensaje);
+			free(mensaje);
 		}else{ // existe el archivo
 
-			//inicializo los semaforos
+			/*//inicializo los semaforos // no entiendo para que los semaforos
 			sem_init(&write_lock,0,1);
 			sem_init(&read_lock,0,1);
-			if (contexto->instruccion->parametros[1] == "W") //MODO ESCRITURA
+			*/
+			if (string_equals_ignore_case(contexto->instruccion->parametros[1], "W")) //MODO ESCRITURA
 			{
-				//TODO escritura
+				//TODO escritura lo agrega a la cola de locks de escritura para este archivo
 				//sem_wait(write_lock);
 				//sem_wait();
-			}else if(contexto->instruccion->parametros[1] == "R")//MODO LECTURA
+			}else if(string_equals_ignore_case(contexto->instruccion->parametros[1], "R"))//MODO LECTURA
 			{
-				//TODO lectura
+				//TODO lectura crea lock si no existe o lo agrega al lock si existe y incrementa el contador de aperturas
 				//sem_wait(read_lock);
 				//sem_wait();
 			}
 		}
+	} else if(opcode == ABRIR_ARCHIVO){
+		char* mensaje = recibir_mensaje(socket_filesystem);
+		log_info(logger, "se reicibo un %s de FS, archivo abierto correctamente", mensaje);
+		free(mensaje);
 	}
-	log_info(logger,"PID %i - ABRIR ARCHIVO: %c",contexto->pid, contexto->instruccion->parametros[0]);
+
+	desbloquear_por_espera_a_fs(contexto->pid, nombre_archivo);
+
 	contexto_ejecucion_destroy(contexto);
 	return;
 }

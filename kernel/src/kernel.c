@@ -394,7 +394,7 @@ void* escuchar_peticiones_cpu_dispatch(void *args) {
 					manejar_sleep(cliente_fd);
 					break;
 				case ABRIR_ARCHIVO:
-					enviar_a_fs_crear_o_abrir_archivo (socket_cpu_dispatch, socket_fs);
+					enviar_a_fs_crear_o_abrir_archivo(socket_cpu_dispatch, socket_fs);
 					break;
 				case CERRAR_ARCHIVO:
 					break;

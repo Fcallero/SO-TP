@@ -121,9 +121,7 @@ int main(int argc, char* argv[]) {
 
 	munmap(bits_fat,  tamanio_fat);
 	munmap(bits_bloques,  cant_bloques_total * tam_bloque);
-	free(array_bloques);//TODO VER SI NO GENERA SEG_FAULT
-	fclose(bloques);
-	fclose(fat);
+	free(array_bloques);
 	terminar_programa(logger, config);
     return 0;
 }
@@ -146,7 +144,7 @@ t_config* iniciar_config(void){
  void terminar_programa(t_log* logger, t_config* config){
 	log_destroy(logger);
 	config_destroy(config);
-	// bitarray_destroy(bitarray_bloques_libres);
+	bitarray_destroy(bitarray_bloques);
 	fclose(fat);
 	fclose(bloques);
 	close(socket_fs);
