@@ -218,6 +218,48 @@ t_contexto_ejec* recibir_contexto_de_ejecucion(int socket_cliente)
 	return contexto_ejecucion;
 }
 
+t_contexto_ejec* deserializar_contexto_de_ejecucion(void *buffer, int size_buffer, int *desplazamiento){
+
+	int program_counter;
+
+	t_contexto_ejec* contexto_ejecucion = malloc(sizeof(t_contexto_ejec));
+	contexto_ejecucion->registros_CPU = malloc(sizeof(registros_CPU));
+
+	while(*desplazamiento < size_buffer )
+	{
+
+		memcpy(&(contexto_ejecucion->pid), buffer+*desplazamiento, sizeof(int));
+		*desplazamiento+=sizeof(int);
+
+		memcpy(&program_counter, buffer + *desplazamiento, sizeof(int));
+		*desplazamiento+=sizeof(int);
+
+		memcpy(&(contexto_ejecucion->registros_CPU->AX), buffer + *desplazamiento,sizeof(uint32_t));
+		*desplazamiento+=sizeof(uint32_t);
+
+		memcpy(&(contexto_ejecucion->registros_CPU->BX), buffer + *desplazamiento,sizeof(uint32_t));
+		*desplazamiento+=sizeof(uint32_t);
+
+		memcpy(&(contexto_ejecucion->registros_CPU->CX), buffer + *desplazamiento,sizeof(uint32_t));
+		*desplazamiento+=sizeof(uint32_t);
+
+		memcpy(&(contexto_ejecucion->registros_CPU->DX), buffer + *desplazamiento,sizeof(uint32_t));
+		*desplazamiento+=sizeof(uint32_t);
+
+		if(*desplazamiento < size_buffer){
+			contexto_ejecucion->instruccion = deserializar_instruccion_en(buffer, desplazamiento);
+		} else {
+			contexto_ejecucion->instruccion = NULL;
+		}
+
+	}
+
+	contexto_ejecucion->program_counter = program_counter;
+
+
+	return contexto_ejecucion;
+}
+
 
 void deserializar_instruccion_con_dos_parametros_de(void* buffer, t_instruccion* instruccion, int *desplazamiento){
 	memcpy(&(instruccion->opcode_lenght), buffer + *desplazamiento, sizeof(int));

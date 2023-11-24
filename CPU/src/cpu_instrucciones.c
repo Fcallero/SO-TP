@@ -6,7 +6,7 @@ void setear_registro(t_contexto_ejec** contexto, char* registro, uint32_t valor)
 uint32_t obtener_valor_del_registro(char* registro_a_leer, t_contexto_ejec** contexto_actual);
 void guardar_valor_en(int direccion_fisica, uint32_t valor_a_guardar,  int pid);
 uint32_t leer_valor(int direccion_fisica,  int pid);
-int traducir_direccion_logica(int direccion_logica, int pid);
+int traducir_direccion_logica(int direccion_logica, int pid, t_contexto_ejec* contexto);
 
 void manejar_instruccion_set(t_contexto_ejec** contexto, t_instruccion* instruccion)
 {
@@ -159,7 +159,7 @@ int solicitar_marco(int numero_pagina, int pid){
 	}
 }
 
-int traducir_direccion_logica(int direccion_logica, int pid){
+int traducir_direccion_logica(int direccion_logica, int pid, t_contexto_ejec* contexto){
 
 	int numero_pagina = (int) floor(direccion_logica / tamano_pagina);
 
@@ -169,6 +169,27 @@ int traducir_direccion_logica(int direccion_logica, int pid){
 
 	if(marco_pagina == -1){
 		log_info(logger, "Page Fault PID: %d - Página: %d", pid, numero_pagina);
+		// AVISO A KERNEL PARA QUE MANEJE EL PAGE fAULT
+
+		t_paquete *paquete_contexto = crear_paquete(PAGE_FAULT);
+
+
+		agregar_a_paquete_sin_agregar_tamanio(paquete_contexto, &numero_pagina,sizeof(int));
+		agregar_a_paquete_sin_agregar_tamanio(paquete_contexto, &(pid),sizeof(int));
+		agregar_a_paquete_sin_agregar_tamanio(paquete_contexto,&(contexto->program_counter), sizeof(int));
+		agregar_a_paquete_sin_agregar_tamanio(paquete_contexto,&(contexto->registros_CPU->AX), sizeof(uint32_t));
+		agregar_a_paquete_sin_agregar_tamanio(paquete_contexto,&(contexto->registros_CPU->BX), sizeof(uint32_t));
+		agregar_a_paquete_sin_agregar_tamanio(paquete_contexto,&(contexto->registros_CPU->CX), sizeof(uint32_t));
+		agregar_a_paquete_sin_agregar_tamanio(paquete_contexto,&(contexto->registros_CPU->DX), sizeof(uint32_t));
+		agregar_a_paquete(paquete_contexto, contexto->instruccion->opcode,contexto->instruccion->opcode_lenght);
+		agregar_a_paquete(paquete_contexto, contexto->instruccion->parametros[0],contexto->instruccion->parametro1_lenght);
+		agregar_a_paquete(paquete_contexto, contexto->instruccion->parametros[1],contexto->instruccion->parametro2_lenght);
+		agregar_a_paquete(paquete_contexto, contexto->instruccion->parametros[2],contexto->instruccion->parametro3_lenght);
+
+		enviar_paquete(paquete_contexto, socket_kernel_client_fd);
+
+		eliminar_paquete(paquete_contexto);
+
 		return -1; // page fault
 	} else {
 		log_info(logger, "PID: %d - OBTENER MARCO - Página: %d - Marco: %d", pid, numero_pagina, marco_pagina);
@@ -181,7 +202,7 @@ bool decodificar_direccion_logica(t_contexto_ejec** contexto_acutal){
 	int direccion_logica = atoi((*contexto_acutal)->instruccion->parametros[1]);
 	free((*contexto_acutal)->instruccion->parametros[1]);
 
-	int direccion_fisica = traducir_direccion_logica(direccion_logica, (*contexto_acutal)->pid);
+	int direccion_fisica = traducir_direccion_logica(direccion_logica, (*contexto_acutal)->pid, *contexto_acutal);
 
 	if(direccion_fisica == -1){
 		return true;

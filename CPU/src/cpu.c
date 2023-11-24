@@ -3,6 +3,7 @@
 int socket_cpu_dispatch;
 int socket_cpu_interrupt;
 int socket_memoria;
+int socket_kernel_client_fd;
 bool hay_interrupcion_pendiente = false;
 
 int main(int argc, char *argv[]) {
@@ -166,6 +167,7 @@ void manejar_peticiones_instruccion() {
 			recibir_handshake(cliente_fd);
 			break;
 		case PETICION_CPU:
+			socket_kernel_client_fd = cliente_fd;
 			manejar_peticion_al_cpu(cliente_fd);
 			break;
 		case -1:
@@ -243,7 +245,6 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 			if (es_pagefault) {
 				//pongo -- porque no deberia mover el program counter
 				contexto_actual->program_counter--;
-				devolver_a_kernel(contexto_actual, PAGE_FAULT, socket_kernel);
 				continuar_con_el_ciclo_instruccion = false;
 			} else {
 				menjar_mov_in(&contexto_actual, instruccion);
@@ -256,7 +257,6 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 			if (es_pagefault) {
 				//pongo -- porque no deberia mover el program counter
 				contexto_actual->program_counter--;
-				devolver_a_kernel(contexto_actual, PAGE_FAULT, socket_kernel);
 				continuar_con_el_ciclo_instruccion = false;
 			} else {
 				menjar_mov_out(&contexto_actual, instruccion);
@@ -281,7 +281,6 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 			if(es_pagefault){
 				//pongo -- porque no deberia mover el program counter
 				contexto_actual->program_counter--;
-				devolver_a_kernel(contexto_actual, PAGE_FAULT, socket_kernel);
 			} else {
 				devolver_a_kernel(contexto_actual, LEER_ARCHIVO, socket_kernel);
 			}
@@ -294,7 +293,6 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 			if(es_pagefault){
 				//pongo -- porque no deberia mover el program counter
 				contexto_actual->program_counter--;
-				devolver_a_kernel(contexto_actual, PAGE_FAULT, socket_kernel);
 			} else {
 				devolver_a_kernel(contexto_actual, ESCRIBIR_ARCHIVO, socket_kernel);
 			}

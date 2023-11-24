@@ -29,5 +29,6 @@ void instruccion_destroy(t_instruccion* instruccion);
 t_instruccion *deserializar_instruccion_en(void *buffer, int* desplazamiento);
 t_instruccion *recibir_instruccion(int cliente_fd);
 void recibir_path_y_pid(int socket_cliente, char **path, int *pid);
+t_contexto_ejec* deserializar_contexto_de_ejecucion(void *buffer, int size_buffer, int *desplazamiento);
 
 #endif /* UTILS_SERVER_H_ */

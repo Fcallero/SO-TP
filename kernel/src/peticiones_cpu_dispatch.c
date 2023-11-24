@@ -843,7 +843,6 @@ void* hilo_que_maneja_pf(void* args){
 	dictionary_put(colas_de_procesos_bloqueados_por_pf,pid_del_bloqueado,proceso_a_bloquear);
 
 	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", pid, "EXEC","BLOC");
-	//TODO aca falta recibir la pagina por cpu
 	log_info(logger, "Page Fault PID: %d - Pagina: %d  ", pid,numero_pagina);
 
 	poner_a_ejecutar_otro_proceso();
@@ -878,10 +877,16 @@ void* hilo_que_maneja_pf(void* args){
 
 void manejar_page_fault(int socket_cliente){
 
-	t_contexto_ejec* contexto = recibir_contexto_de_ejecucion(socket_cliente);
-
-	//TODO cambiar lo necesario en cpu para traer la pagina UnU
+	int size;
+	void *buffer = recibir_buffer(&size, socket_cliente);
 	int numero_pagina;
+	int desplazamiento = 0;
+
+	memcpy(&numero_pagina, buffer+desplazamiento, sizeof(int));
+	desplazamiento+=sizeof(int);
+
+	t_contexto_ejec* contexto = deserializar_contexto_de_ejecucion(buffer, size, &desplazamiento);
+
 	pthread_t hilo_pf;
 
 	struct t_arg_page_fault {
@@ -894,5 +899,6 @@ void manejar_page_fault(int socket_cliente){
 	pthread_create(&hilo_pf,NULL,hilo_que_maneja_pf,(void*)args_page_fault);
 	pthread_detach(hilo_pf);
 
+	free(buffer);
 }
 

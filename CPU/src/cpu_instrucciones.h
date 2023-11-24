@@ -18,5 +18,6 @@ bool decodificar_direccion_logica(t_contexto_ejec** contexto_acutal);
 
 extern int tamano_pagina;
 extern int socket_memoria;
+extern int socket_kernel_client_fd;
 
 #endif /* SRC_CPU_INSTRUCCIONES_H_ */
