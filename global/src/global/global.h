@@ -101,17 +101,10 @@ typedef struct {
 	int bloque_inicial;
 } t_fcb;
 
-
-typedef struct{
-	int fileDescriptor;
-	char* file;
-	int open;
-}t_tabla_global_de_archivos_abiertos;
-
 typedef struct{
 	char* nombre_archivo;
 	int puntero_posicion; // se usa para el fseek
-	char modo_apertura;
+	char* modo_apertura;
 }t_tabla_de_archivos_por_proceso;
 
 typedef struct
@@ -130,6 +123,21 @@ typedef struct
 	t_list* tabla_archivos_abiertos_del_proceso;
 
 } t_pcb;
+
+typedef struct {
+	int read_lock_count; // número de locks de lectura activos
+	int write_lock_count; // número de locks de escritura activos
+	t_pcb* proceso_write_lock; // proceso que tiene el lock de escritura
+	t_list* lista_locks_read; // procesos que tienen locks de lectura
+	t_queue* cola_locks; // procesos bloqueados por lock ya sea write o read
+}t_file_lock;
+
+typedef struct{
+	int fileDescriptor;
+	char* file;
+	int open;//contador_de_aperturas
+	t_file_lock *lock_de_archivo;
+}t_tabla_global_de_archivos_abiertos;
 
 typedef struct  {
 	char* nombre_recurso;

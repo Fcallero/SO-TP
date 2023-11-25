@@ -1,8 +1,6 @@
 #include "peticiones_cpu_dispatch.h"
 
 sem_t esperar_proceso_ejecutando;
-sem_t read_lock;
-sem_t write_lock;
 
 void poner_a_ejecutar_otro_proceso(){
 
@@ -662,10 +660,10 @@ t_list *duplicar_lista_recursos(t_list *a_duplicar){
 
 void bloquear_por_espera_a_fs(t_pcb* proceso_a_bloquear, char*nombre_archivo){
 	//Si no existe el archivo en el diccionario, lo creo.
+	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_bloquear->PID, "EXEC","BLOC");
+	log_info(logger, "PID: %d - Bloqueado por: %s", proceso_a_bloquear->PID, nombre_archivo);
+
 	if(!dictionary_has_key(colas_de_procesos_bloqueados_para_cada_archivo, nombre_archivo)){
-
-		log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_bloquear->PID, "EXEC","BLOC");
-
 		t_queue* cola_bloqueados = queue_create();
 		queue_push(cola_bloqueados, proceso_a_bloquear);
 
@@ -673,8 +671,6 @@ void bloquear_por_espera_a_fs(t_pcb* proceso_a_bloquear, char*nombre_archivo){
 
 		// Si existe agrego el elemento a la cola
 	}else{
-		log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_bloquear->PID, "EXEC","BLOC");
-
 		//Creo una cola, le asigno la cola del diccionario y la remuevo
 		t_queue* cola_bloqueados = dictionary_get(colas_de_procesos_bloqueados_para_cada_archivo, nombre_archivo);
 		//cargo el proceso a bloquear en la cola
@@ -682,7 +678,6 @@ void bloquear_por_espera_a_fs(t_pcb* proceso_a_bloquear, char*nombre_archivo){
 		queue_push(cola_bloqueados, proceso_a_bloquear);
 	}
 
-	poner_a_ejecutar_otro_proceso();
 }
 
 void desbloquear_por_espera_a_fs(int pid, char*nombre_archivo){
@@ -736,6 +731,7 @@ void enviar_a_fs_truncar_archivo(int socket_cpu, int socket_filesystem)
 	sem_wait(&m_proceso_ejecutando);
 	bloquear_por_espera_a_fs(proceso_ejecutando, nombre_archivo);
 	sem_post(&m_proceso_ejecutando);
+	poner_a_ejecutar_otro_proceso();
 
 	int opcode = recibir_operacion(socket_filesystem);
 
@@ -744,7 +740,7 @@ void enviar_a_fs_truncar_archivo(int socket_cpu, int socket_filesystem)
 		return ;
 	}
 
-	char * mensaje = recibir_mensaje(socket_filesystem);
+	char *mensaje = recibir_mensaje(socket_filesystem);
 
 	log_info(logger, "se reicibio un %s de FS, archivo truncado correctamente ", mensaje);
 
@@ -754,29 +750,156 @@ void enviar_a_fs_truncar_archivo(int socket_cpu, int socket_filesystem)
 	return;
 }
 
+
+bool existe_lock_escritura_para(char* nombre_archivo){
+	t_tabla_global_de_archivos_abiertos* tabla = dictionary_get(tabla_global_de_archivos_abiertos, nombre_archivo);
+	return  tabla->lock_de_archivo != NULL &&  tabla->lock_de_archivo->write_lock_count > 0;
+}
+
+bool existe_lock_lectura_para(char* nombre_archivo){
+	t_tabla_global_de_archivos_abiertos* tabla = dictionary_get(tabla_global_de_archivos_abiertos, nombre_archivo);
+	return  tabla->lock_de_archivo != NULL &&  tabla->lock_de_archivo->read_lock_count > 0;
+}
+
+void agregar_a_lock_escritura_para_archivo(char* nombre_archivo, t_pcb* proceso){
+	t_tabla_global_de_archivos_abiertos* tabla = dictionary_get(tabla_global_de_archivos_abiertos, nombre_archivo);
+	if(tabla->lock_de_archivo != NULL){
+		tabla->lock_de_archivo->write_lock_count ++;
+		queue_push(tabla->lock_de_archivo->cola_locks, proceso);
+	} else {
+		log_error(logger, "el lock del archivo en tabla global de archivos abiertos no existe, esto es imposible aca");
+	}
+}
+
+void agregar_a_lock_lectura_para_archivo(char* nombre_archivo, t_pcb* proceso){
+	t_tabla_global_de_archivos_abiertos* tabla = dictionary_get(tabla_global_de_archivos_abiertos, nombre_archivo);
+	if(tabla->lock_de_archivo != NULL){
+		tabla->lock_de_archivo->read_lock_count ++;
+		queue_push(tabla->lock_de_archivo->cola_locks, proceso);
+	} else {
+		log_error(logger, "el lock del archivo en tabla global de archivos abiertos no existe, esto es imposible aca");
+	}
+}
+
+void agregar_como_participante_a_lock_lectura_para_archivo(char*nombre_archivo, t_pcb* proceso){
+	t_tabla_global_de_archivos_abiertos* tabla = dictionary_get(tabla_global_de_archivos_abiertos, nombre_archivo);
+	if(tabla->lock_de_archivo != NULL){
+		tabla->lock_de_archivo->read_lock_count ++;
+		list_add(tabla->lock_de_archivo->lista_locks_read, proceso);
+	} else {
+		log_error(logger, "el lock del archivo en tabla global de archivos abiertos no existe, esto es imposible aca");
+	}
+}
+
+void crear_lock_escritura_para(char* nombre_archivo, t_pcb* proceso){
+	t_tabla_global_de_archivos_abiertos* tabla = dictionary_get(tabla_global_de_archivos_abiertos, nombre_archivo);
+	if(tabla->lock_de_archivo != NULL){
+		tabla->lock_de_archivo->write_lock_count ++;
+		tabla->lock_de_archivo->proceso_write_lock = proceso;
+	}else {
+		log_error(logger, "el lock del archivo en la tabla global de archivos abiertos no existe, esto es imposible aca");
+	}
+
+}
+
+void actualizar_lock_escritura_para_archivo(char *nombre_archivo, t_pcb* proceso){
+	t_tabla_global_de_archivos_abiertos* tabla = dictionary_get(tabla_global_de_archivos_abiertos, nombre_archivo);
+	if(tabla->lock_de_archivo != NULL ){
+		t_file_lock *lock = malloc(sizeof(t_file_lock));
+		lock->cola_locks = queue_create();
+		lock->lista_locks_read = list_create();
+		lock->read_lock_count = 0;
+		lock->write_lock_count = 1;
+		lock->proceso_write_lock = proceso;
+
+		tabla->lock_de_archivo = lock;
+	}else {
+		log_error(logger, "el tabla global de archivos abiertos no existe, esto es imposible aca");
+	}
+}
+
+void manejar_lock_escritura(char *nombre_archivo, t_contexto_ejec* contexto, int socket_cliente){
+
+	if(existe_lock_escritura_para(nombre_archivo)){
+		sem_wait(&m_proceso_ejecutando);
+		agregar_a_lock_escritura_para_archivo(nombre_archivo, proceso_ejecutando);
+		bloquear_por_espera_a_fs(proceso_ejecutando, nombre_archivo);//o mantenerlo bloqueado
+		sem_post(&m_proceso_ejecutando);
+		poner_a_ejecutar_otro_proceso();
+	} else {
+		sem_wait(&m_proceso_ejecutando);
+		crear_lock_escritura_para(nombre_archivo, proceso_ejecutando);
+		sem_post(&m_proceso_ejecutando);
+		enviar_contexto_de_ejecucion_a(contexto, PETICION_CPU, socket_cliente);
+	}
+}
+
+void manejar_lock_lectura(char *nombre_archivo, t_contexto_ejec* contexto, int socket_cliente){
+
+	if(existe_lock_escritura_para(nombre_archivo)){
+		sem_wait(&m_proceso_ejecutando);
+		agregar_a_lock_lectura_para_archivo(nombre_archivo, proceso_ejecutando);
+		bloquear_por_espera_a_fs(proceso_ejecutando, nombre_archivo);//o mantenerlo bloqueado
+		sem_post(&m_proceso_ejecutando);
+
+		poner_a_ejecutar_otro_proceso();
+	}else {
+		sem_wait(&m_proceso_ejecutando);
+		agregar_como_participante_a_lock_lectura_para_archivo(nombre_archivo, proceso_ejecutando);
+		sem_post(&m_proceso_ejecutando);
+
+		enviar_contexto_de_ejecucion_a(contexto, PETICION_CPU, socket_cliente);
+	}
+
+}
+
+void crear_entrada_tabla_global_archivos_abiertos(char *nombre_archivo){
+	t_tabla_global_de_archivos_abiertos *tabla_archivo_abierto_global = malloc(sizeof(t_tabla_global_de_archivos_abiertos));
+
+	tabla_archivo_abierto_global->file = strdup(nombre_archivo);
+	tabla_archivo_abierto_global->open = 1;
+
+	t_file_lock* lock_archivo = malloc(sizeof(t_file_lock));
+	lock_archivo->lista_locks_read = list_create();
+	lock_archivo->cola_locks = queue_create();
+	lock_archivo->read_lock_count = 0;
+	lock_archivo->write_lock_count = 0;
+	lock_archivo->proceso_write_lock = NULL;
+
+	tabla_archivo_abierto_global->lock_de_archivo = lock_archivo ;
+
+	dictionary_put(tabla_global_de_archivos_abiertos, nombre_archivo, tabla_archivo_abierto_global);
+}
+
+void crear_entrada_lista_archivo_abierto_por_proceso(char* nombre_archivo, t_pcb* proceso, char* modo_apertura){
+
+	t_list* lista_de_archivos_abiertos_proceso = proceso->tabla_archivos_abiertos_del_proceso;
+
+	t_tabla_de_archivos_por_proceso* tabla_archivo_abierto = malloc(sizeof(t_tabla_de_archivos_por_proceso));
+	tabla_archivo_abierto->nombre_archivo = nombre_archivo;
+	tabla_archivo_abierto->puntero_posicion =0;
+	tabla_archivo_abierto->modo_apertura = modo_apertura;
+
+	list_add(lista_de_archivos_abiertos_proceso, tabla_archivo_abierto);
+}
+
 void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, int socket_filesystem)
 {
 	t_contexto_ejec* contexto = recibir_contexto_de_ejecucion(socket_cpu);
-	//ABRIR_ARCHIVO TAMBIEN DEFINE LA CREACION DEL ARCHIVO EN CASO DE QUE NO EXISTA, NECESITAMOS VERIFICAR QUE EL
-	//ARCHIVO NO EXISTA PARA APLICAR LA CREACION DEL ARCHIVO
 
 	char* nombre_archivo = strdup(contexto->instruccion->parametros[0]);
 	log_info(logger,"PID %d - ABRIR ARCHIVO: %s",contexto->pid, nombre_archivo);
 
-	//mandamos la orden
 	enviar_instruccion(contexto->instruccion, socket_filesystem, ABRIR_ARCHIVO);
 
-	//esperamos una respuesata del fs: SI EXISTE, MANDARA EL TAM DEL ARCHIVO; SI NO EXISTE, MANDARA UN -1
-	// Y MANDAREMOS ORDEN DE CREAR EL ARCHIVO
-
-	sem_wait(&m_proceso_ejecutando);
-	bloquear_por_espera_a_fs(proceso_ejecutando, nombre_archivo);
-	sem_post(&m_proceso_ejecutando);
+	//esperamos una respuesata del fs:
+	//	SI EXISTE, MANDARA EL TAM DEL ARCHIVO;
+	//	SI NO EXISTE, MANDARA UN -1 Y MANDAREMOS ORDEN DE CREAR EL ARCHIVO
 
 	int opcode = recibir_operacion(socket_filesystem);
 	if(opcode == MENSAJE){
-		if(atoi(recibir_mensaje(socket_filesystem))==-1) //el archivo no existe
-		{
+		//si el archivo no existe
+		if(atoi(recibir_mensaje(socket_filesystem))==-1){
 			//mandamos la orden
 			enviar_instruccion(contexto->instruccion, socket_filesystem, CREAR_ARCHIVO);
 
@@ -791,31 +914,36 @@ void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, int socket_filesystem)
 			char *mensaje = recibir_mensaje(socket_filesystem);
 			log_info(logger, "Se recibio %s de Filesystem, arhivo creado exitosamente", mensaje);
 			free(mensaje);
-		}else{ // existe el archivo
 
-			/*//inicializo los semaforos // no entiendo para que los semaforos
-			sem_init(&write_lock,0,1);
-			sem_init(&read_lock,0,1);
-			*/
-			if (string_equals_ignore_case(contexto->instruccion->parametros[1], "W")) //MODO ESCRITURA
-			{
-				//TODO escritura lo agrega a la cola de locks de escritura para este archivo
-				//sem_wait(write_lock);
-				//sem_wait();
-			}else if(string_equals_ignore_case(contexto->instruccion->parametros[1], "R"))//MODO LECTURA
-			{
-				//TODO lectura crea lock si no existe o lo agrega al lock si existe y incrementa el contador de aperturas
-				//sem_wait(read_lock);
-				//sem_wait();
-			}
+			crear_entrada_tabla_global_archivos_abiertos(nombre_archivo);
+		} else {
+			log_error(logger, "Hubo un error al recibir de FS si el archivo %s existe o no", nombre_archivo);
 		}
+	// si existe el archivo
 	} else if(opcode == ABRIR_ARCHIVO){
 		char* mensaje = recibir_mensaje(socket_filesystem);
 		log_info(logger, "se reicibo un %s de FS, archivo abierto correctamente", mensaje);
 		free(mensaje);
+
+		t_tabla_global_de_archivos_abiertos *tabla_global = dictionary_get(tabla_global_de_archivos_abiertos, nombre_archivo);
+		tabla_global->open ++;
 	}
 
-	desbloquear_por_espera_a_fs(contexto->pid, nombre_archivo);
+	char *modo_apertura =  strdup(contexto->instruccion->parametros[1]);
+	sem_wait(&m_proceso_ejecutando);
+	crear_entrada_lista_archivo_abierto_por_proceso(nombre_archivo, proceso_ejecutando, modo_apertura);
+	sem_post(&m_proceso_ejecutando);
+	//maneja los locks
+
+	//MODO ESCRITURA
+	if (string_equals_ignore_case(modo_apertura, "W")) {
+		manejar_lock_escritura(nombre_archivo, contexto, socket_cpu);
+	//MODO LECTURA
+	}else if(string_equals_ignore_case(modo_apertura, "R")){
+		manejar_lock_lectura(nombre_archivo, contexto, socket_cpu);
+	}
+
+	//dependiendo del lock, va a seguir ejecutando el proceso o se va a bloquear y llama a otro proceso de ready, etc
 
 	contexto_ejecucion_destroy(contexto);
 	return;
@@ -823,8 +951,6 @@ void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, int socket_filesystem)
 
 
 void* hilo_que_maneja_pf(void* args){
-
-
 
 	struct t_arg_page_fault {
 		int numero_pagina;
@@ -843,35 +969,36 @@ void* hilo_que_maneja_pf(void* args){
 	dictionary_put(colas_de_procesos_bloqueados_por_pf,pid_del_bloqueado,proceso_a_bloquear);
 
 	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", pid, "EXEC","BLOC");
+	log_info(logger, "PID: %d - Bloqueado por: PAGE_FAULT", proceso_a_bloquear->PID);
 	log_info(logger, "Page Fault PID: %d - Pagina: %d  ", pid,numero_pagina);
 
 	poner_a_ejecutar_otro_proceso();
 	t_paquete* paquete= crear_paquete(PAGE_FAULT);
 
-		agregar_a_paquete_sin_agregar_tamanio(paquete,&numero_pagina,sizeof(int));
-		agregar_a_paquete_sin_agregar_tamanio(paquete,&pid,sizeof(int));
-		enviar_paquete(paquete,socket_memoria);
+	agregar_a_paquete_sin_agregar_tamanio(paquete,&numero_pagina,sizeof(int));
+	agregar_a_paquete_sin_agregar_tamanio(paquete,&pid,sizeof(int));
+	enviar_paquete(paquete,socket_memoria);
 
-		eliminar_paquete(paquete);
+	eliminar_paquete(paquete);
 
-		 int cod_op = recibir_operacion(socket_memoria);
-
-
-		 if(cod_op!=PAGE_FAULT){
-			 log_error(logger, "No se pudo recibir bloques asignados. Terminando servidor");
-			 return NULL;
-		 }
-		 //aca deberia llegar un ok
-		 char* mensaje = recibir_mensaje(socket_memoria);
+	 int cod_op = recibir_operacion(socket_memoria);
 
 
-		 if(strcmp(mensaje,"OK")==0){
-			 t_pcb* proceso_a_ready = dictionary_get(colas_de_procesos_bloqueados_por_pf,pid_del_bloqueado);
-			 actualizar_estado_a_pcb(proceso_a_ready, "READY");
-			 pasar_a_ready(proceso_a_ready);
-		 }
+	 if(cod_op!=PAGE_FAULT){
+		 log_error(logger, "No se pudo recibir bloques asignados. Terminando servidor");
+		 return NULL;
+	 }
+	 //aca deberia llegar un ok
+	 char* mensaje = recibir_mensaje(socket_memoria);
 
-		 free(args_page_fault);
+
+	 if(strcmp(mensaje,"OK")==0){
+		 t_pcb* proceso_a_ready = dictionary_get(colas_de_procesos_bloqueados_por_pf,pid_del_bloqueado);
+		 actualizar_estado_a_pcb(proceso_a_ready, "READY");
+		 pasar_a_ready(proceso_a_ready);
+	 }
+
+	 free(args_page_fault);
    return NULL;
 }
 
