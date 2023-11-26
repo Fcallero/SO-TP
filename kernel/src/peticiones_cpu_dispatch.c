@@ -821,12 +821,14 @@ void actualizar_lock_escritura_para_archivo(char *nombre_archivo, t_pcb* proceso
 void manejar_lock_escritura(char *nombre_archivo, t_contexto_ejec* contexto, int socket_cliente){
 
 	if(existe_lock_escritura_para(nombre_archivo)){
+
+		deteccion_de_deadlock();
+
 		sem_wait(&m_proceso_ejecutando);
 		agregar_a_lock_escritura_para_archivo(nombre_archivo, proceso_ejecutando);
 		bloquear_por_espera_a_fs(proceso_ejecutando, nombre_archivo);//o mantenerlo bloqueado
 		sem_post(&m_proceso_ejecutando);
 
-		//TODO
 		//la cantidad de recusos no se usa en este caso, asi que no importa que este en 0
 		incrementar_recurso_en_matriz(&matriz_recursos_pendientes, nombre_archivo, string_itoa(contexto->pid), 0);
 
@@ -846,12 +848,14 @@ void manejar_lock_escritura(char *nombre_archivo, t_contexto_ejec* contexto, int
 void manejar_lock_lectura(char *nombre_archivo, t_contexto_ejec* contexto, int socket_cliente){
 
 	if(existe_lock_escritura_para(nombre_archivo)){
+
+		deteccion_de_deadlock();
+
 		sem_wait(&m_proceso_ejecutando);
 		agregar_a_lock_lectura_para_archivo(nombre_archivo, proceso_ejecutando);
 		bloquear_por_espera_a_fs(proceso_ejecutando, nombre_archivo);//o mantenerlo bloqueado
 		sem_post(&m_proceso_ejecutando);
 
-		//TODO
 		//la cantidad de recusos no se usa en este caso, asi que no importa que este en 0
 		incrementar_recurso_en_matriz(&matriz_recursos_pendientes, nombre_archivo, string_itoa(contexto->pid), 0);
 
