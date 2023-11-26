@@ -241,15 +241,98 @@ void liberar_recursos_de(int pid_proceso_a_liberar){
 	destroy_lista_de_recursos(recursos_del_proceso_dup);
 }
 
-void liberar_archivos_de(int pid_proceso_a_liberar){
-	char *pid = string_itoa(pid_proceso_a_liberar);
+t_list* buscar_archivos_y_sacar_de_tabla_global_de(int pid_buscado){
+	t_list* archivos_del_proceso = list_create();
 
-	//TODO liberar archivos
+	void buscar_archivos(char*nombre_archivo,void*tabla_arg){
+		t_tabla_global_de_archivos_abiertos* tabla = (t_tabla_global_de_archivos_abiertos *)tabla_arg;
+
+		bool es_este_proceso(void *args){
+			t_pcb* pcb = (t_pcb *)args;
+			return pcb->PID == pid_buscado;
+		}
+
+		if(tabla->lock_de_archivo->read_lock_count > 0){
+			t_pcb* pcb_proceso = list_find(tabla->lock_de_archivo->lista_locks_read, es_este_proceso);
+
+			if(pcb_proceso != NULL){
+				tabla->open --;
+				list_remove_by_condition(tabla->lock_de_archivo->lista_locks_read, es_este_proceso);
+				list_add(archivos_del_proceso, strdup(tabla->file));
+			}
+		}else if(tabla->lock_de_archivo->write_lock_count > 0){
+
+			t_pcb* pcb_proceso = list_find(tabla->lock_de_archivo->cola_locks->elements, es_este_proceso);
+
+			if(pcb_proceso != NULL){
+				tabla->open --;
+				list_remove_by_condition(tabla->lock_de_archivo->cola_locks->elements, es_este_proceso);
+				list_add(archivos_del_proceso, strdup(tabla->file));
+			}
+		}
+	}
+
+	dictionary_iterator(tabla_global_de_archivos_abiertos, buscar_archivos);
+
+	return archivos_del_proceso;
+}
+
+void destroy_tabla_global_archivos_abiertos(t_tabla_global_de_archivos_abiertos*tabla_a_borrar){
+	queue_destroy(tabla_a_borrar->lock_de_archivo->cola_locks);
+	list_destroy(tabla_a_borrar->lock_de_archivo->lista_locks_read);
+
+	if(tabla_a_borrar->lock_de_archivo->proceso_write_lock != NULL){
+		free(tabla_a_borrar->lock_de_archivo->proceso_write_lock);
+	}
+
+	free(tabla_a_borrar->lock_de_archivo);
+	free(tabla_a_borrar->file);
+	free(tabla_a_borrar);
+}
+
+
+void liberar_archivos_de(int pid_proceso_a_liberar){
+	t_list* archivos_del_proceso = buscar_archivos_y_sacar_de_tabla_global_de(pid_proceso_a_liberar);
+
+	//libero tablas globales de los archivos abiertos por solo este proceso
+
+	void liberar_tabla_global(void*arg){
+		char* nombre_archivo = (char *)arg;
+
+		t_tabla_global_de_archivos_abiertos* tabla = dictionary_get(tabla_global_de_archivos_abiertos, nombre_archivo);
+
+		destroy_tabla_global_archivos_abiertos(tabla);
+
+		free(nombre_archivo);
+	}
+
+	 bool es_el_unico_que_uso_el_archivo(void*arg){
+		 char* nombre_archivo = (char *)arg;
+
+		 t_tabla_global_de_archivos_abiertos* tabla = dictionary_get(tabla_global_de_archivos_abiertos, nombre_archivo);
+
+		 return tabla->open == 0;
+	 }
+
+	list_remove_and_destroy_all_by_condition(archivos_del_proceso, es_el_unico_que_uso_el_archivo, liberar_tabla_global);
 
 	deteccion_de_deadlock();
 
 	//desbloqueo a un proceso en caso de que este bloqueado por el archivo
+	void desbloquear_por_archivo(void*args){
+		char* nombre_archivo = (char *) args;
 
+		t_tabla_global_de_archivos_abiertos* tabla = dictionary_get(tabla_global_de_archivos_abiertos, nombre_archivo);
+
+		if(queue_size(tabla->lock_de_archivo->cola_locks) != 0){
+			t_pcb* proceso_a_desbloquear = queue_pop(tabla->lock_de_archivo->cola_locks);
+			desbloquear_por_espera_a_fs(proceso_a_desbloquear->PID, tabla->file);
+		}
+	}
+
+	list_iterate(archivos_del_proceso, desbloquear_por_archivo);
+
+	list_destroy_and_destroy_elements(archivos_del_proceso, free);
 }
 
 

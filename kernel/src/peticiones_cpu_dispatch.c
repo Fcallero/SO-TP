@@ -825,11 +825,20 @@ void manejar_lock_escritura(char *nombre_archivo, t_contexto_ejec* contexto, int
 		agregar_a_lock_escritura_para_archivo(nombre_archivo, proceso_ejecutando);
 		bloquear_por_espera_a_fs(proceso_ejecutando, nombre_archivo);//o mantenerlo bloqueado
 		sem_post(&m_proceso_ejecutando);
+
+		//TODO
+		//la cantidad de recusos no se usa en este caso, asi que no importa que este en 0
+		incrementar_recurso_en_matriz(&matriz_recursos_pendientes, nombre_archivo, string_itoa(contexto->pid), 0);
+
 		poner_a_ejecutar_otro_proceso();
 	} else {
 		sem_wait(&m_proceso_ejecutando);
 		crear_lock_escritura_para(nombre_archivo, proceso_ejecutando);
 		sem_post(&m_proceso_ejecutando);
+
+		decrementar_recurso_en_matriz(&matriz_recursos_pendientes, nombre_archivo, string_itoa(contexto->pid), 0);
+		incrementar_recurso_en_matriz(&matriz_recursos_asignados, nombre_archivo, string_itoa(contexto->pid), 0);
+
 		enviar_contexto_de_ejecucion_a(contexto, PETICION_CPU, socket_cliente);
 	}
 }
@@ -842,11 +851,18 @@ void manejar_lock_lectura(char *nombre_archivo, t_contexto_ejec* contexto, int s
 		bloquear_por_espera_a_fs(proceso_ejecutando, nombre_archivo);//o mantenerlo bloqueado
 		sem_post(&m_proceso_ejecutando);
 
+		//TODO
+		//la cantidad de recusos no se usa en este caso, asi que no importa que este en 0
+		incrementar_recurso_en_matriz(&matriz_recursos_pendientes, nombre_archivo, string_itoa(contexto->pid), 0);
+
 		poner_a_ejecutar_otro_proceso();
 	}else {
 		sem_wait(&m_proceso_ejecutando);
 		agregar_como_participante_a_lock_lectura_para_archivo(nombre_archivo, proceso_ejecutando);
 		sem_post(&m_proceso_ejecutando);
+
+		decrementar_recurso_en_matriz(&matriz_recursos_pendientes, nombre_archivo, string_itoa(contexto->pid), 0);
+		incrementar_recurso_en_matriz(&matriz_recursos_asignados, nombre_archivo, string_itoa(contexto->pid), 0);
 
 		enviar_contexto_de_ejecucion_a(contexto, PETICION_CPU, socket_cliente);
 	}
@@ -883,11 +899,49 @@ void crear_entrada_lista_archivo_abierto_por_proceso(char* nombre_archivo, t_pcb
 	list_add(lista_de_archivos_abiertos_proceso, tabla_archivo_abierto);
 }
 
+void agregar_recurso_a_matriz(char *nombre_archivo, int pid, t_dictionary** matriz){
+	t_list *recursos_a_devolver =  dictionary_get(*matriz, string_itoa(pid));
+
+	if(recursos_a_devolver == NULL){
+		recursos_a_devolver = list_create();
+
+		for(int i = 0; i<cant_recursos; i++){
+			t_recurso * recurso_n = recurso_new(recursos[i]);
+
+			list_add(recursos_a_devolver, recurso_n);
+		}
+
+		t_recurso * recurso_n = recurso_new(nombre_archivo);
+		list_add(recursos_a_devolver, recurso_n);
+
+		dictionary_put(*matriz,string_itoa(pid), recursos_a_devolver);
+	} else {
+
+		bool es_el_archivo(void*args){
+			t_recurso* recurso_n = (t_recurso*)args;
+
+			return strcmp(nombre_archivo, recurso_n->nombre_recurso) == 0;
+		}
+
+		if(!list_any_satisfy(recursos_a_devolver, es_el_archivo)){
+			t_recurso * recurso_n = recurso_new(nombre_archivo);
+
+			list_add(recursos_a_devolver, recurso_n);
+		}
+	}
+}
+void agregar_recurso_a_matrices(char *nombre_archivo, int pid){
+	agregar_recurso_a_matriz(nombre_archivo, pid, &matriz_recursos_pendientes);
+	agregar_recurso_a_matriz(nombre_archivo, pid, &matriz_recursos_asignados);
+}
+
 void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, int socket_filesystem)
 {
 	t_contexto_ejec* contexto = recibir_contexto_de_ejecucion(socket_cpu);
 
 	char* nombre_archivo = strdup(contexto->instruccion->parametros[0]);
+	agregar_recurso_a_matrices(nombre_archivo, contexto->pid);
+
 	log_info(logger,"PID %d - ABRIR ARCHIVO: %s",contexto->pid, nombre_archivo);
 
 	enviar_instruccion(contexto->instruccion, socket_filesystem, ABRIR_ARCHIVO);
