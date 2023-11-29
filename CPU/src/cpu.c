@@ -282,6 +282,9 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 				//pongo -- porque no deberia mover el program counter
 				contexto_actual->program_counter--;
 			} else {
+				contexto_actual->instruccion->parametros[2] = string_itoa(tamano_pagina);
+				contexto_actual->instruccion->parametro3_lenght = strlen(contexto_actual->instruccion->parametros[2] )+1;
+
 				devolver_a_kernel(contexto_actual, LEER_ARCHIVO, socket_kernel);
 			}
 
@@ -294,6 +297,8 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 				//pongo -- porque no deberia mover el program counter
 				contexto_actual->program_counter--;
 			} else {
+				contexto_actual->instruccion->parametros[2] = string_itoa(tamano_pagina);
+				contexto_actual->instruccion->parametro3_lenght = strlen(contexto_actual->instruccion->parametros[2] )+1;
 				devolver_a_kernel(contexto_actual, ESCRIBIR_ARCHIVO, socket_kernel);
 			}
 			continuar_con_el_ciclo_instruccion = false;

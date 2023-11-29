@@ -421,7 +421,7 @@ void leer_archivo(int socket_cpu){
 	int puntero = entrada_tabla_arch_abierto_proceso->puntero_posicion;
 
 	char* direccion_fisica = strdup(instruccion_peticion->parametros[1]);
-	char* bytes_a_leer_string = strdup(instruccion_peticion->parametros[2]);//TODO esto lo agrega CPU, que es el tam de pagina
+	char* bytes_a_leer_string = strdup(instruccion_peticion->parametros[2]);
 
 	log_info(logger, "PID: %d - Leer Archivo: %s - Puntero %d - Dirección Memoria %s - Tamaño %s", contexto->pid, nombre_archivo, puntero, direccion_fisica, bytes_a_leer_string);
 
@@ -499,7 +499,7 @@ void escribir_archivo(int socket_cpu){
 	int puntero = entrada_tabla_arch_abierto_proceso->puntero_posicion;
 
 	char* direccion_fisica = strdup(instruccion_peticion->parametros[1]);
-	char* bytes_a_escribir_string = strdup(instruccion_peticion->parametros[2]);//TODO esto lo agrega CPU, que es el tam de pagina
+	char* bytes_a_escribir_string = strdup(instruccion_peticion->parametros[2]);
 
 	log_info(logger, "PID: %d - Escribir Archivo: %s - Puntero %d - Dirección Memoria %s - Tamaño %s", contexto->pid, nombre_archivo, puntero, direccion_fisica, bytes_a_escribir_string);
 
