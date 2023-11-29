@@ -66,7 +66,7 @@ void manejar_instruccion_jnz(t_contexto_ejec** contexto_actual, t_instruccion* i
 	(*contexto_actual)->program_counter = numero_instruccion;
 }
 
-void  menjar_mov_in(t_contexto_ejec** contexto_actual, t_instruccion*  instruccion){
+void  manejar_mov_in(t_contexto_ejec** contexto_actual, t_instruccion*  instruccion){
 	char* registro = string_duplicate(instruccion->parametros[0]);
 	int direccion_fisica = atoi(instruccion->parametros[1]);
 
@@ -82,7 +82,7 @@ void  menjar_mov_in(t_contexto_ejec** contexto_actual, t_instruccion*  instrucci
 	free(registro);
 }
 
-void menjar_mov_out(t_contexto_ejec** contexto_actual, t_instruccion*  instruccion){
+void manejar_mov_out(t_contexto_ejec** contexto_actual, t_instruccion*  instruccion){
 	int direccion_fisica = atoi(instruccion->parametros[0]);
 	char* registro = string_duplicate(instruccion->parametros[1]);
 

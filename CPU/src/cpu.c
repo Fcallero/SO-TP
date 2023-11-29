@@ -247,7 +247,7 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 				contexto_actual->program_counter--;
 				continuar_con_el_ciclo_instruccion = false;
 			} else {
-				menjar_mov_in(&contexto_actual, instruccion);
+				manejar_mov_in(&contexto_actual, instruccion);
 			}
 		}
 
@@ -259,7 +259,7 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 				contexto_actual->program_counter--;
 				continuar_con_el_ciclo_instruccion = false;
 			} else {
-				menjar_mov_out(&contexto_actual, instruccion);
+				manejar_mov_out(&contexto_actual, instruccion);
 			}
 		}
 

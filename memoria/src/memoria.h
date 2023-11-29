@@ -14,6 +14,7 @@
 #include <commons/collections/list.h>
 #include <commons/collections/queue.h>
 #include <pthread.h>
+#include <math.h>
 
 #include <global/global.h>
 #include <global/utils_cliente.h>
@@ -69,8 +70,8 @@ bool memoria_llena();
 int aplicarFifo();
 int aplicarLru();
 void reemplazar_marco(void*contenido_bloque,int pid,t_tabla_de_paginas*pagina_a_actualizar,t_situacion_marco* marco_a_guardar);
-
-void read_memory();
-void write_memory();
+int obtener_pagina_a_reemplazar(int numero_marco,int pid);
+void read_memory(int cliente_fd);
+void write_memory(int cliente_fd);
 
 #endif

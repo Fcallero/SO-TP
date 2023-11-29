@@ -11,8 +11,8 @@ void manejar_instruccion_set(t_contexto_ejec** contexto, t_instruccion* instrucc
 void manejar_instruccion_sum(t_contexto_ejec** contexto_actual,t_instruccion* instruccion);
 void manejar_instruccion_sub(t_contexto_ejec** contexto_actual,t_instruccion* instruccion);
 void manejar_instruccion_jnz(t_contexto_ejec** contexto_actual, t_instruccion* instruccion);
-void menjar_mov_in(t_contexto_ejec** contexto_actual, t_instruccion*  instruccion);
-void menjar_mov_out(t_contexto_ejec** contexto_actual, t_instruccion*  instruccion);
+void manejar_mov_in(t_contexto_ejec** contexto_actual, t_instruccion*  instruccion);
+void manejar_mov_out(t_contexto_ejec** contexto_actual, t_instruccion*  instruccion);
 
 bool decodificar_direccion_logica(t_contexto_ejec** contexto_acutal);
 

@@ -527,6 +527,8 @@ void proceso_estado() {
 
 	char *pids_en_bloc = string_new();
 
+	//TODO falta agregar los logs para la cola de bloqueados por pid
+	// y en el largo plazo :D
 	sem_wait(&m_cola_de_procesos_bloqueados_para_cada_archivo);
 	listar_pids_diccionario(&pids_en_bloc, colas_de_procesos_bloqueados_para_cada_archivo);
 	sem_post(&m_cola_de_procesos_bloqueados_para_cada_archivo);
