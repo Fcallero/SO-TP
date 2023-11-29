@@ -275,6 +275,8 @@ void finalizar_proceso(int cliente_fd){
 	}
 	list_iterator_destroy(iterador_lista);
 
+	esperar_por(retardo_respuesta);
+
 	//destruir TP
 	log_info(logger,"PID: %d - Tamaño: %d",pid,cant_paginas_proceso);
 
@@ -319,6 +321,7 @@ void crear_proceso(int cliente_fd){
 	memcpy(&pid,buffer+sizeof(int),sizeof(int));
 
 
+	esperar_por(retardo_respuesta);
 
 	 t_paquete* paquete = crear_paquete(INICIAR_PROCESO);
 
@@ -398,6 +401,8 @@ void devolver_marco(int cliente_fd){
 
 
 
+	esperar_por(retardo_respuesta);
+
 	//a cpu  por ACCESO_A_PAGINA
 	if(entrada_de_pagina->presencia){
 		t_paquete* paquete=crear_paquete(ACCESO_A_PAGINA);
@@ -450,6 +455,8 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 
 	t_list* paginas_del_proceso =dictionary_get(paginas_por_PID,string_itoa(pid));
 	t_tabla_de_paginas* pagina_a_actualizar =list_get(paginas_del_proceso,numero_pagina);
+
+	esperar_por(retardo_respuesta);
 
 	//log obligatorio
 	log_info(logger,"SWAP IN -  PID: %d - Marco: %d - Page In: %d-%d",pid,pagina_a_actualizar->marco,pid,numero_pagina);
@@ -505,6 +512,8 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 		if(marco->modificado)
 		{
 			//actualiza en el bloque de swap la pagina modificada de memoria
+
+			esperar_por(retardo_respuesta);
 
 			//Escritura de Página en SWAP: “SWAP OUT -  PID: <PID> - Marco: <MARCO> - Page Out: <PID>-<NRO_PAGINA>”
 			log_info(logger,"SWAP OUT -  PID: %d - Marco: %d - Page Out: %d-%d",pid,marco->marco,marco_a_guardar->pid,pagina_a_reemplazar);
@@ -717,11 +726,15 @@ void read_memory(int cliente_fd){
 
 	char* contenido = malloc(tam_pagina+1);
 
+	esperar_por(retardo_respuesta);
+
 	log_info(logger,"PID: %d - Accion: LEER - Direccion fisica: %d",pid,direccion_fisica);
 
 	memcpy(contenido, espacio_usuario+direccion_fisica, tam_pagina);
 
 	contenido[tam_pagina]='\0';
+
+
 
 	enviar_mensaje(contenido,cliente_fd,READ_MEMORY);
 
@@ -770,6 +783,7 @@ void write_memory(int cliente_fd){
 	t_tabla_de_paginas* entrada_TP=list_find(lista_de_TP,esMarcoBuscado);
 	entrada_TP->modificado=true;
 
+	esperar_por(retardo_respuesta);
 
 	log_info(logger,"PID: %d - Accion: ESCRIBIR - Direccion fisica: %d",pid,direccion_fisica);
 
