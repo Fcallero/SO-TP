@@ -14,6 +14,7 @@ sem_t m_cola_exit;
 sem_t m_proceso_ejecutando;
 sem_t m_recurso_bloqueado;
 sem_t m_cola_de_procesos_bloqueados_para_cada_archivo;
+sem_t m_colas_de_procesos_bloqueados_por_pf;
 sem_t despertar_planificacion_largo_plazo;
 sem_t memoria_lista;
 sem_t recibir_interrupcion;
@@ -40,6 +41,7 @@ void inicializar_colas_y_semaforos(){
 	sem_init(&memoria_lista,0,0);
 	sem_init(&recibir_interrupcion, 0, 0);
 	sem_init(&espero_desalojo_CPU, 0, 0);
+	sem_init(&m_colas_de_procesos_bloqueados_por_pf, 0, 1);
 	pthread_mutex_init(&m_planificador_largo_plazo, NULL);
 	pthread_mutex_init(&m_planificador_corto_plazo, NULL);
 }
@@ -132,7 +134,9 @@ int calcular_procesos_en_memoria(int procesos_en_ready){
 	dictionary_iterator(colas_de_procesos_bloqueados_para_cada_archivo, _calcular_procesos_bloqueados_por_archivo);
 	sem_post(&m_cola_de_procesos_bloqueados_para_cada_archivo);
 
-
+	sem_wait(&m_colas_de_procesos_bloqueados_por_pf);
+	procesos_bloqueados += dictionary_size(colas_de_procesos_bloqueados_por_pf);
+	sem_post(&m_colas_de_procesos_bloqueados_por_pf);
 
 	sem_wait(&m_proceso_ejecutando);
 	if(proceso_ejecutando != NULL){
