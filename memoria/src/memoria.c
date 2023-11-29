@@ -364,8 +364,7 @@ void crear_proceso(int cliente_fd){
 	 free(buffer);
 	 free(buffer_fs);
 }
-//----------IMPORTANTE------------IMPORTANTE-----------------
-//TODO aca hay que agregar un push de las paginas a la queue global-----referencias_paginas-----
+
 void devolver_marco(int cliente_fd){
 
 	int size;
@@ -380,6 +379,14 @@ void devolver_marco(int cliente_fd){
 	//obtengo el valor
 	char*pid_string=string_itoa(pid_entero);
 
+	//creo y guardo la referencia a la pagina
+	t_referenciaXpid* pagina_referenciada = malloc(sizeof(t_referenciaXpid));
+	pagina_referenciada->numero_pagina = numero_pagina;
+	pagina_referenciada->pid = strdup(pid_string);
+
+	queue_push(referencias_paginas, referencias_paginas);
+
+	//busco en la tabla si esta presente o no
 	t_list* lista_de_marcos = dictionary_get(paginas_por_PID,pid_string);
 
 	t_tabla_de_paginas* entrada_de_pagina =list_get(lista_de_marcos,numero_pagina);
@@ -398,6 +405,25 @@ void devolver_marco(int cliente_fd){
 
 	free(buffer);
 
+}
+
+t_situacion_marco* obtener_situacion_marco(int numero_marco){
+	bool esMarco_busado(void *args){
+		t_situacion_marco* situacion_marco = (t_situacion_marco*) args;
+
+		return situacion_marco->numero_marco == numero_marco;
+	}
+
+	return list_find(situacion_marcos, esMarco_busado);
+}
+
+void *obtener_contenido_de_marco(int numero_marco){
+	void* contenido = malloc(tam_pagina);
+
+	t_situacion_marco* situacion_marco = obtener_situacion_marco(numero_marco);
+
+	memcpy(contenido, espacio_usuario+situacion_marco->posicion_inicio_marco, tam_pagina);
+	return contenido;
 }
 
 void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
@@ -456,34 +482,46 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 
 		if(marco->modificado)
 		{
-			// TODO escribir pagina en filesystem el contenido que esta en espacio de usuario de este marco
+			//actualiza en el bloque de swap la pagina modificada de memoria
+
+			void *contenido_acutualizado = obtener_contenido_de_marco(marco->marco);
+			t_paquete* paquete = crear_paquete(ESCRIBIR_CONTENIDO_PAGINA);
+			agregar_a_paquete_sin_agregar_tamanio(paquete, &marco->posicion_swap, sizeof(uint32_t));
+			agregar_a_paquete_sin_agregar_tamanio(paquete, &contenido_acutualizado, tam_pagina);
+
+			enviar_paquete(paquete, socket_fs);
+			eliminar_paquete(paquete);
+
+			int cod_op = recibir_operacion(socket_fs);
+
+			 if(cod_op!=ESCRIBIR_CONTENIDO_PAGINA){
+				 log_error(logger, "No se pudo actualizar el bloque swap de la pagina a reeemplazar");
+				 return;
+			 }
+
+			 char* mensaje = recibir_mensaje(socket_fs);
+			 log_info(logger, "Se recibio un %s de filesystem, procedo con el remplazo de pagina", mensaje);
 		}
 
 		//modifico el hayado
 		marco->presencia=false;
 		marco->modificado=false;
 
-		bool esMarcoSolicitado(void* args){
-			t_situacion_marco* marco_x =(t_situacion_marco*)args;
-			return marco_x->numero_marco==marco->marco;
-		}
-		t_situacion_marco* marco_a_guardar = list_find(situacion_marcos,esMarcoSolicitado);
+		t_situacion_marco* marco_a_guardar = obtener_situacion_marco(marco->marco);
+
 		reemplazar_marco(contenido_bloque,pid,pagina_a_actualizar,marco_a_guardar);
 	}else{
 		bool esMarcoLibre(void* args){
 			t_situacion_marco* marco_x =(t_situacion_marco*)args;
 			return marco_x->esLibre;
 		}
-
 		t_situacion_marco* marco_a_guardar = list_find(situacion_marcos,esMarcoLibre);
+
 		reemplazar_marco(contenido_bloque,pid,pagina_a_actualizar,marco_a_guardar);
-
-
 
 	}
 
 	enviar_mensaje("OK",cliente_fd,PAGE_FAULT);
-
 }
 
 
@@ -609,11 +647,12 @@ int aplicarLru(){
 
 }
 
-//TODO estas 2:
+//TODO read_memory
 void read_memory(){
 
 }
 
+//TODO write_memory
 void write_memory(){
 
 }

@@ -226,6 +226,8 @@ void *atender_cliente(void* args){
 			case LEER_CONTENIDO_PAGINA:
 				devolver_contenido_pagina(cliente_fd);
 				break;
+			case ESCRIBIR_CONTENIDO_PAGINA:
+				escribir_en_bloque_swap(cliente_fd);
 			case -1:
 				log_error(logger, "El cliente se desconecto. Terminando servidor");
 				return NULL;

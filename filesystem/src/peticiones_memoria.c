@@ -22,6 +22,8 @@ void *leer_bloque_swap(uint32_t puntero){
 	return bloque;
 }
 
+
+
 void reservar_bloques(int cliente_fd){
 
 	int size;
@@ -111,5 +113,21 @@ void devolver_contenido_pagina(int cliente_fd){
 
 	eliminar_paquete(paquete);
 	free(contenido_bloque);
+	free(buffer);
+}
+
+void escribir_en_bloque_swap(int cliente_fd){
+	int size;
+	void* buffer = recibir_buffer(&size, cliente_fd);
+	uint32_t pos_swap_a_escribir;
+	void *contenido_a_guardar;
+	memcpy(&pos_swap_a_escribir, buffer, sizeof(uint32_t));
+	memcpy(&contenido_a_guardar, buffer +sizeof(uint32_t), tam_bloque);
+
+	memcpy(array_bloques[pos_swap_a_escribir], contenido_a_guardar, tam_bloque);
+
+	enviar_mensaje("OK",cliente_fd, ESCRIBIR_CONTENIDO_PAGINA);
+
+	free(contenido_a_guardar);
 	free(buffer);
 }

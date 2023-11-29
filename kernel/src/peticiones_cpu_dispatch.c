@@ -1084,6 +1084,7 @@ void manejar_page_fault(int socket_cliente){
 	pthread_create(&hilo_pf,NULL,hilo_que_maneja_pf,(void*)args_page_fault);
 	pthread_detach(hilo_pf);
 
+	contexto_ejecucion_destroy(contexto);
 	free(buffer);
 }
 
