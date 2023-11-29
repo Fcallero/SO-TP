@@ -471,23 +471,25 @@ void multiprogramacion(t_instruccion* comando) {
 
 
 void listar_pids_diccionario(char **pids, t_dictionary *diccionario){
-	t_list *procesos_bloqueados_colas = dictionary_elements(diccionario);
-	t_list* procesos_bloqueados_sin_repetir = obtener_procesos_bloqueados_sin_repetir_de(procesos_bloqueados_colas);
+	t_list *procesos_bloqueados = dictionary_elements(diccionario);
 
 	void unir_pids(void *arg_pcb_n){
-		t_pcb *cola_n =(t_pcb *) arg_pcb_n;
+		t_pcb *proceso_n =(t_pcb *) arg_pcb_n;
 
 		if(string_length(*pids) == 0){
-			string_append_with_format(pids, "%d", cola_n->PID);
+			string_append_with_format(pids, "%d", proceso_n->PID);
 		} else {
-			string_append_with_format(pids, ", %d", cola_n->PID);
+			string_append_with_format(pids, ", %d", proceso_n->PID);
 		}
 	}
 
-	list_iterate(procesos_bloqueados_sin_repetir, unir_pids);
+	list_iterate(procesos_bloqueados, unir_pids);
 
-	list_destroy(procesos_bloqueados_sin_repetir);
-	list_destroy(procesos_bloqueados_colas);
+	list_destroy(procesos_bloqueados);
+}
+
+void listar_pids_diccionario_con_pids(char **pids, t_dictionary *diccionario){
+
 }
 
 void log_estado_de_cola(char *estado, t_queue *cola){
@@ -527,8 +529,10 @@ void proceso_estado() {
 
 	char *pids_en_bloc = string_new();
 
-	//TODO falta agregar los logs para la cola de bloqueados por pid
-	// y en el largo plazo :D
+	sem_wait(&m_colas_de_procesos_bloqueados_por_pf);
+	listar_pids_diccionario_con_pids(&pids_en_bloc, colas_de_procesos_bloqueados_por_pf);//creo que no va con esto
+	sem_post(&m_colas_de_procesos_bloqueados_por_pf);
+
 	sem_wait(&m_cola_de_procesos_bloqueados_para_cada_archivo);
 	listar_pids_diccionario(&pids_en_bloc, colas_de_procesos_bloqueados_para_cada_archivo);
 	sem_post(&m_cola_de_procesos_bloqueados_para_cada_archivo);

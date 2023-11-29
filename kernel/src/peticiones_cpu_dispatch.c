@@ -675,7 +675,9 @@ void* hilo_que_maneja_pf(void* args){
 	sem_post(&m_proceso_ejecutando);
 
 	char* pid_del_bloqueado=string_itoa(proceso_a_bloquear->PID);
+	sem_wait(&m_colas_de_procesos_bloqueados_por_pf);
 	dictionary_put(colas_de_procesos_bloqueados_por_pf,pid_del_bloqueado,proceso_a_bloquear);
+	sem_post(&m_colas_de_procesos_bloqueados_por_pf);
 
 	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", pid, "EXEC","BLOC");
 	log_info(logger, "PID: %d - Bloqueado por: PAGE_FAULT", proceso_a_bloquear->PID);
@@ -702,7 +704,9 @@ void* hilo_que_maneja_pf(void* args){
 
 
 	 if(strcmp(mensaje,"OK")==0){
+		 sem_wait(&m_colas_de_procesos_bloqueados_por_pf);
 		 t_pcb* proceso_a_ready = dictionary_get(colas_de_procesos_bloqueados_por_pf,pid_del_bloqueado);
+		 sem_post(&m_colas_de_procesos_bloqueados_por_pf);
 		 actualizar_estado_a_pcb(proceso_a_ready, "READY");
 		 pasar_a_ready(proceso_a_ready);
 	 }
