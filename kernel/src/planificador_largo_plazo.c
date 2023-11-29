@@ -217,7 +217,15 @@ void pcb_args_destroy(t_pcb* pcb_a_destruir){
 	free(pcb_a_destruir->registros_CPU); // ver si rompe con contexto ejec
 
 	if(pcb_a_destruir->tabla_archivos_abiertos_del_proceso != NULL){
-		list_destroy(pcb_a_destruir->tabla_archivos_abiertos_del_proceso);
+		 void destroy_entrada_tabla_arch_abiertos_proceso(void*args){
+			 t_tabla_de_archivos_por_proceso* entrada_n = (t_tabla_de_archivos_por_proceso*) args;
+
+			 free(entrada_n->modo_apertura);
+			 free(entrada_n->nombre_archivo);
+			 free(entrada_n);
+		 }
+
+		list_destroy_and_destroy_elements(pcb_a_destruir->tabla_archivos_abiertos_del_proceso, destroy_entrada_tabla_arch_abiertos_proceso);
 	}
 }
 

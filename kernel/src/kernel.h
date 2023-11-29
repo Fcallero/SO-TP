@@ -25,6 +25,8 @@
 #include "planificador_largo_plazo.h"
 #include "planificador_corto_plazo.h"
 #include "consola.h"
+#include "peticiones_fs.h"
+
 
 extern sem_t memoria_lista;
 extern sem_t recibir_interrupcion;

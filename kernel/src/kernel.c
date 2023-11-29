@@ -375,20 +375,14 @@ void* escuchar_peticiones_cpu_dispatch(void *args) {
 				case HANDSHAKE:
 					recibir_handshake(cliente_fd);
 					break;
-				case CREAR_PROCESO:
-					break;
 				case FINALIZAR_PROCESO:
 					finalinzar_proceso(cliente_fd);
-					break;
-				case BLOQUEAR_PROCESO:
 					break;
 				case APROPIAR_RECURSOS:
 					apropiar_recursos(cliente_fd, recursos, recursos_disponible, cantidad_de_recursos);
 					break;
 				case DESALOJAR_RECURSOS:
 					desalojar_recursos(cliente_fd, recursos, recursos_disponible, cantidad_de_recursos);
-					break;
-				case DESALOJAR_PROCESO:
 					break;
 				case SLEEP:
 					manejar_sleep(cliente_fd);
@@ -397,20 +391,19 @@ void* escuchar_peticiones_cpu_dispatch(void *args) {
 					enviar_a_fs_crear_o_abrir_archivo(socket_cpu_dispatch, socket_fs);
 					break;
 				case CERRAR_ARCHIVO:
+					cerrar_archivo(cliente_fd);
 					break;
 				case TRUNCAR_ARCHIVO:
 					enviar_a_fs_truncar_archivo(socket_cpu_dispatch, socket_fs);
 					break;
 				case APUNTAR_ARCHIVO:
+					reposicionar_puntero(cliente_fd);
 					break;
 				case LEER_ARCHIVO:
+					leer_archivo(cliente_fd);
 					break;
 				case ESCRIBIR_ARCHIVO:
-					break;
-				/*case CREAR_ARCHIVO: CREO QUE NO ES NECESAIO, TODA LA FUNCION OCURRE EN ABRIR ARCHIVO
-					enviar_a_fs_crear_o_abrir_archivo (socket_cpu_dispatch, socket_fs);
-					break;*/
-				case ACCESO_A_PAGINA:
+					escribir_archivo(cliente_fd);
 					break;
 				case PAGE_FAULT:
 					manejar_page_fault(socket_cpu_dispatch);

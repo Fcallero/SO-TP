@@ -21,6 +21,7 @@
 #include <global/utils_server.h>
 #include "planificador_largo_plazo.h"
 #include "peticiones_cpu_dispatch.h"
+#include "peticiones_fs.h"
 
 extern sem_t despertar_planificacion_largo_plazo;
 extern sem_t recibir_interrupcion;
