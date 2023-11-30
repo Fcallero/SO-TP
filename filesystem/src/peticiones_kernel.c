@@ -84,8 +84,7 @@ t_fcb* crear_fcb( t_instruccion* instruccion, char* path){
 
 	config_set_value(config, "NOMBRE_ARCHIVO", string_duplicate(instruccion->parametros[0]));
 	config_set_value(config, "TAMANIO_ARCHIVO", string_itoa(0));
-	config_set_value(config, "PUNTERO_DIRECTO", string_itoa(-1));
-	config_set_value(config, "PUNTERO_INDIRECTO", string_itoa(-1));
+	config_set_value(config, "BLOQUE_INICIAL", "");
 
 	config_save_in_file(config, path);
 
@@ -145,6 +144,7 @@ void agregar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_agregar){
 	//Asigno a posicion_fat el bloque incial y recorro la fat hasta encontrar el final (UINT32_MAX)
 	uint32_t posicion_fat = fcb_a_actualizar->bloque_inicial;
 	while(bits_fat[posicion_fat] != UINT32_MAX){
+		log_info(logger, "Acceso a FAT - Entrada: %d - Valor: %d", posicion_fat, bits_fat[posicion_fat]);
 			posicion_fat = bits_fat[posicion_fat];
 		}
 
@@ -157,13 +157,16 @@ void agregar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_agregar){
 
 		//Chequeo que no sea el ultimo bloque, si es el ultimo cargo el UINT32_MAX, sino asigno un bloque libre
 		if(bloques_restantes_por_agregar == 0){
+			log_info(logger, "Acceso a FAT - Entrada: %d - Valor: %d", posicion_fat, bits_fat[posicion_fat]);
 			bits_fat[posicion_fat] = UINT32_MAX;
 		}else{
 
 		while(bits_fat[aux_busqueda] != 0){ //Bucle auxiliar para encontrar un bloque libre
+			log_info(logger, "Acceso a FAT buscando bloque libre: - Entrada: %d - Valor: %d", posicion_fat, bits_fat[posicion_fat]);
 			aux_busqueda ++;
 		}
 	//Encontrado el bloque libre lo asigno en la fat (donde antes estaba el uint32_max )
+		log_info(logger, "Acceso a FAT - Entrada: %d - Valor: %d", posicion_fat, bits_fat[posicion_fat]);
 		bits_fat[posicion_fat] = aux_busqueda;
 		bloques_restantes_por_agregar --;
 		}
@@ -184,14 +187,17 @@ void sacar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_sacar, int bloques_act
 
 		//Creo un bucle auxiliar que se repetira avanzando la posicion de la fat hasta llegar al ultimo bloque
 		while(aux_busca_final != bloques_actual){
+			log_info(logger, "Acceso a FAT - Entrada: %d - Valor: %d", posicion_fat, bits_fat[posicion_fat]);
 			posicion_fat = bits_fat[posicion_fat];
 		}
 
 		//Si el bloque a quitar es el ultimo (Luego de esto el truncado esta completo) le cargo el EOF
 		if(bloques_a_sacar == 1){
+			log_info(logger, "Acceso a FAT - Entrada: %d - Valor: %d", posicion_fat, bits_fat[posicion_fat]);
 			bits_fat[posicion_fat] = UINT32_MAX;
 		}else{
 		//Si aun debo seguir truncando libero la posicion de la fat y el bloque de datos
+			log_info(logger, "Acceso a FAT - Entrada: %d - Valor: %d", posicion_fat, bits_fat[posicion_fat]);
 			bits_fat[posicion_fat] = 0;
 			// Creo que esto | no es necesario, por las dudas lo comento
 			//				 v
@@ -278,13 +284,126 @@ void truncar_archivo(uint64_t cliente_fd){
 		free(nombre_archivo);
 }
 
+void deserializar_instruccion_con_dos_parametros_y_puntero(void* buffer, t_instruccion* instruccion, int *puntero, int *desplazamiento){
+	memcpy(&(instruccion->opcode_lenght), buffer + *desplazamiento, sizeof(int));
+	*desplazamiento+=sizeof(int);
+	instruccion->opcode = malloc(instruccion->opcode_lenght);
+	memcpy(instruccion->opcode, buffer+*desplazamiento, instruccion->opcode_lenght);
+	*desplazamiento+=instruccion->opcode_lenght;
 
-void leer_archivo(){
+	memcpy(&(instruccion->parametro1_lenght), buffer+*desplazamiento, sizeof(int));
+	*desplazamiento+=sizeof(int);
+	instruccion->parametros[0] = malloc(instruccion->parametro1_lenght);
+	memcpy(instruccion->parametros[0], buffer + *desplazamiento, instruccion->parametro1_lenght);
+	*desplazamiento += instruccion->parametro1_lenght;
+
+	memcpy(&(instruccion->parametro2_lenght), buffer+*desplazamiento, sizeof(int));
+	*desplazamiento+=sizeof(int);
+	instruccion->parametros[1] = malloc(instruccion->parametro2_lenght);
+	memcpy(instruccion->parametros[1], buffer + *desplazamiento, instruccion->parametro2_lenght);
+	*desplazamiento += instruccion->parametro2_lenght;
+
+	memcpy(&(puntero), buffer+*desplazamiento, sizeof(int));
+	*desplazamiento+=sizeof(int);
 
 
+	 //esta linea es para el destroy de la instruccion
+	 instruccion->parametro3_lenght = 0;
 }
 
-void escribir_archivo(){
 
 
+void escribir_archivo_fs(int cliente_fd){
+
+	int size;
+	void * buffer = recibir_buffer(&size ,cliente_fd);
+	int *desplazamiento  = malloc(sizeof(int));
+	int *puntero = malloc(sizeof(int));
+	t_instruccion* instruccion = malloc(sizeof(t_instruccion));
+
+	deserializar_instruccion_con_dos_parametros_y_puntero(buffer, instruccion, puntero, desplazamiento);
+	t_fcb *fcb = dictionary_get(fcb_por_archivo, instruccion->parametros[0]);
+
+	//TODO solicitarle el contenido a escribir a memoria y asignarlo abajo
+
+	char* contenido_a_escribir = malloc(tam_bloque);
+
+	if(dictionary_has_key(fcb_por_archivo, instruccion->parametros[0])){
+
+		int bloque_a_escribir = *puntero/tam_bloque;
+		int i = 0;
+		int aux_busqueda_fat = fcb->bloque_inicial;
+
+		while(i < bloque_a_escribir){
+			log_info(logger, "Acceso a FAT - Entrada: %d - Valor: %d", aux_busqueda_fat, bits_fat[aux_busqueda_fat]);
+			aux_busqueda_fat = bits_fat[aux_busqueda_fat];
+			i++;
+		}
+		log_info(logger, "Acceso a bloque - Archivo: %s - Bloque archivo: %d - Bloque FS: %d", instruccion->parametros[0], bloque_a_escribir, aux_busqueda_fat);
+		array_bloques[aux_busqueda_fat] = contenido_a_escribir;
+
+		log_info(logger, "Archivo escrito: %s - Puntero: %d - Memoria: %s", instruccion->parametros[0], *puntero, instruccion->parametros[1]);
+
+		enviar_mensaje("OK", cliente_fd, ESCRIBIR_ARCHIVO);
+
+
+	}else{
+		log_error(logger, "El archivo no se encuentra en el FS");
+	}
+
+
+	free(buffer);
+	free(puntero);
+	instruccion_destroy(instruccion);
 }
+
+
+void leer_archivo_fs(int cliente_fd){
+	/*Esta operación leerá la información correspondiente al bloque a partir del puntero.
+La información se deberá enviar al módulo Memoria para ser escrita a partir de la dirección física
+recibida por parámetro, una vez recibida la confirmación por parte del módulo Memoria, se informará al
+ módulo Kernel del éxito de la operación.*/
+	int size;
+	void * buffer = recibir_buffer(&size ,cliente_fd);
+	int *desplazamiento  = malloc(sizeof(int));
+	int *puntero = malloc(sizeof(int));
+	t_instruccion* instruccion = malloc(sizeof(t_instruccion));
+
+	deserializar_instruccion_con_dos_parametros_y_puntero(buffer, instruccion, puntero, desplazamiento);
+	t_fcb *fcb = dictionary_get(fcb_por_archivo, instruccion->parametros[0]);
+
+	if(dictionary_has_key(fcb_por_archivo, instruccion->parametros[0])){
+
+		int bloque_a_leer = *puntero/tam_bloque;
+		int i = 0;
+		int aux_busqueda_fat = fcb->bloque_inicial;
+
+		while(i < bloque_a_leer){
+			log_info(logger, "Acceso a FAT - Entrada: %d - Valor: %d", aux_busqueda_fat, bits_fat[aux_busqueda_fat]);
+			aux_busqueda_fat = bits_fat[aux_busqueda_fat];
+			i++;
+		}
+
+		log_info(logger, "Acceso a bloque - Archivo: %s - Bloque archivo: %d - Bloque FS: %d ", instruccion->parametros[0], bloque_a_leer, aux_busqueda_fat);
+		void *contenido_leido = array_bloques[aux_busqueda_fat];
+
+		t_paquete *paquete = crear_paquete(LEER_ARCHIVO);
+		agregar_a_paquete_sin_agregar_tamanio(paquete, contenido_leido, tam_bloque);
+		enviar_paquete(paquete, cliente_fd); //TODO buscar la forma de enviarle esto a memoria
+
+		eliminar_paquete(paquete);
+
+		log_info(logger, "Archivo leido: %s - Puntero: %d - Memoria: %s", instruccion->parametros[0], *puntero, instruccion->parametros[1]);
+
+
+	}else{
+		log_error(logger, "El archivo no se encuentra en el FS");
+	}
+
+
+	free(buffer);
+	free(puntero);
+	instruccion_destroy(instruccion);
+}
+
+

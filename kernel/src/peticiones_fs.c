@@ -442,6 +442,7 @@ void leer_archivo(int socket_cpu){
 
 	if(cod_op == LEER_ARCHIVO){
 		char* mensaje = recibir_mensaje(socket_fs);
+
 		if(strcmp(mensaje,"OK") == 0){
 			//desbloquear tras recibir "OK"
 			desbloquear_por_espera_a_fs(contexto->pid, nombre_archivo);
