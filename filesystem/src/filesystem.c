@@ -106,6 +106,10 @@ int main(int argc, char* argv[]) {
 
 		bitarray_bloques = bitarray_create_with_mode(bit_bloques_swap, cant_bloques_swap * tam_bloque, MSB_FIRST);
 
+		for(int i = 0; i<cant_bloques_swap; i++){
+			bitarray_clean_bit(bitarray_bloques, i);
+		}
+
 
 		char* bits_bloques = mmap(NULL, cant_bloques_total * tam_bloque, PROT_READ|PROT_WRITE, MAP_SHARED, bloques_fd, 0);
 		//Creo un array de bloques para manejar el archivo binario con la estructura correcta y les asigno por referencia los valores del mapeo de bloques

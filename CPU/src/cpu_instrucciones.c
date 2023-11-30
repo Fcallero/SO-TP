@@ -20,6 +20,9 @@ void setear_registro(t_contexto_ejec** contexto, char* registro, uint32_t valor)
 	if(strcmp(registro,"AX")==0)
 	{
 		(*contexto)->registros_CPU->AX=valor;
+
+		log_info(logger, "se guarda AX: %d", (*contexto)->registros_CPU->AX);//TODO borrar log
+
 	}else if(strcmp(registro,"BX")==0)
 	{
 		(*contexto)->registros_CPU->BX=valor;
@@ -105,7 +108,9 @@ uint32_t obtener_valor_del_registro(char* registro_a_leer, t_contexto_ejec** con
 	if(strcmp(registro_a_leer,"AX")==0)
 	{
 
+	log_info(logger, "se va a guardar valor(antes): %d", (*contexto_actual)->registros_CPU->AX);//TODO borrar log
 	valor_leido= (*contexto_actual)->registros_CPU->AX;
+
 
 	}else if(strcmp(registro_a_leer,"BX")==0)
 	{
@@ -122,6 +127,7 @@ uint32_t obtener_valor_del_registro(char* registro_a_leer, t_contexto_ejec** con
 		valor_leido= (*contexto_actual)->registros_CPU->DX;
 	}
 
+	log_info(logger, "se va a guardar valor(despues): %d", valor_leido);//TODO borrar log
 	return valor_leido;
 }
 
@@ -198,9 +204,14 @@ int traducir_direccion_logica(int direccion_logica, int pid, t_contexto_ejec* co
 	return desplazamiento + marco_pagina * tamano_pagina;
 }
 
-bool decodificar_direccion_logica(t_contexto_ejec** contexto_acutal){
-	int direccion_logica = atoi((*contexto_acutal)->instruccion->parametros[1]);
-	free((*contexto_acutal)->instruccion->parametros[1]);
+bool decodificar_direccion_logica(t_contexto_ejec** contexto_acutal, int posicion_parametro_direccion_logica){
+	int direccion_logica = atoi((*contexto_acutal)->instruccion->parametros[posicion_parametro_direccion_logica]);
+	free((*contexto_acutal)->instruccion->parametros[posicion_parametro_direccion_logica]);
+	if(posicion_parametro_direccion_logica == 0){
+		(*contexto_acutal)->instruccion->parametro1_lenght = 0;
+	} else if(posicion_parametro_direccion_logica == 1){
+		(*contexto_acutal)->instruccion->parametro2_lenght = 0;
+	}
 
 	int direccion_fisica = traducir_direccion_logica(direccion_logica, (*contexto_acutal)->pid, *contexto_acutal);
 
@@ -211,8 +222,14 @@ bool decodificar_direccion_logica(t_contexto_ejec** contexto_acutal){
 	char *direccion_fisica_string = string_itoa(direccion_fisica);
 
 	int tam_direccion_fisica_string = strlen(direccion_fisica_string) + 1;
-	(*contexto_acutal)->instruccion->parametros[1] = malloc(sizeof(char) * tam_direccion_fisica_string);
-	strcpy((*contexto_acutal)->instruccion->parametros[1], direccion_fisica_string);
+	(*contexto_acutal)->instruccion->parametros[posicion_parametro_direccion_logica] = malloc(sizeof(char) * tam_direccion_fisica_string);
+	strcpy((*contexto_acutal)->instruccion->parametros[posicion_parametro_direccion_logica], direccion_fisica_string);
+
+	if(posicion_parametro_direccion_logica == 0){
+		(*contexto_acutal)->instruccion->parametro1_lenght = tam_direccion_fisica_string;
+	} else if(posicion_parametro_direccion_logica == 1){
+		(*contexto_acutal)->instruccion->parametro2_lenght = tam_direccion_fisica_string;
+	}
 
 	free(direccion_fisica_string);
 	return false;

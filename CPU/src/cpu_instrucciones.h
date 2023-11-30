@@ -14,7 +14,7 @@ void manejar_instruccion_jnz(t_contexto_ejec** contexto_actual, t_instruccion* i
 void manejar_mov_in(t_contexto_ejec** contexto_actual, t_instruccion*  instruccion);
 void manejar_mov_out(t_contexto_ejec** contexto_actual, t_instruccion*  instruccion);
 
-bool decodificar_direccion_logica(t_contexto_ejec** contexto_acutal);
+bool decodificar_direccion_logica(t_contexto_ejec** contexto_acutal,  int posicion_parametro_direccion_logica);
 
 extern int tamano_pagina;
 extern int socket_memoria;

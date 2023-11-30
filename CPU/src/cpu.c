@@ -239,26 +239,28 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 		}
 
 		if (strcmp(instruccion->opcode, "MOV_IN") == 0) {
-
-			bool es_pagefault = decodificar_direccion_logica(&contexto_actual);
+			//pongo -- porque no deberia mover el program counter
+			contexto_actual->program_counter--;
+			bool es_pagefault = decodificar_direccion_logica(&contexto_actual, 1);
 
 			if (es_pagefault) {
-				//pongo -- porque no deberia mover el program counter
-				contexto_actual->program_counter--;
 				continuar_con_el_ciclo_instruccion = false;
 			} else {
+				contexto_actual->program_counter++;
 				manejar_mov_in(&contexto_actual, instruccion);
 			}
 		}
 
 		if (strcmp(instruccion->opcode, "MOV_OUT") == 0) {
-			bool es_pagefault = decodificar_direccion_logica(&contexto_actual);
+
+			//pongo -- porque no deberia mover el program counter
+			contexto_actual->program_counter--;
+			bool es_pagefault = decodificar_direccion_logica(&contexto_actual, 0);
 
 			if (es_pagefault) {
-				//pongo -- porque no deberia mover el program counter
-				contexto_actual->program_counter--;
 				continuar_con_el_ciclo_instruccion = false;
 			} else {
+				contexto_actual->program_counter++;
 				manejar_mov_out(&contexto_actual, instruccion);
 			}
 		}
@@ -276,12 +278,12 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 			continuar_con_el_ciclo_instruccion = false;
 		}
 		if (strcmp(instruccion->opcode, "F_READ") == 0) {
-			bool es_pagefault = decodificar_direccion_logica(&contexto_actual);
+			//pongo -- porque no deberia mover el program counter
+			contexto_actual->program_counter--;
+			bool es_pagefault = decodificar_direccion_logica(&contexto_actual, 1);
 
-			if(es_pagefault){
-				//pongo -- porque no deberia mover el program counter
-				contexto_actual->program_counter--;
-			} else {
+			if(!es_pagefault) {
+				contexto_actual->program_counter++;
 				contexto_actual->instruccion->parametros[2] = string_itoa(tamano_pagina);
 				contexto_actual->instruccion->parametro3_lenght = strlen(contexto_actual->instruccion->parametros[2] )+1;
 
@@ -291,12 +293,12 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 			continuar_con_el_ciclo_instruccion = false;
 		}
 		if (strcmp(instruccion->opcode, "F_WRITE") == 0) {
-			bool es_pagefault = decodificar_direccion_logica(&contexto_actual);
+			//pongo -- porque no deberia mover el program counter
+			contexto_actual->program_counter--;
+			bool es_pagefault = decodificar_direccion_logica(&contexto_actual, 1);
 
-			if(es_pagefault){
-				//pongo -- porque no deberia mover el program counter
-				contexto_actual->program_counter--;
-			} else {
+			if(!es_pagefault) {
+				contexto_actual->program_counter++;
 				contexto_actual->instruccion->parametros[2] = string_itoa(tamano_pagina);
 				contexto_actual->instruccion->parametro3_lenght = strlen(contexto_actual->instruccion->parametros[2] )+1;
 				devolver_a_kernel(contexto_actual, ESCRIBIR_ARCHIVO, socket_kernel);

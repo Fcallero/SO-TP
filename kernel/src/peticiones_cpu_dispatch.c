@@ -703,10 +703,12 @@ void* hilo_que_maneja_pf(void* args){
 	 char* mensaje = recibir_mensaje(socket_memoria);
 
 
+
 	 if(strcmp(mensaje,"OK")==0){
 		 sem_wait(&m_colas_de_procesos_bloqueados_por_pf);
 		 t_pcb* proceso_a_ready = dictionary_get(colas_de_procesos_bloqueados_por_pf,pid_del_bloqueado);
 		 sem_post(&m_colas_de_procesos_bloqueados_por_pf);
+
 		 actualizar_estado_a_pcb(proceso_a_ready, "READY");
 		 pasar_a_ready(proceso_a_ready);
 	 }
@@ -726,6 +728,12 @@ void manejar_page_fault(int socket_cliente){
 	desplazamiento+=sizeof(int);
 
 	t_contexto_ejec* contexto = deserializar_contexto_de_ejecucion(buffer, size, &desplazamiento);
+
+
+	sem_wait(&m_proceso_ejecutando);
+	proceso_ejecutando->program_counter = contexto->program_counter;
+	proceso_ejecutando->registros_CPU = contexto->registros_CPU;
+	sem_post(&m_proceso_ejecutando);
 
 	pthread_t hilo_pf;
 

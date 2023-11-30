@@ -85,6 +85,7 @@ int main(int argc, char *argv[]) {
 	for(int i =0; i<cantidad_marcos; i++){
 		t_situacion_marco * marco_n = malloc(sizeof(t_situacion_marco));
 
+		marco_n->numero_marco = i;
 		marco_n->esLibre = true;
 		list_add(situacion_marcos, marco_n);
 	}
@@ -342,13 +343,13 @@ void crear_proceso(int cliente_fd){
 	int cant_paginas;
 	t_list* lista_de_marcos_x_procesos=list_create();
 
-	memcpy(&cant_paginas, buffer, sizeof(int));
+	memcpy(&cant_paginas, buffer_fs, sizeof(int));
 	desplazamiento+= sizeof(int);
 
 	uint32_t punteros[cant_paginas];
 
 	for(int i = 0; i<cant_paginas; i++){
-		memcpy(&(punteros[i]), buffer+desplazamiento, sizeof(uint32_t));
+		memcpy(&(punteros[i]), buffer_fs+desplazamiento, sizeof(uint32_t));
 		desplazamiento+=sizeof(uint32_t);
 
 		//crea una entrada por cada pagina y coloca su posicion en swap correspondiente para cada pagina
@@ -457,7 +458,6 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 	t_tabla_de_paginas* pagina_a_actualizar =list_get(paginas_del_proceso,numero_pagina);
 
 	esperar_por(retardo_respuesta);
-
 	//log obligatorio
 	log_info(logger,"SWAP IN -  PID: %d - Marco: %d - Page In: %d-%d",pid,pagina_a_actualizar->marco,pid,numero_pagina);
 
@@ -590,8 +590,6 @@ void reemplazar_marco(void*contenido_bloque,int pid,t_tabla_de_paginas*pagina_a_
 	memcpy(espacio_usuario+marco_a_guardar->posicion_inicio_marco,contenido_bloque,tam_pagina);
 	marco_a_guardar->esLibre=false;
 	marco_a_guardar->pid=pid;
-
-
 
 	pagina_a_actualizar->marco=marco_a_guardar->numero_marco;
 	pagina_a_actualizar->presencia=true;
@@ -790,7 +788,7 @@ void write_memory(int cliente_fd){
 	memcpy(espacio_usuario+direccion_fisica, &valor_a_escribir, sizeof(uint32_t));
 
 
-	enviar_mensaje("OK",cliente_fd,READ_MEMORY);
+	enviar_mensaje("OK",cliente_fd,WRITE_MEMORY);
 
 
 	free(buffer);
