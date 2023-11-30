@@ -216,10 +216,10 @@ void *atender_cliente(void* args){
 				truncar_archivo(cliente_fd);
 					break;
 			case LEER_ARCHIVO:
-				// leer_archivo();
+				 leer_archivo_fs();
 				break;
 			case ESCRIBIR_ARCHIVO:
-				// escribir_archivo();
+				// escribir_archivo_fs();
 				break;
 			case INICIAR_PROCESO:
 				reservar_bloques(cliente_fd);
@@ -232,6 +232,7 @@ void *atender_cliente(void* args){
 				break;
 			case ESCRIBIR_CONTENIDO_PAGINA:
 				escribir_en_bloque_swap(cliente_fd);
+				break;
 			case -1:
 				log_error(logger, "El cliente se desconecto. Terminando servidor");
 				return NULL;

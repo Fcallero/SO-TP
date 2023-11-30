@@ -17,7 +17,7 @@ void abrir_archivo(uint64_t cliente_fd);
 void crear_archivo(uint64_t cliente_fd);
 void cerrar_archivo();
 void truncar_archivo(uint64_t cliente_fd);
-void leer_archivo();
-void escribir_archivo();
+void leer_archivo_fs();
+void escribir_archivo_fs();
 
 #endif /* SRC_PETICIONES_KERNEL_H_ */
