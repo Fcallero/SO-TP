@@ -120,6 +120,7 @@ int main(int argc, char* argv[]) {
 
 		primer_bloque_fat=cant_bloques_swap+1;//bloque 0 de la fat
 
+		//TODO AGREGAR CONEXION A MEMORIA COMO CLIENTE
 		manejar_peticiones();
 
 
@@ -242,6 +243,7 @@ void *atender_cliente(void* args){
 		}
 	}
 
+	free(argumentos);
 	return NULL;
 }
 

@@ -86,6 +86,7 @@ int main(int argc, char *argv[]) {
 		t_situacion_marco * marco_n = malloc(sizeof(t_situacion_marco));
 
 		marco_n->numero_marco = i;
+		marco_n->posicion_inicio_marco = i*tam_pagina;
 		marco_n->esLibre = true;
 		list_add(situacion_marcos, marco_n);
 	}
@@ -251,6 +252,25 @@ void* atender_cliente(void *args) {
 }
 
 
+void limpiar_referencias_proceso(int pid){
+	char* pid_string = string_itoa(pid);
+	t_list* lista_referencias = referencias_paginas->elements;
+
+	bool esDeEsteProceso(void*args){
+		t_referenciaXpid* referencia = (t_referenciaXpid*)args;
+
+		return strcmp(referencia->pid, pid_string) == 0;
+	}
+
+	void limpiar_ref(void* args){
+		t_referenciaXpid* referencia = (t_referenciaXpid*)args;
+		free(referencia->pid);
+		free(referencia);
+	}
+
+	list_remove_and_destroy_all_by_condition(lista_referencias, esDeEsteProceso, limpiar_ref);
+}
+
 void finalizar_proceso(int cliente_fd){
 	//recibe la orden de la consola de kernel
 	int size;
@@ -277,6 +297,9 @@ void finalizar_proceso(int cliente_fd){
 	list_iterator_destroy(iterador_lista);
 
 	esperar_por(retardo_respuesta);
+
+	//limpiar las referencias a este proceso
+	limpiar_referencias_proceso(pid);
 
 	//destruir TP
 	log_info(logger,"PID: %d - Tamaño: %d",pid,cant_paginas_proceso);
@@ -391,7 +414,7 @@ void devolver_marco(int cliente_fd){
 	pagina_referenciada->numero_pagina = numero_pagina;
 	pagina_referenciada->pid = strdup(pid_string);
 
-	queue_push(referencias_paginas, referencias_paginas);
+	queue_push(referencias_paginas, pagina_referenciada);
 
 
 
@@ -435,10 +458,11 @@ t_situacion_marco* obtener_situacion_marco(int numero_marco){
 	return list_find(situacion_marcos, esMarco_busado);
 }
 
-void *obtener_contenido_de_marco(int numero_marco){
+void *obtener_contenido_de_marco(int numero_marco, int pid){
 	void* contenido = malloc(tam_pagina);
 
 	t_situacion_marco* situacion_marco = obtener_situacion_marco(numero_marco);
+	log_info(logger,"PID: %d - Accion: LEER - Direccion fisica Marco: %d",pid,situacion_marco->posicion_inicio_marco);//TODO borrar log
 
 	memcpy(contenido, espacio_usuario+situacion_marco->posicion_inicio_marco, tam_pagina);
 	return contenido;
@@ -478,6 +502,7 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 	 void* contenido_bloque = recibir_buffer(&size, socket_fs);
 
 	if(memoria_llena()){
+		log_info(logger, "memoria llena, proceso a reemplazar por algun marco");//TODO borrar log
 		int numero_marco;
 
 		if(strcmp(algoritmo_reemplazo,"FIFO")==0){
@@ -485,8 +510,10 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 
 		}else{
 			numero_marco=aplicarLru();
-
 		}
+
+		log_info(logger, "Marco seleccionado para reemplazo: %d", numero_marco);//TODO borrar log
+
 		t_tabla_de_paginas* marco;
 		void esMarco(char* pid, void* marcos){
 
@@ -498,6 +525,7 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 
 			t_tabla_de_paginas* marco_buscado=list_find(lista_marcos,esMarcoBuscado);
 			if((marco_buscado!=NULL) && (marco_buscado->presencia==true) ){
+				log_info(logger, "Encontre la entrada de la TP del marco %d", marco_buscado->marco);//TODO borrar log
 				marco=marco_buscado;
 			}
 
@@ -518,10 +546,11 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 			//Escritura de Página en SWAP: “SWAP OUT -  PID: <PID> - Marco: <MARCO> - Page Out: <PID>-<NRO_PAGINA>”
 			log_info(logger,"SWAP OUT -  PID: %d - Marco: %d - Page Out: %d-%d",pid,marco->marco,marco_a_guardar->pid,pagina_a_reemplazar);
 
-			void *contenido_acutualizado = obtener_contenido_de_marco(marco->marco);
+
+			void *contenido_acutualizado = obtener_contenido_de_marco(marco->marco, pid);
 			t_paquete* paquete = crear_paquete(ESCRIBIR_CONTENIDO_PAGINA);
-			agregar_a_paquete_sin_agregar_tamanio(paquete, &marco->posicion_swap, sizeof(uint32_t));
-			agregar_a_paquete_sin_agregar_tamanio(paquete, &contenido_acutualizado, tam_pagina);
+			agregar_a_paquete_sin_agregar_tamanio(paquete, &(marco->posicion_swap), sizeof(uint32_t));
+			agregar_a_paquete_sin_agregar_tamanio(paquete, contenido_acutualizado, tam_pagina);
 
 			enviar_paquete(paquete, socket_fs);
 			eliminar_paquete(paquete);
@@ -548,6 +577,7 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 
 		reemplazar_marco(contenido_bloque,pid,pagina_a_actualizar,marco_a_guardar);
 	}else{
+		log_info(logger, "memoria no llena, uso primer marco libre");//TODO borrar log
 		bool esMarcoLibre(void* args){
 			t_situacion_marco* marco_x =(t_situacion_marco*)args;
 			return marco_x->esLibre;
@@ -559,7 +589,7 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 	}
 
 
-
+	log_info(logger, "sustitucion terminada, procedo llamando a kernel");//TODO borrar log
 
 	enviar_mensaje("OK",cliente_fd,PAGE_FAULT);
 }
@@ -586,6 +616,8 @@ int obtener_pagina_a_reemplazar(int numero_marco,int pid){
 }
 
 void reemplazar_marco(void*contenido_bloque,int pid,t_tabla_de_paginas*pagina_a_actualizar,t_situacion_marco* marco_a_guardar){
+
+	log_info(logger,"PID: %d - Accion: ESCRIBIR - Direccion fisica Marco: %d",pid,marco_a_guardar->posicion_inicio_marco);//TODO borrar log
 
 	memcpy(espacio_usuario+marco_a_guardar->posicion_inicio_marco,contenido_bloque,tam_pagina);
 	marco_a_guardar->esLibre=false;
@@ -621,6 +653,9 @@ int aplicarFifo(){
 		t_referenciaXpid* referencia_victima=(t_referenciaXpid*)queue_pop(referencias_paginas);
 		int numero_pagina_a_buscar=referencia_victima->numero_pagina;
 		char* pid_pagina_a_buscar=referencia_victima->pid;
+
+		log_info(logger,"PID: %s - pagina a buscar: %d",pid_pagina_a_buscar,numero_pagina_a_buscar);//TODO borrar log
+
 
 		void esPaginaPresente(char*pid,void*args){
 			t_list* entradas_x=(t_list*)args;

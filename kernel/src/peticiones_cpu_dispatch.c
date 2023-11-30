@@ -706,8 +706,10 @@ void* hilo_que_maneja_pf(void* args){
 
 	 if(strcmp(mensaje,"OK")==0){
 		 sem_wait(&m_colas_de_procesos_bloqueados_por_pf);
-		 t_pcb* proceso_a_ready = dictionary_get(colas_de_procesos_bloqueados_por_pf,pid_del_bloqueado);
+		 t_pcb* proceso_a_ready = dictionary_remove(colas_de_procesos_bloqueados_por_pf, pid_del_bloqueado);
 		 sem_post(&m_colas_de_procesos_bloqueados_por_pf);
+
+		 log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_ready->PID, "BLOC","READY");
 
 		 actualizar_estado_a_pcb(proceso_a_ready, "READY");
 		 pasar_a_ready(proceso_a_ready);

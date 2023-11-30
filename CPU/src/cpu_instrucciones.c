@@ -65,8 +65,13 @@ void manejar_instruccion_sub(t_contexto_ejec** contexto_actual,t_instruccion* in
 
 void manejar_instruccion_jnz(t_contexto_ejec** contexto_actual, t_instruccion* instruccion){
 	int numero_instruccion = atoi(instruccion->parametros[1]);
+	char* registro_a_evaluar = strdup(instruccion->parametros[0]);
 
-	(*contexto_actual)->program_counter = numero_instruccion;
+	if(obtener_valor_del_registro(registro_a_evaluar, contexto_actual) != 0){
+		(*contexto_actual)->program_counter = numero_instruccion;
+	}
+
+	free(registro_a_evaluar);
 }
 
 void  manejar_mov_in(t_contexto_ejec** contexto_actual, t_instruccion*  instruccion){

@@ -112,7 +112,6 @@ void devolver_contenido_pagina(int cliente_fd){
 	enviar_paquete(paquete, cliente_fd);
 
 	eliminar_paquete(paquete);
-	free(contenido_bloque);
 	free(buffer);
 }
 
@@ -120,9 +119,9 @@ void escribir_en_bloque_swap(int cliente_fd){
 	int size;
 	void* buffer = recibir_buffer(&size, cliente_fd);
 	uint32_t pos_swap_a_escribir;
-	void *contenido_a_guardar;
+	void *contenido_a_guardar = malloc(tam_bloque);
 	memcpy(&pos_swap_a_escribir, buffer, sizeof(uint32_t));
-	memcpy(&contenido_a_guardar, buffer +sizeof(uint32_t), tam_bloque);
+	memcpy(contenido_a_guardar, buffer +sizeof(uint32_t), tam_bloque);
 
 	log_info(logger, "Acceso a SWAP: %d", pos_swap_a_escribir);
 	memcpy(array_bloques[pos_swap_a_escribir], contenido_a_guardar, tam_bloque);

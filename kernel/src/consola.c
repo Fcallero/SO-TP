@@ -335,6 +335,48 @@ void liberar_archivos_de(int pid_proceso_a_liberar){
 	list_destroy_and_destroy_elements(archivos_del_proceso, free);
 }
 
+void sacar_proceso_de_diccionary_de_colas(t_dictionary* colas, bool(*condicion)(void *pcb)){
+
+	void bucar_si_esta_en_alugna_cola(char* key, void *args){//key puede ser el nombre de un recurso o de un archivo
+		t_queue *cola_bloqueado = (t_queue *) args;
+
+		int indice_pcb_a_sacar=-1;
+		//list_find(cola_bloqueado->elements, condicion);
+		t_list_iterator* iterador_lista_bloqueado = list_iterator_create(cola_bloqueado->elements);
+		while(list_iterator_has_next(iterador_lista_bloqueado)){
+			void* proceso_n = list_iterator_next(iterador_lista_bloqueado);
+
+			if(condicion(proceso_n)){
+				indice_pcb_a_sacar = list_iterator_index(iterador_lista_bloqueado);
+			}
+		}
+
+		if(indice_pcb_a_sacar != -1){
+			log_info(logger, "sacando al elemento %d de la cola", indice_pcb_a_sacar);//TODO borrar log
+			list_remove(cola_bloqueado->elements, indice_pcb_a_sacar);
+		}
+	}
+
+	dictionary_iterator(colas, bucar_si_esta_en_alugna_cola);
+}
+
+void sacar_proceso_de_diccionary_de_pids(t_dictionary* cola, bool(*condicion)(void *pcb)){
+	char* key_elemento_a_sacar = NULL;
+	void bucar_si_esta_en_alugna_cola(char* key, void *args){//key puede ser el nombre de un recurso o de un archivo
+		t_pcb *proceso_bloqueado = (t_pcb *) args;
+
+		if(condicion(proceso_bloqueado)){
+			key_elemento_a_sacar = key;
+		}
+	}
+
+	dictionary_iterator(cola, bucar_si_esta_en_alugna_cola);
+
+	if(key_elemento_a_sacar != NULL){
+		dictionary_remove(cola, key_elemento_a_sacar);
+	}
+}
+
 
 void finalizar_proceso(t_instruccion *comando) {
 	//Liberar recursos, archivos ,memoria y finalizar el proceso por EXIT
@@ -400,6 +442,12 @@ void finalizar_proceso(t_instruccion *comando) {
 
 				bool estaba_en_el_list = finalizar_proceso_si_esta_en_alguna_queue_del_list(procesos_bloqueados, _encontrar_por_pid, "BLOC");
 
+				if(estaba_en_el_list){
+					sem_wait(&m_cola_de_procesos_bloqueados_para_cada_archivo);
+					sacar_proceso_de_diccionary_de_colas(colas_de_procesos_bloqueados_para_cada_archivo, _encontrar_por_pid);
+					sem_post(&m_cola_de_procesos_bloqueados_para_cada_archivo);
+				}
+
 				if (!estaba_en_el_list) {
 					//buscar en cola de bloqueados por recurso
 					sem_wait(&m_recurso_bloqueado);
@@ -408,8 +456,29 @@ void finalizar_proceso(t_instruccion *comando) {
 
 					bool estaba_en_el_list = finalizar_proceso_si_esta_en_alguna_queue_del_list(procesos_bloqueados_por_recurso, _encontrar_por_pid, "BLOC");
 
+					if(estaba_en_el_list){
+						sem_wait(&m_recurso_bloqueado);
+						sacar_proceso_de_diccionary_de_colas(recurso_bloqueado, _encontrar_por_pid);
+						sem_post(&m_recurso_bloqueado);
+					}
+
 					if(!estaba_en_el_list){
-						log_error(logger,"No se encontro ningun proceso con el PID indicado");
+
+						sem_wait(&m_colas_de_procesos_bloqueados_por_pf);
+						t_list *procesos_bloqueados_por_pf = dictionary_elements(colas_de_procesos_bloqueados_por_pf);
+						sem_post(&m_colas_de_procesos_bloqueados_por_pf);
+
+						bool estaba_en_el_list = finalizar_proceso_si_esta_en_alguna_queue_del_list(procesos_bloqueados_por_pf, _encontrar_por_pid, "BLOC");
+
+						if(estaba_en_el_list){
+							sem_wait(&m_colas_de_procesos_bloqueados_por_pf);
+							sacar_proceso_de_diccionary_de_pids(colas_de_procesos_bloqueados_por_pf, _encontrar_por_pid);
+							sem_post(&m_colas_de_procesos_bloqueados_por_pf);
+						}
+
+						if(!estaba_en_el_list){
+							log_error(logger,"No se encontro ningun proceso con el PID indicado");
+						}
 					}
 				}
 			}
@@ -470,7 +539,27 @@ void multiprogramacion(t_instruccion* comando) {
 }
 
 
-void listar_pids_diccionario(char **pids, t_dictionary *diccionario){
+void listar_pids_diccionario_con_colas(char **pids, t_dictionary *diccionario){
+	t_list *procesos_bloqueados_colas = dictionary_elements(diccionario);
+		t_list* procesos_bloqueados_sin_repetir = obtener_procesos_bloqueados_sin_repetir_de(procesos_bloqueados_colas);
+
+		void unir_pids(void *arg_pcb_n){
+			t_pcb *cola_n =(t_pcb *) arg_pcb_n;
+
+			if(string_length(*pids) == 0){
+				string_append_with_format(pids, "%d", cola_n->PID);
+			} else {
+				string_append_with_format(pids, ", %d", cola_n->PID);
+			}
+		}
+
+		list_iterate(procesos_bloqueados_sin_repetir, unir_pids);
+
+		list_destroy(procesos_bloqueados_sin_repetir);
+		list_destroy(procesos_bloqueados_colas);
+}
+
+void listar_pids_diccionario_con_pids(char **pids, t_dictionary *diccionario){
 	t_list *procesos_bloqueados = dictionary_elements(diccionario);
 
 	void unir_pids(void *arg_pcb_n){
@@ -486,10 +575,6 @@ void listar_pids_diccionario(char **pids, t_dictionary *diccionario){
 	list_iterate(procesos_bloqueados, unir_pids);
 
 	list_destroy(procesos_bloqueados);
-}
-
-void listar_pids_diccionario_con_pids(char **pids, t_dictionary *diccionario){
-
 }
 
 void log_estado_de_cola(char *estado, t_queue *cola){
@@ -534,12 +619,12 @@ void proceso_estado() {
 	sem_post(&m_colas_de_procesos_bloqueados_por_pf);
 
 	sem_wait(&m_cola_de_procesos_bloqueados_para_cada_archivo);
-	listar_pids_diccionario(&pids_en_bloc, colas_de_procesos_bloqueados_para_cada_archivo);
+	listar_pids_diccionario_con_colas(&pids_en_bloc, colas_de_procesos_bloqueados_para_cada_archivo);
 	sem_post(&m_cola_de_procesos_bloqueados_para_cada_archivo);
 
 
 	sem_wait(&m_recurso_bloqueado);
-	listar_pids_diccionario(&pids_en_bloc, recurso_bloqueado);
+	listar_pids_diccionario_con_colas(&pids_en_bloc, recurso_bloqueado);
 	sem_post(&m_recurso_bloqueado);
 
 	log_info(logger, "Estado: %s - Procesos: %s","BLOC", pids_en_bloc);
