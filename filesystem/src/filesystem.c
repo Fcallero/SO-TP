@@ -120,7 +120,6 @@ int main(int argc, char* argv[]) {
 
 		primer_bloque_fat=cant_bloques_swap+1;//bloque 0 de la fat
 
-		//TODO AGREGAR CONEXION A MEMORIA COMO CLIENTE
 		manejar_peticiones();
 
 
@@ -177,6 +176,8 @@ void manejar_peticiones(){
 	while(1){
 			pthread_t thread;
 			int cliente_fd = esperar_cliente(socket_fs);
+
+			log_info(logger, "cliente_fd: %d", cliente_fd);//TODO borrar log
 
 			t_arg_atender_cliente* argumentos_atender_cliente = malloc(sizeof(t_arg_atender_cliente));
 			argumentos_atender_cliente->cliente_fd = cliente_fd;

@@ -88,13 +88,14 @@ int main(int argc, char *argv[]) {
 	log_info(logger,
 			"El Kernel se conecto con el modulo Memoria correctamente");
 
-	int result_conexion_filesystem = conectar_fs(ip_filesystem,
-			puerto_filesystem);
+	int result_conexion_filesystem = conectar_fs(ip_filesystem, puerto_filesystem);
 
 	if (result_conexion_filesystem == -1) {
 		log_error(logger, "No se pudo conectar con el modulo filesystem !!");
 		terminar_programa(logger, config);
 	}
+
+	log_info(logger, "socket_fs: %d", socket_fs);//TODO borrar log
 
 	log_info(logger,
 			"El Kernel se conecto con el modulo Filesystem correctamente");
@@ -158,8 +159,7 @@ int main(int argc, char *argv[]) {
 	//levanto 4 hilos para recibir peticiones de forma concurrente de los modulos
 
 	pthread_t hilo_peticiones_cpu_dispatch, hilo_peticiones_cpu_interrupt,
-			hilo_peticiones_memoria, hilo_peticiones_filesystem,
-			hilo_planificador_largo_plazo, hilo_planificador_corto_plazo;
+			hilo_peticiones_memoria, hilo_planificador_largo_plazo, hilo_planificador_corto_plazo;
 
 	t_args_manejar_peticiones_modulos *args_dispatch = malloc(
 			sizeof(t_args_manejar_peticiones_modulos));
@@ -167,32 +167,21 @@ int main(int argc, char *argv[]) {
 			sizeof(t_args_manejar_peticiones_modulos));
 	t_args_manejar_peticiones_modulos *args_memoria = malloc(
 			sizeof(t_args_manejar_peticiones_modulos));
-	t_args_manejar_peticiones_modulos *args_filesystem = malloc(
-			sizeof(t_args_manejar_peticiones_modulos));
 
 	args_dispatch->cliente_fd = socket_cpu_dispatch;
 
 	args_interrupt->cliente_fd = socket_cpu_interrupt;
 	args_memoria->cliente_fd = socket_memoria;
-	args_filesystem->cliente_fd = socket_fs;
 
-	pthread_create(&hilo_planificador_corto_plazo, NULL,
-			planificar_nuevos_procesos_corto_plazo, NULL);
-	pthread_create(&hilo_planificador_largo_plazo, NULL,
-			planificar_nuevos_procesos_largo_plazo, NULL);
-	pthread_create(&hilo_peticiones_cpu_dispatch, NULL,
-			escuchar_peticiones_cpu_dispatch, args_dispatch);
-	pthread_create(&hilo_peticiones_cpu_interrupt, NULL,
-			manejar_peticiones_modulos, args_interrupt);
-	pthread_create(&hilo_peticiones_memoria, NULL, manejar_peticiones_modulos,
-			args_memoria);
-	pthread_create(&hilo_peticiones_filesystem, NULL,
-			manejar_peticiones_modulos, args_filesystem);
+	pthread_create(&hilo_planificador_corto_plazo, NULL, planificar_nuevos_procesos_corto_plazo, NULL);
+	pthread_create(&hilo_planificador_largo_plazo, NULL, planificar_nuevos_procesos_largo_plazo, NULL);
+	pthread_create(&hilo_peticiones_cpu_dispatch, NULL, escuchar_peticiones_cpu_dispatch, args_dispatch);
+	pthread_create(&hilo_peticiones_cpu_interrupt, NULL, manejar_peticiones_modulos, args_interrupt);
+	pthread_create(&hilo_peticiones_memoria, NULL, manejar_peticiones_modulos, args_memoria);
 
 	pthread_detach(hilo_peticiones_cpu_dispatch);
 	pthread_detach(hilo_peticiones_cpu_interrupt);
 	pthread_detach(hilo_peticiones_memoria);
-	pthread_detach(hilo_peticiones_filesystem);
 	pthread_detach(hilo_planificador_largo_plazo);
 
 	//espero peticiones por consola
@@ -201,7 +190,6 @@ int main(int argc, char *argv[]) {
 	free(args_dispatch);
 	free(args_interrupt);
 	free(args_memoria);
-	free(args_filesystem);
 	terminar_programa(logger, config);
 
 } //Fin del main
@@ -334,9 +322,6 @@ void* manejar_peticiones_modulos(void *args) {
 		int cod_op = recibir_operacion(cliente_fd);
 
 		switch(cod_op){
-			case MENSAJE:
-				recibir_mensaje(cliente_fd);
-				break;
 			case HANDSHAKE:
 				recibir_handshake(cliente_fd);
 				break;
@@ -407,12 +392,6 @@ void* escuchar_peticiones_cpu_dispatch(void *args) {
 					break;
 				case PAGE_FAULT:
 					manejar_page_fault(cliente_fd);
-					break;
-				case FINALIZAR_PROCESO_MEMORIA:
-					break;
-				case READ_MEMORY:
-					break;
-				case WRITE_MEMORY:
 					break;
 				case INTERRUPCION:
 					t_contexto_ejec *contexto = recibir_contexto_de_ejecucion(socket_cpu_dispatch);

@@ -344,6 +344,7 @@ void crear_proceso(int cliente_fd){
 	memcpy(&tamanio,buffer,sizeof(int));
 	memcpy(&pid,buffer+sizeof(int),sizeof(int));
 
+	log_info(logger, "socket_kernel: %d", cliente_fd);//TODO borrar log
 
 	esperar_por(retardo_respuesta);
 

@@ -30,6 +30,8 @@ void abrir_archivo(int cliente_fd){
 	//VARIABLES Y DATOS PARA LA FUNCION
 	t_instruccion* instruccion = recibir_instruccion(cliente_fd);
 
+	log_info(logger, "socket_kernel: %d", cliente_fd);//TODO borrar log
+
 	char* nombre_archivo = strdup(instruccion->parametros[0]);
 
 	log_info(logger, "Abrir Archivo: %s", nombre_archivo);
@@ -67,6 +69,7 @@ void abrir_archivo(int cliente_fd){
 
 			log_info(logger, "El archivo %s no se encontro ", nombre_archivo);
 			//Doy aviso a Kernel
+			log_info(logger, "socket_kernel: %d", cliente_fd);//TODO borrar log
 			enviar_mensaje("-1", cliente_fd, MENSAJE);
 
 		}
@@ -143,10 +146,23 @@ void agregar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_agregar){
 
 	//Asigno a posicion_fat el bloque incial y recorro la fat hasta encontrar el final (UINT32_MAX)
 	uint32_t posicion_fat = fcb_a_actualizar->bloque_inicial;
+
+	if(posicion_fat == 0){
+		posicion_fat ++;
+
+		while(bits_fat[posicion_fat] != 0){ //Bucle auxiliar para encontrar un bloque libre
+			log_info(logger, "Acceso a FAT buscando bloque libre: - Entrada: %d - Valor: %d", posicion_fat, bits_fat[posicion_fat]);
+			posicion_fat ++;
+		}
+
+		fcb_a_actualizar->bloque_inicial= posicion_fat;
+		bits_fat[posicion_fat]= UINT32_MAX;
+	}
+
 	while(bits_fat[posicion_fat] != UINT32_MAX){
 		log_info(logger, "Acceso a FAT - Entrada: %d - Valor: %d", posicion_fat, bits_fat[posicion_fat]);
-			posicion_fat = bits_fat[posicion_fat];
-		}
+		posicion_fat = bits_fat[posicion_fat];
+	}
 
 	//Creo un auxiliar para contar los bloques que me quedan por agregar y los voy agregando
 	int bloques_restantes_por_agregar = bloques_a_agregar;
@@ -161,14 +177,14 @@ void agregar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_agregar){
 			bits_fat[posicion_fat] = UINT32_MAX;
 		}else{
 
-		while(bits_fat[aux_busqueda] != 0){ //Bucle auxiliar para encontrar un bloque libre
-			log_info(logger, "Acceso a FAT buscando bloque libre: - Entrada: %d - Valor: %d", posicion_fat, bits_fat[posicion_fat]);
-			aux_busqueda ++;
-		}
-	//Encontrado el bloque libre lo asigno en la fat (donde antes estaba el uint32_max )
-		log_info(logger, "Acceso a FAT - Entrada: %d - Valor: %d", posicion_fat, bits_fat[posicion_fat]);
-		bits_fat[posicion_fat] = aux_busqueda;
-		bloques_restantes_por_agregar --;
+			while(bits_fat[aux_busqueda] != 0){ //Bucle auxiliar para encontrar un bloque libre
+				log_info(logger, "Acceso a FAT buscando bloque libre: - Entrada: %d - Valor: %d", posicion_fat, bits_fat[posicion_fat]);
+				aux_busqueda ++;
+			}
+		//Encontrado el bloque libre lo asigno en la fat (donde antes estaba el uint32_max )
+			log_info(logger, "Acceso a FAT - Entrada: %d - Valor: %d", posicion_fat, bits_fat[posicion_fat]);
+			bits_fat[posicion_fat] = aux_busqueda;
+			bloques_restantes_por_agregar --;
 		}
 
 
@@ -199,10 +215,6 @@ void sacar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_sacar, int bloques_act
 		//Si aun debo seguir truncando libero la posicion de la fat y el bloque de datos
 			log_info(logger, "Acceso a FAT - Entrada: %d - Valor: %d", posicion_fat, bits_fat[posicion_fat]);
 			bits_fat[posicion_fat] = 0;
-			// Creo que esto | no es necesario, por las dudas lo comento
-			//				 v
-			//uint32_t cero =0;
-			//memcpy(array_bloques[posicion_fat], &cero, tam_bloque)
 		}
 
 		//Decremento las variables de bloques a sacar  bloques actuales para ir actualizando los bucles
@@ -300,8 +312,6 @@ void escribir_archivo_fs(int cliente_fd){
 	char* nombre_archivo = strdup(instruccion->parametros[0]);
 
 	t_fcb *fcb = dictionary_get(fcb_por_archivo, nombre_archivo);
-
-	//TODO solicitarle el contenido a escribir a memoria y asignarlo abajo
 
 	t_paquete *paquete = crear_paquete(READ_MEMORY);
 	agregar_a_paquete_sin_agregar_tamanio(paquete, &pid, sizeof(int));

@@ -251,8 +251,7 @@ void actualizar_archivos_abiertos_por_proceso(t_pcb* proceso, char* nombre_archi
 	list_add(proceso->tabla_archivos_abiertos_del_proceso, entrada_archivo_abierto_proceso);
 }
 
-void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, int socket_filesystem)
-{
+void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, int socket_filesystem){
 	t_contexto_ejec* contexto = recibir_contexto_de_ejecucion(socket_cpu);
 
 	char* nombre_archivo = strdup(contexto->instruccion->parametros[0]);
@@ -271,8 +270,12 @@ void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, int socket_filesystem)
 	//	SI EXISTE, MANDARA EL TAM DEL ARCHIVO;
 	//	SI NO EXISTE, MANDARA UN -1 Y MANDAREMOS ORDEN DE CREAR EL ARCHIVO
 
+	log_info(logger, "socket_fs: %d", socket_filesystem);//TODO borrar log
+
 	int opcode = recibir_operacion(socket_filesystem);
-	log_info(logger, "recibi respuesta de Fs, continuo");//TODO borrar log
+	log_info(logger, "Respuesta de Fs, continuo");//TODO borrar log
+
+
 	if(opcode == MENSAJE){
 		//si el archivo no existe
 		if(atoi(recibir_mensaje(socket_filesystem))==-1){
