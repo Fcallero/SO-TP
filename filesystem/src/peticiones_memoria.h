@@ -9,6 +9,7 @@
 #include "peticiones_kernel.h"
 
 extern int socket_fs;
+extern int socket_memoria;
 extern FILE* bloques;
 extern t_bitarray* bitarray_bloques;
 extern int tam_bloques;

@@ -347,34 +347,11 @@ t_instruccion *recibir_instruccion(int cliente_fd){
 	void* buffer = recibir_buffer(&size, cliente_fd);
 
 	int desplazamiento  = 0;
-	t_instruccion* instruccion = malloc(sizeof(t_instruccion));
+	t_instruccion* instruccion;
 
 	while(desplazamiento < size){
 
-		memcpy(&(instruccion->opcode_lenght), buffer + desplazamiento, sizeof(int));
-		desplazamiento+=sizeof(int);
-		instruccion->opcode = malloc(instruccion->opcode_lenght);
-		memcpy(instruccion->opcode, buffer+desplazamiento, instruccion->opcode_lenght);
-		desplazamiento+= instruccion->opcode_lenght;
-
-		memcpy(&(instruccion->parametro1_lenght), buffer+desplazamiento, sizeof(int));
-		desplazamiento+=sizeof(int);
-		instruccion->parametros[0] = malloc(instruccion->parametro1_lenght);
-		memcpy(instruccion->parametros[0], buffer + desplazamiento, instruccion->parametro1_lenght);
-		desplazamiento += instruccion->parametro1_lenght;
-
-		memcpy(&(instruccion->parametro2_lenght), buffer+desplazamiento, sizeof(int));
-		desplazamiento+=sizeof(int);
-		instruccion->parametros[1] = malloc(instruccion->parametro2_lenght);
-		memcpy(instruccion->parametros[1], buffer + desplazamiento, instruccion->parametro2_lenght);
-		desplazamiento +=  instruccion->parametro2_lenght;
-
-
-		memcpy(&(instruccion->parametro3_lenght), buffer+desplazamiento, sizeof(int));
-		desplazamiento+=sizeof(int);
-		instruccion->parametros[2] = malloc(instruccion->parametro3_lenght);
-		memcpy(instruccion->parametros[2], buffer + desplazamiento, instruccion->parametro3_lenght);
-		desplazamiento +=  instruccion->parametro3_lenght;
+		instruccion = deserializar_instruccion_en(buffer, &desplazamiento);
 	}
 
 	free(buffer);

@@ -25,7 +25,7 @@ t_fcb* iniciar_fcb(t_config* config){
 }
 
 
-void abrir_archivo(uint64_t cliente_fd){
+void abrir_archivo(int cliente_fd){
 
 	//VARIABLES Y DATOS PARA LA FUNCION
 	t_instruccion* instruccion = recibir_instruccion(cliente_fd);
@@ -99,7 +99,7 @@ t_fcb* crear_fcb( t_instruccion* instruccion, char* path){
 }
 
 
-void crear_archivo(uint64_t cliente_fd){
+void crear_archivo(int cliente_fd){
 	//Cargamos las estructuras necesarias
 	t_instruccion* instruccion = recibir_instruccion(cliente_fd);
 
@@ -213,7 +213,7 @@ void sacar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_sacar, int bloques_act
 
 }
 
-void truncar_archivo(uint64_t cliente_fd){
+void truncar_archivo(int cliente_fd){
 
 		t_instruccion* instruccion_peticion = (t_instruccion*) recibir_instruccion(cliente_fd);
 
@@ -284,53 +284,45 @@ void truncar_archivo(uint64_t cliente_fd){
 		free(nombre_archivo);
 }
 
-void deserializar_instruccion_con_dos_parametros_y_puntero(void* buffer, t_instruccion* instruccion, int *puntero, int *desplazamiento){
-	memcpy(&(instruccion->opcode_lenght), buffer + *desplazamiento, sizeof(int));
-	*desplazamiento+=sizeof(int);
-	instruccion->opcode = malloc(instruccion->opcode_lenght);
-	memcpy(instruccion->opcode, buffer+*desplazamiento, instruccion->opcode_lenght);
-	*desplazamiento+=instruccion->opcode_lenght;
-
-	memcpy(&(instruccion->parametro1_lenght), buffer+*desplazamiento, sizeof(int));
-	*desplazamiento+=sizeof(int);
-	instruccion->parametros[0] = malloc(instruccion->parametro1_lenght);
-	memcpy(instruccion->parametros[0], buffer + *desplazamiento, instruccion->parametro1_lenght);
-	*desplazamiento += instruccion->parametro1_lenght;
-
-	memcpy(&(instruccion->parametro2_lenght), buffer+*desplazamiento, sizeof(int));
-	*desplazamiento+=sizeof(int);
-	instruccion->parametros[1] = malloc(instruccion->parametro2_lenght);
-	memcpy(instruccion->parametros[1], buffer + *desplazamiento, instruccion->parametro2_lenght);
-	*desplazamiento += instruccion->parametro2_lenght;
-
-	memcpy(&(puntero), buffer+*desplazamiento, sizeof(int));
-	*desplazamiento+=sizeof(int);
-
-
-	 //esta linea es para el destroy de la instruccion
-	 instruccion->parametro3_lenght = 0;
-}
-
-
 
 void escribir_archivo_fs(int cliente_fd){
 
 	int size;
 	void * buffer = recibir_buffer(&size ,cliente_fd);
-	int *desplazamiento  = malloc(sizeof(int));
-	int *puntero = malloc(sizeof(int));
+	int pid, puntero, desplazamiento  = 0;
 	t_instruccion* instruccion = malloc(sizeof(t_instruccion));
 
-	deserializar_instruccion_con_dos_parametros_y_puntero(buffer, instruccion, puntero, desplazamiento);
-	t_fcb *fcb = dictionary_get(fcb_por_archivo, instruccion->parametros[0]);
+	memcpy(&pid, buffer+desplazamiento, sizeof(int));
+	desplazamiento+=sizeof(int);
+	deserializar_instruccion_con_dos_parametros_de(buffer, instruccion, &desplazamiento);
+	memcpy(&puntero, buffer+desplazamiento, sizeof(int));
+
+	char* nombre_archivo = strdup(instruccion->parametros[0]);
+
+	t_fcb *fcb = dictionary_get(fcb_por_archivo, nombre_archivo);
 
 	//TODO solicitarle el contenido a escribir a memoria y asignarlo abajo
 
-	char* contenido_a_escribir = malloc(tam_bloque);
+	t_paquete *paquete = crear_paquete(READ_MEMORY);
+	agregar_a_paquete_sin_agregar_tamanio(paquete, &pid, sizeof(int));
+	agregar_a_paquete(paquete, instruccion->opcode,sizeof(instruccion->opcode_lenght));
+	agregar_a_paquete(paquete, instruccion->parametros[0],sizeof(instruccion->parametro1_lenght));
+	agregar_a_paquete(paquete, instruccion->parametros[1],sizeof(instruccion->parametro2_lenght));
+	agregar_a_paquete(paquete, instruccion->parametros[2],sizeof(instruccion->parametro3_lenght));
+	enviar_paquete(paquete, socket_memoria);
 
-	if(dictionary_has_key(fcb_por_archivo, instruccion->parametros[0])){
+	op_code cod_op = recibir_operacion(socket_memoria);
 
-		int bloque_a_escribir = *puntero/tam_bloque;
+	if(cod_op != READ_MEMORY){
+		log_error(logger, "No se pudo leer el contenido del archivo en la memoria");
+		return;
+	}
+
+	char* contenido_a_escribir = recibir_mensaje(socket_memoria);
+
+	if(dictionary_has_key(fcb_por_archivo, nombre_archivo)){
+
+		int bloque_a_escribir = puntero/tam_bloque;
 		int i = 0;
 		int aux_busqueda_fat = fcb->bloque_inicial;
 
@@ -339,42 +331,46 @@ void escribir_archivo_fs(int cliente_fd){
 			aux_busqueda_fat = bits_fat[aux_busqueda_fat];
 			i++;
 		}
-		log_info(logger, "Acceso a bloque - Archivo: %s - Bloque archivo: %d - Bloque FS: %d", instruccion->parametros[0], bloque_a_escribir, aux_busqueda_fat);
-		array_bloques[aux_busqueda_fat] = contenido_a_escribir;
+		log_info(logger, "Acceso a bloque - Archivo: %s - Bloque archivo: %d - Bloque FS: %d", nombre_archivo, bloque_a_escribir, aux_busqueda_fat);
 
-		log_info(logger, "Archivo escrito: %s - Puntero: %d - Memoria: %s", instruccion->parametros[0], *puntero, instruccion->parametros[1]);
+		strncpy(array_bloques[aux_busqueda_fat], contenido_a_escribir, tam_bloque);
+
+		log_info(logger, "Archivo escrito: %s - Puntero: %d - Memoria: %s", nombre_archivo, puntero, instruccion->parametros[1]);
 
 		enviar_mensaje("OK", cliente_fd, ESCRIBIR_ARCHIVO);
-
 
 	}else{
 		log_error(logger, "El archivo no se encuentra en el FS");
 	}
 
 
+	free(nombre_archivo);
 	free(buffer);
-	free(puntero);
 	instruccion_destroy(instruccion);
 }
 
-
-void leer_archivo_fs(int cliente_fd){
-	/*Esta operación leerá la información correspondiente al bloque a partir del puntero.
+/*Esta operación leerá la información correspondiente al bloque a partir del puntero.
 La información se deberá enviar al módulo Memoria para ser escrita a partir de la dirección física
 recibida por parámetro, una vez recibida la confirmación por parte del módulo Memoria, se informará al
  módulo Kernel del éxito de la operación.*/
+void leer_archivo_fs(int cliente_fd){
 	int size;
 	void * buffer = recibir_buffer(&size ,cliente_fd);
-	int *desplazamiento  = malloc(sizeof(int));
-	int *puntero = malloc(sizeof(int));
+	int puntero, pid, desplazamiento = 0 ;
+
 	t_instruccion* instruccion = malloc(sizeof(t_instruccion));
+	memcpy(&pid, buffer+desplazamiento, sizeof(int));
+	desplazamiento+=sizeof(int);
+	deserializar_instruccion_con_dos_parametros_de(buffer, instruccion, &desplazamiento);
+	memcpy(&puntero, buffer+desplazamiento, sizeof(int));
 
-	deserializar_instruccion_con_dos_parametros_y_puntero(buffer, instruccion, puntero, desplazamiento);
-	t_fcb *fcb = dictionary_get(fcb_por_archivo, instruccion->parametros[0]);
+	char* nombre_archivo = strdup(instruccion->parametros[0]);
 
-	if(dictionary_has_key(fcb_por_archivo, instruccion->parametros[0])){
+	t_fcb *fcb = dictionary_get(fcb_por_archivo, nombre_archivo);
 
-		int bloque_a_leer = *puntero/tam_bloque;
+	if(dictionary_has_key(fcb_por_archivo, nombre_archivo)){
+
+		int bloque_a_leer = puntero/tam_bloque;
 		int i = 0;
 		int aux_busqueda_fat = fcb->bloque_inicial;
 
@@ -384,25 +380,44 @@ recibida por parámetro, una vez recibida la confirmación por parte del módulo
 			i++;
 		}
 
-		log_info(logger, "Acceso a bloque - Archivo: %s - Bloque archivo: %d - Bloque FS: %d ", instruccion->parametros[0], bloque_a_leer, aux_busqueda_fat);
+		log_info(logger, "Acceso a bloque - Archivo: %s - Bloque archivo: %d - Bloque FS: %d ", nombre_archivo, bloque_a_leer, aux_busqueda_fat);
 		void *contenido_leido = array_bloques[aux_busqueda_fat];
 
-		t_paquete *paquete = crear_paquete(LEER_ARCHIVO);
+		t_paquete *paquete = crear_paquete(WRITE_MEMORY);
+		agregar_a_paquete_sin_agregar_tamanio(paquete, &pid, sizeof(int));
+		agregar_a_paquete(paquete, instruccion->opcode,sizeof(instruccion->opcode_lenght));
+		agregar_a_paquete(paquete, instruccion->parametros[0],sizeof(instruccion->parametro1_lenght));
+		agregar_a_paquete(paquete, instruccion->parametros[1],sizeof(instruccion->parametro2_lenght));
+		agregar_a_paquete(paquete, instruccion->parametros[2],sizeof(instruccion->parametro3_lenght));
 		agregar_a_paquete_sin_agregar_tamanio(paquete, contenido_leido, tam_bloque);
-		enviar_paquete(paquete, cliente_fd); //TODO buscar la forma de enviarle esto a memoria
+		enviar_paquete(paquete, socket_memoria);
 
 		eliminar_paquete(paquete);
 
-		log_info(logger, "Archivo leido: %s - Puntero: %d - Memoria: %s", instruccion->parametros[0], *puntero, instruccion->parametros[1]);
+		log_info(logger, "Archivo leido: %s - Puntero: %d - Memoria: %s", nombre_archivo, puntero, instruccion->parametros[1]);
 
+		op_code cod_op = recibir_operacion(socket_memoria);
+
+		if(cod_op != WRITE_MEMORY){
+			log_error(logger, "No se pudo escribir el contenido del archivo en la memoria");
+			return;
+		}
+
+		char* mensaje = recibir_mensaje(socket_memoria);
+		if(strcmp(mensaje,"OK") == 0){
+			log_info(logger, "se recibio un  %s de memoria", mensaje);
+
+			enviar_mensaje(mensaje, cliente_fd, LEER_ARCHIVO);
+			free(mensaje);
+		}
 
 	}else{
 		log_error(logger, "El archivo no se encuentra en el FS");
 	}
 
 
+	free(nombre_archivo);
 	free(buffer);
-	free(puntero);
 	instruccion_destroy(instruccion);
 }
 

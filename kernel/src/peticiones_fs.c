@@ -111,9 +111,9 @@ void agregar_recurso_a_matrices(char *nombre_archivo, int pid){
 void enviar_instruccion(t_instruccion* instruccion, int socket_a_enviar, int opcode){
 	t_paquete* paquete = crear_paquete(opcode);
 	agregar_a_paquete(paquete, instruccion->opcode,sizeof(instruccion->opcode_lenght));
-	agregar_a_paquete(paquete, instruccion->parametros[0],sizeof(instruccion->parametro1_lenght));
-	agregar_a_paquete(paquete, instruccion->parametros[1],sizeof(instruccion->parametro2_lenght));
-	agregar_a_paquete(paquete, instruccion->parametros[2],sizeof(instruccion->parametro3_lenght));
+	agregar_a_paquete(paquete, instruccion->parametros[0],instruccion->parametro1_lenght);
+	agregar_a_paquete(paquete, instruccion->parametros[1],instruccion->parametro2_lenght);
+	agregar_a_paquete(paquete, instruccion->parametros[2],instruccion->parametro3_lenght);
 	enviar_paquete(paquete, socket_a_enviar);
 	eliminar_paquete(paquete);
 }
@@ -272,6 +272,7 @@ void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, int socket_filesystem)
 	//	SI NO EXISTE, MANDARA UN -1 Y MANDAREMOS ORDEN DE CREAR EL ARCHIVO
 
 	int opcode = recibir_operacion(socket_filesystem);
+	log_info(logger, "recibi respuesta de Fs, continuo");//TODO borrar log
 	if(opcode == MENSAJE){
 		//si el archivo no existe
 		if(atoi(recibir_mensaje(socket_filesystem))==-1){
@@ -395,8 +396,9 @@ void reposicionar_puntero(int cliente_fd){
 	contexto_ejecucion_destroy(contexto);
 }
 
-void enviar_peticion_puntero_fs(op_code opcode, t_instruccion *instruccion, int puntero){
+void enviar_peticion_puntero_fs(op_code opcode, t_instruccion *instruccion, int puntero, int pid){
 	t_paquete* paquete = crear_paquete(opcode);
+	agregar_a_paquete_sin_agregar_tamanio(paquete, &pid, sizeof(int));
 	agregar_a_paquete(paquete, instruccion->opcode,sizeof(instruccion->opcode_lenght));
 	agregar_a_paquete(paquete, instruccion->parametros[0],sizeof(instruccion->parametro1_lenght));
 	agregar_a_paquete(paquete, instruccion->parametros[1],sizeof(instruccion->parametro2_lenght));
@@ -428,7 +430,7 @@ void leer_archivo(int socket_cpu){
 	free(direccion_fisica);
 	free(bytes_a_leer_string);
 
-	enviar_peticion_puntero_fs(LEER_ARCHIVO,instruccion_peticion, puntero);
+	enviar_peticion_puntero_fs(LEER_ARCHIVO,instruccion_peticion, puntero, contexto->pid);
 
 	deteccion_de_deadlock();
 
@@ -512,7 +514,7 @@ void escribir_archivo(int socket_cpu){
 		return;
 	}
 
-	enviar_peticion_puntero_fs(ESCRIBIR_ARCHIVO,instruccion_peticion, puntero);
+	enviar_peticion_puntero_fs(ESCRIBIR_ARCHIVO,instruccion_peticion, puntero, contexto->pid);
 
 	deteccion_de_deadlock();
 

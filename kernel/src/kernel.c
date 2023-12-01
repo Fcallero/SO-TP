@@ -388,13 +388,13 @@ void* escuchar_peticiones_cpu_dispatch(void *args) {
 					manejar_sleep(cliente_fd);
 					break;
 				case ABRIR_ARCHIVO:
-					enviar_a_fs_crear_o_abrir_archivo(socket_cpu_dispatch, socket_fs);
+					enviar_a_fs_crear_o_abrir_archivo(cliente_fd, socket_fs);
 					break;
 				case CERRAR_ARCHIVO:
 					cerrar_archivo(cliente_fd);
 					break;
 				case TRUNCAR_ARCHIVO:
-					enviar_a_fs_truncar_archivo(socket_cpu_dispatch, socket_fs);
+					enviar_a_fs_truncar_archivo(cliente_fd, socket_fs);
 					break;
 				case APUNTAR_ARCHIVO:
 					reposicionar_puntero(cliente_fd);
@@ -406,7 +406,7 @@ void* escuchar_peticiones_cpu_dispatch(void *args) {
 					escribir_archivo(cliente_fd);
 					break;
 				case PAGE_FAULT:
-					manejar_page_fault(socket_cpu_dispatch);
+					manejar_page_fault(cliente_fd);
 					break;
 				case FINALIZAR_PROCESO_MEMORIA:
 					break;

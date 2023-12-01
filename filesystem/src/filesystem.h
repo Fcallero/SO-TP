@@ -26,11 +26,12 @@
 
 
 int socket_fs;
+int socket_memoria;
 FILE* bloques;
 t_dictionary* fcb_por_archivo;
 
 typedef struct{
-	uint64_t cliente_fd;
+	int cliente_fd;
 }t_arg_atender_cliente;
 
 

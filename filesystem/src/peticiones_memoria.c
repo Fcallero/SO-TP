@@ -23,6 +23,7 @@ void *leer_bloque_swap(uint32_t puntero){
 
 
 void reservar_bloques(int cliente_fd){
+	socket_memoria = cliente_fd;
 
 	int size;
 	void* buffer = recibir_buffer(&size, cliente_fd);
@@ -30,7 +31,7 @@ void reservar_bloques(int cliente_fd){
 
 	memcpy(&tamanio_proceso,buffer,sizeof(int));
 
-	int cant_bloques_a_asignar_swap = (tamanio_proceso / tam_bloque) + 1; //el +1 por si es comma algo
+	int cant_bloques_a_asignar_swap = (tamanio_proceso / tam_bloque);
 
 
 	//asigno bloques con el bitarray de bloques libres

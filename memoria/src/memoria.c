@@ -767,16 +767,10 @@ void read_memory(int cliente_fd){
 
 	contenido[tam_pagina]='\0';
 
-
-
 	enviar_mensaje(contenido,cliente_fd,READ_MEMORY);
-
 
 	free(buffer);
 	instruccion_destroy(instruccion);
-
-
-
 }
 
 
@@ -808,9 +802,9 @@ void write_memory(int cliente_fd){
 	t_list* lista_de_TP =dictionary_get(paginas_por_PID,string_itoa(pid));
 
 	bool esMarcoBuscado(void* args){
-				t_tabla_de_paginas* marco_x =(t_tabla_de_paginas*)args;
-				return numero_marco==marco_x->marco;
-				}
+		t_tabla_de_paginas* marco_x =(t_tabla_de_paginas*)args;
+		return numero_marco==marco_x->marco;
+	}
 
 
 	t_tabla_de_paginas* entrada_TP=list_find(lista_de_TP,esMarcoBuscado);

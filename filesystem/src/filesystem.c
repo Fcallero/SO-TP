@@ -176,7 +176,7 @@ t_config* iniciar_config(void){
 void manejar_peticiones(){
 	while(1){
 			pthread_t thread;
-			uint64_t cliente_fd = (uint64_t) esperar_cliente(socket_fs);
+			int cliente_fd = esperar_cliente(socket_fs);
 
 			t_arg_atender_cliente* argumentos_atender_cliente = malloc(sizeof(t_arg_atender_cliente));
 			argumentos_atender_cliente->cliente_fd = cliente_fd;
@@ -192,7 +192,7 @@ void manejar_peticiones(){
 void *atender_cliente(void* args){
 	t_arg_atender_cliente* argumentos = (t_arg_atender_cliente*) args;
 
-	uint64_t cliente_fd = argumentos->cliente_fd;
+	int cliente_fd = argumentos->cliente_fd;
 
 	while(1){
 		int cod_op = recibir_operacion(cliente_fd);
@@ -210,17 +210,14 @@ void *atender_cliente(void* args){
 			case CREAR_ARCHIVO:
 				crear_archivo(cliente_fd);
 				break;
-			case CERRAR_ARCHIVO:
-				// cerrar_archivo();
-				break;
 			case TRUNCAR_ARCHIVO:
 				truncar_archivo(cliente_fd);
 					break;
 			case LEER_ARCHIVO:
-				 leer_archivo_fs();
+				 leer_archivo_fs(cliente_fd);
 				break;
 			case ESCRIBIR_ARCHIVO:
-				// escribir_archivo_fs();
+				 escribir_archivo_fs(cliente_fd);
 				break;
 			case INICIAR_PROCESO:
 				reservar_bloques(cliente_fd);

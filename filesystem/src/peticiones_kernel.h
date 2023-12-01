@@ -13,11 +13,10 @@ extern int socket_fs;
 extern FILE* bloques;
 extern char** array_bloques;
 
-void abrir_archivo(uint64_t cliente_fd);
-void crear_archivo(uint64_t cliente_fd);
-void cerrar_archivo();
-void truncar_archivo(uint64_t cliente_fd);
-void leer_archivo_fs();
-void escribir_archivo_fs();
+void abrir_archivo(int cliente_fd);
+void crear_archivo(int cliente_fd);
+void truncar_archivo(int cliente_fd);
+void leer_archivo_fs(int cliente_fd);
+void escribir_archivo_fs(int cliente_fd);
 
 #endif /* SRC_PETICIONES_KERNEL_H_ */
