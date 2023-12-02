@@ -329,6 +329,7 @@ void* manejar_peticiones_modulos(void *args) {
 				char* mensaje = recibir_mensaje(cliente_fd);
 				log_info(logger, "Se recibio un %s de memoria, procede planificador de largo plazo", mensaje);
 				sem_post(&memoria_lista);
+				free(mensaje);
 				break;
 			case INTERRUPCION:
 				t_contexto_ejec* contexto = recibir_contexto_de_ejecucion(cliente_fd);
@@ -337,9 +338,10 @@ void* manejar_peticiones_modulos(void *args) {
 				break;
 			case PAGE_FAULT:
 				//aca deberia llegar un ok
-	 			char* mensaje = recibir_mensaje(socket_memoria);
+	 			mensaje = recibir_mensaje(socket_memoria);
 				log_info(logger, "Se recibio un %s de memoria, procede el manejo del page fault", mensaje);
 				pthread_mutex_unlock(&m_espero_respuesta_pf);
+				free(mensaje);
 				break;
 			case -1:
 				log_error(logger, "El cliente se desconecto. Terminando servidor");
