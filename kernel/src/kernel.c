@@ -161,30 +161,22 @@ int main(int argc, char *argv[]) {
 
 	//levanto 4 hilos para recibir peticiones de forma concurrente de los modulos
 
-	pthread_t hilo_peticiones_cpu_dispatch, hilo_peticiones_cpu_interrupt,
-			hilo_peticiones_memoria, hilo_planificador_largo_plazo, hilo_planificador_corto_plazo;
+	pthread_t hilo_peticiones_cpu_dispatch, hilo_peticiones_cpu_interrupt, hilo_peticiones_memoria, hilo_planificador_largo_plazo, hilo_planificador_corto_plazo;
 
-	t_args_manejar_peticiones_modulos *args_dispatch = malloc(
-			sizeof(t_args_manejar_peticiones_modulos));
-	t_args_manejar_peticiones_modulos *args_interrupt = malloc(
-			sizeof(t_args_manejar_peticiones_modulos));
-	t_args_manejar_peticiones_modulos *args_memoria = malloc(
-			sizeof(t_args_manejar_peticiones_modulos));
+	t_args_manejar_peticiones_modulos *args_dispatch = malloc(sizeof(t_args_manejar_peticiones_modulos));
+	t_args_manejar_peticiones_modulos *args_interrupt = malloc(sizeof(t_args_manejar_peticiones_modulos));
 
 	args_dispatch->cliente_fd = socket_cpu_dispatch;
 
 	args_interrupt->cliente_fd = socket_cpu_interrupt;
-	args_memoria->cliente_fd = socket_memoria;
 
 	pthread_create(&hilo_planificador_corto_plazo, NULL, planificar_nuevos_procesos_corto_plazo, NULL);
 	pthread_create(&hilo_planificador_largo_plazo, NULL, planificar_nuevos_procesos_largo_plazo, NULL);
 	pthread_create(&hilo_peticiones_cpu_dispatch, NULL, escuchar_peticiones_cpu_dispatch, args_dispatch);
 	pthread_create(&hilo_peticiones_cpu_interrupt, NULL, manejar_peticiones_modulos, args_interrupt);
-	pthread_create(&hilo_peticiones_memoria, NULL, manejar_peticiones_modulos, args_memoria);
 
 	pthread_detach(hilo_peticiones_cpu_dispatch);
 	pthread_detach(hilo_peticiones_cpu_interrupt);
-	pthread_detach(hilo_peticiones_memoria);
 	pthread_detach(hilo_planificador_largo_plazo);
 
 	//espero peticiones por consola
@@ -192,7 +184,6 @@ int main(int argc, char *argv[]) {
 
 	free(args_dispatch);
 	free(args_interrupt);
-	free(args_memoria);
 	terminar_programa(logger, config);
 
 } //Fin del main
