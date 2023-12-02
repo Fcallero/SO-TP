@@ -27,6 +27,7 @@
 
 int socket_fs;
 int socket_memoria;
+int socket_fs_solo_memoria;
 FILE* bloques;
 t_dictionary* fcb_por_archivo;
 
@@ -41,4 +42,5 @@ void terminar_programa(t_log* logger, t_config* config);
 void manejar_peticiones();
 FILE* levantar_archivo_binario(char* path_archivo);
 void *atender_cliente(void* args);
+int conectar_memoria(char* ip_memoria, char* puerto_memoria);
 #endif

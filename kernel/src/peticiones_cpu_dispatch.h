@@ -20,11 +20,12 @@
 
 #include "planificador_largo_plazo.h"
 #include "planificador_corto_plazo.h"
+#include "peticiones_fs.h"
 
 extern t_dictionary* recurso_bloqueado;
 extern t_dictionary *matriz_recursos_asignados;
 extern t_dictionary *matriz_recursos_pendientes;
-extern int *recursos_totales;
+extern t_list *recursos_totales;
 extern char	**recursos;
 extern int cant_recursos;
 

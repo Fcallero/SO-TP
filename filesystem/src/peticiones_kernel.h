@@ -12,6 +12,7 @@ extern char* path_fcb;
 extern int socket_fs;
 extern FILE* bloques;
 extern char** array_bloques;
+extern int primer_bloque_fat;
 
 void abrir_archivo(int cliente_fd);
 void crear_archivo(int cliente_fd);

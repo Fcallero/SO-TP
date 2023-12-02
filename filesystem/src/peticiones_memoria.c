@@ -23,8 +23,6 @@ void *leer_bloque_swap(uint32_t puntero){
 
 
 void reservar_bloques(int cliente_fd){
-	socket_memoria = cliente_fd;
-
 	int size;
 	void* buffer = recibir_buffer(&size, cliente_fd);
 	int tamanio_proceso;

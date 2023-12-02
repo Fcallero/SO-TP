@@ -78,9 +78,7 @@ void manejar_sleep(int socket_cliente){
 	pthread_detach(hilo_simulacion);
 
 	//se actualiza el program_counter por las dudas
-	sem_wait(&m_proceso_ejecutando);
-	proceso_ejecutando->program_counter = contexto->program_counter;
-	sem_post(&m_proceso_ejecutando);
+	actualizar_pcb(contexto);
 
 
 	sem_wait(&esperar_proceso_ejecutando);
@@ -306,7 +304,8 @@ void calcular_recursos_disponible(t_list **recursos_disponible, t_list *recursos
 
 		t_recurso *recurso_disponible = recurso_new(recurso_asignado->nombre_recurso);
 
-		recurso_disponible->instancias_en_posesion = recursos_totales[list_iterator_index(iterador_recursos_asignados)] - recurso_asignado->instancias_en_posesion;
+		t_recurso* recurso_total_n = list_get(recursos_totales, list_iterator_index(iterador_recursos_asignados));
+		recurso_disponible->instancias_en_posesion = recurso_total_n->instancias_en_posesion - recurso_asignado->instancias_en_posesion;
 
 		list_add(*recursos_disponible, recurso_disponible);
 	}
@@ -370,7 +369,7 @@ void deteccion_de_deadlock(){
 t_list *obtener_recursos_en_base_a_pid_en_matriz(t_dictionary **matriz, char *pid, int cantidad_de_recursos){
 	t_list *recursos_a_devolver =  dictionary_get(*matriz, pid);
 
-	if(recursos_a_devolver == NULL){
+	if(recursos_a_devolver == NULL){ // si es un archivo, deberia ya estar en la matriz y aca no entraria
 		recursos_a_devolver = list_create();
 
 		for(int i = 0; i<cantidad_de_recursos; i++){
@@ -389,14 +388,14 @@ void incrementar_recurso_en_matriz(t_dictionary **matriz, char *nombre_recurso, 
 	t_list *recursos = obtener_recursos_en_base_a_pid_en_matriz(matriz, pid, cantidad_de_recursos);
 
 	t_recurso *recurso_a_incrementar = obtener_recurso_con_nombre(recursos, nombre_recurso);
-	recurso_a_incrementar->instancias_en_posesion ++;
+	recurso_a_incrementar->instancias_en_posesion ++;//si esta la lista creada, recurso_a_incrementar no deberia ser NULL en caso de que sea de un archivo
 }
 
 void decrementar_recurso_en_matriz(t_dictionary **matriz, char *nombre_recurso, char *pid, int cantidad_de_recursos){
 	t_list *recursos = obtener_recursos_en_base_a_pid_en_matriz(matriz, pid, cantidad_de_recursos);
 
 	t_recurso *recurso_a_decrementar = obtener_recurso_con_nombre(recursos, nombre_recurso);
-	recurso_a_decrementar->instancias_en_posesion --;
+	recurso_a_decrementar->instancias_en_posesion --;//si esta la lista creada, recurso_a_incrementar no deberia ser NULL en caso de que sea de un archivo
 }
 
 void bloquear_proceso_por_recurso(t_pcb* proceso_a_bloquear, char* nombre_recurso, int cantidad_de_recursos){
@@ -461,9 +460,7 @@ void apropiar_recursos(int socket_cliente, char** recursos, int* recurso_disponi
 
 	log_info(logger, "Inicio Wait al recurso %s",nombre_recurso);
 
-	sem_wait(&m_proceso_ejecutando);
-	proceso_ejecutando->program_counter = contexto->program_counter;
-	sem_post(&m_proceso_ejecutando);
+	actualizar_pcb(contexto);
 
 	int indice_recurso = obtener_indice_recurso(recursos, nombre_recurso);
 
@@ -514,9 +511,7 @@ void desalojar_recursos(int socket_cliente,char** recursos, int* recurso_disponi
 
 	log_info(logger, "Inicio Signal al recurso %s",nombre_recurso);
 
-	sem_wait(&m_proceso_ejecutando);
-	proceso_ejecutando->program_counter = contexto->program_counter;
-	sem_post(&m_proceso_ejecutando);
+	actualizar_pcb(contexto);
 
 	int indice_recurso = obtener_indice_recurso(recursos, nombre_recurso);
 
@@ -572,6 +567,9 @@ void desalojar_recursos(int socket_cliente,char** recursos, int* recurso_disponi
 
 void finalinzar_proceso(int socket_cliente){
 	t_contexto_ejec* contexto = recibir_contexto_de_ejecucion(socket_cliente);
+
+
+	actualizar_pcb(contexto);
 
 	sem_wait(&m_proceso_ejecutando);
 	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_ejecutando->PID, "EXEC","EXIT");
@@ -732,10 +730,7 @@ void manejar_page_fault(int socket_cliente){
 	t_contexto_ejec* contexto = deserializar_contexto_de_ejecucion(buffer, size, &desplazamiento);
 
 
-	sem_wait(&m_proceso_ejecutando);
-	proceso_ejecutando->program_counter = contexto->program_counter;
-	proceso_ejecutando->registros_CPU = contexto->registros_CPU;
-	sem_post(&m_proceso_ejecutando);
+	actualizar_pcb(contexto);
 
 	pthread_t hilo_pf;
 

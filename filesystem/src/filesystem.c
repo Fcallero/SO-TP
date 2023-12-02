@@ -7,12 +7,12 @@ uint32_t *bits_fat; //Array con tabla FAT
 char **array_bloques; //Array bloques
 t_bitarray *bitarray_bloques; // solo para swap
 int primer_bloque_fat;
+char* ip_memoria;
+char* puerto_memoria;
 
 int main(int argc, char* argv[]) {
 	//Declaraciones de variables para config:
 
-		char* ip_memoria;
-		char* puerto_memoria;
 		char* puerto_escucha;
 		char* path_fat;
 		char* path_bloques;
@@ -91,6 +91,11 @@ int main(int argc, char* argv[]) {
 		    perror("Error al mapear la FAT a memoria");
 		    // Manejar el error apropiadamente
 		    exit(EXIT_FAILURE);
+		}
+
+		//agrego 0 para indicar que esta libre en cada entrada de la FAT y en 0 nada ya que esta reservado
+		for(int i = 1; i<(cant_bloques_total-cant_bloques_swap); i++){
+			bits_fat[i]=0;
 		}
 
 		//Levanto archivo de bloques, un archivo que contiene todos los bloques de nuestro FS. Obtengo el FD y lo trunco al tamaño necesario
@@ -189,6 +194,28 @@ void manejar_peticiones(){
 		}
 }
 
+int conectar_memoria(char* ip_memoria, char* puerto_memoria){
+	socket_memoria = crear_conexion(ip_memoria, puerto_memoria);
+
+	//enviar handshake
+	enviar_mensaje("OK", socket_memoria, HANDSHAKE);
+
+	op_code cod_op = recibir_operacion(socket_memoria);
+
+	if (cod_op != HANDSHAKE) {
+		return -1;
+	}
+
+	int size;
+	char *buffer = recibir_buffer(&size, socket_memoria);
+
+	if (strcmp(buffer, "OK") != 0) {
+		return -1;
+	}
+
+	return 0;
+}
+
 
 void *atender_cliente(void* args){
 	t_arg_atender_cliente* argumentos = (t_arg_atender_cliente*) args;
@@ -198,10 +225,16 @@ void *atender_cliente(void* args){
 	while(1){
 		int cod_op = recibir_operacion(cliente_fd);
 
+		if(cod_op != HANDSHAKE){
+			int result_conexion_memoria = conectar_memoria(ip_memoria, puerto_memoria);
+
+			if (result_conexion_memoria == -1) {
+				log_error(logger, "No se pudo conectar con el modulo Memoria !!");
+				return NULL;
+			}
+		}
+
 		switch(cod_op){
-			case MENSAJE:
-				recibir_mensaje(cliente_fd);
-				break;
 			case HANDSHAKE:
 				recibir_handshake(cliente_fd);
 				break;
@@ -220,17 +253,17 @@ void *atender_cliente(void* args){
 			case ESCRIBIR_ARCHIVO:
 				 escribir_archivo_fs(cliente_fd);
 				break;
-			case INICIAR_PROCESO:
-				reservar_bloques(cliente_fd);
-				break;
-			case FINALIZAR_PROCESO_FS:
-				marcar_bloques_libres(cliente_fd);
-				break;
 			case LEER_CONTENIDO_PAGINA:
 				devolver_contenido_pagina(cliente_fd);
 				break;
 			case ESCRIBIR_CONTENIDO_PAGINA:
 				escribir_en_bloque_swap(cliente_fd);
+				break;
+			case FINALIZAR_PROCESO_FS:
+				marcar_bloques_libres(cliente_fd);
+				break;
+			case INICIAR_PROCESO:
+				reservar_bloques(cliente_fd);
 				break;
 			case -1:
 				log_error(logger, "El cliente se desconecto. Terminando servidor");
@@ -238,6 +271,10 @@ void *atender_cliente(void* args){
 			default:
 				log_warning(logger, "Operacion desconocida. No quieras meter la pata");
 				break;
+		}
+
+		if(cod_op != HANDSHAKE){
+			close(socket_memoria);
 		}
 	}
 

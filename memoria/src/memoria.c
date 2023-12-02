@@ -65,8 +65,7 @@ int main(int argc, char *argv[]) {
 		terminar_programa(logger, config);
 	}
 
-	log_info(logger,
-			"Memoria se conecto con el modulo Filesystem correctamente");
+	log_info(logger, "Memoria se conecto con el modulo Filesystem correctamente");
 
 	//Esperar conexion de FS
 	socket_memoria = iniciar_servidor(puerto_escucha);
@@ -206,9 +205,6 @@ void* atender_cliente(void *args) {
 		int cod_op = recibir_operacion(cliente_fd);
 
 		switch(cod_op){
-			case MENSAJE:
-				recibir_mensaje(cliente_fd);
-				break;
 			case HANDSHAKE:
 				recibir_handshake(cliente_fd);
 				break;

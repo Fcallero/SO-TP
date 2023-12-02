@@ -8,7 +8,7 @@ int socket_fs;
 int grado_max_multiprogramacion;
 char **recursos;
 int *recursos_disponible;
-int *recursos_totales;
+t_list *recursos_totales;
 int quantum;
 char** instancias_recursos;
 int cant_recursos;
@@ -127,13 +127,16 @@ int main(int argc, char *argv[]) {
 	// creo array de int de recursos disponibles
 
 	cant_recursos = string_array_size(instancias_recursos);
-	recursos_totales = malloc(sizeof(int) * cant_recursos);
+	recursos_totales = list_create();
 	recursos_disponible = malloc(sizeof(int) * cant_recursos);
 
 	if (cant_recursos != 0) {
 		for (int i = 0; i < cant_recursos; i++) {
-			recursos_totales[i] = atoi(instancias_recursos[i]);
 			recursos_disponible[i] = atoi(instancias_recursos[i]);
+
+			t_recurso* recurso_n = recurso_new(recursos[i]);
+			recurso_n->instancias_en_posesion= atoi(instancias_recursos[i]);
+			list_add(recursos_totales, recurso_n);
 		}
 	}
 

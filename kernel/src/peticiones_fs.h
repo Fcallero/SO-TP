@@ -30,5 +30,6 @@ void escribir_archivo(int socket_cpu);
 void cerrar_archivo(int cliente_fd);
 
 void enviar_instruccion(t_instruccion* instruccion, int socket_a_enviar, int opcode);
+void actualizar_pcb(t_contexto_ejec* contexto);
 
 #endif /* SRC_PETICIONES_FS_H_ */

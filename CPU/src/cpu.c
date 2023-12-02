@@ -70,8 +70,7 @@ int main(int argc, char *argv[]) {
 	pthread_t thread_interrupt;
 	uint64_t cliente_fd = (uint64_t) esperar_cliente(socket_cpu_interrupt);
 
-	pthread_create(&thread_interrupt, NULL, manejar_interrupciones,
-			(void*) cliente_fd);
+	pthread_create(&thread_interrupt, NULL, manejar_interrupciones, (void*) cliente_fd);
 
 	pthread_detach(thread_interrupt);
 

@@ -68,11 +68,29 @@ void actualizar_lock_escritura_para_archivo(char *nombre_archivo, t_pcb* proceso
 }
 
 
+void agregar_a_array_instancias_recursos(t_list* array_instancias, int instancias_en_posesion, char* nombre_archivo){
+
+	 bool bucar_archivo(void* args){
+		 t_recurso* recurso_n = (t_recurso*)args;
+
+		 return strcmp(recurso_n->nombre_recurso, nombre_archivo) == 0;
+	 }
+
+	t_recurso* recurso_buscado = list_find(array_instancias, bucar_archivo);
+
+	if(recurso_buscado == NULL){
+		t_recurso *archivo_nuevo = recurso_new(nombre_archivo);
+		archivo_nuevo->instancias_en_posesion=instancias_en_posesion;
+		list_add(array_instancias, archivo_nuevo);
+	}
+}
 
 
 
 void agregar_recurso_a_matriz(char *nombre_archivo, int pid, t_dictionary** matriz){
 	t_list *recursos_a_devolver =  dictionary_get(*matriz, string_itoa(pid));
+
+	int cant_instancias_total_para_cada_archivo = 1;//los archivos se manejan como recursos de una unica instancia
 
 	if(recursos_a_devolver == NULL){
 		recursos_a_devolver = list_create();
@@ -84,7 +102,12 @@ void agregar_recurso_a_matriz(char *nombre_archivo, int pid, t_dictionary** matr
 		}
 
 		t_recurso * recurso_n = recurso_new(nombre_archivo);
+
 		list_add(recursos_a_devolver, recurso_n);
+
+
+		agregar_a_array_instancias_recursos(recursos_totales, cant_instancias_total_para_cada_archivo, nombre_archivo);
+
 
 		dictionary_put(*matriz,string_itoa(pid), recursos_a_devolver);
 	} else {
@@ -99,6 +122,8 @@ void agregar_recurso_a_matriz(char *nombre_archivo, int pid, t_dictionary** matr
 			t_recurso * recurso_n = recurso_new(nombre_archivo);
 
 			list_add(recursos_a_devolver, recurso_n);
+
+			agregar_a_array_instancias_recursos(recursos_totales, cant_instancias_total_para_cada_archivo, nombre_archivo);
 		}
 	}
 }
@@ -110,7 +135,7 @@ void agregar_recurso_a_matrices(char *nombre_archivo, int pid){
 
 void enviar_instruccion(t_instruccion* instruccion, int socket_a_enviar, int opcode){
 	t_paquete* paquete = crear_paquete(opcode);
-	agregar_a_paquete(paquete, instruccion->opcode,sizeof(instruccion->opcode_lenght));
+	agregar_a_paquete(paquete, instruccion->opcode,instruccion->opcode_lenght);
 	agregar_a_paquete(paquete, instruccion->parametros[0],instruccion->parametro1_lenght);
 	agregar_a_paquete(paquete, instruccion->parametros[1],instruccion->parametro2_lenght);
 	agregar_a_paquete(paquete, instruccion->parametros[2],instruccion->parametro3_lenght);
@@ -193,9 +218,6 @@ void manejar_lock_escritura(char *nombre_archivo, t_contexto_ejec* contexto, int
 		bloquear_por_espera_a_fs(proceso_ejecutando, nombre_archivo);//o mantenerlo bloqueado
 		sem_post(&m_proceso_ejecutando);
 
-		//la cantidad de recusos no se usa en este caso, asi que no importa que este en 0
-		incrementar_recurso_en_matriz(&matriz_recursos_pendientes, nombre_archivo, string_itoa(contexto->pid), 0);
-
 		poner_a_ejecutar_otro_proceso();
 	} else {
 		sem_wait(&m_proceso_ejecutando);
@@ -220,17 +242,14 @@ void manejar_lock_lectura(char *nombre_archivo, t_contexto_ejec* contexto, int s
 		bloquear_por_espera_a_fs(proceso_ejecutando, nombre_archivo);//o mantenerlo bloqueado
 		sem_post(&m_proceso_ejecutando);
 
-		//la cantidad de recusos no se usa en este caso, asi que no importa que este en 0
-		incrementar_recurso_en_matriz(&matriz_recursos_pendientes, nombre_archivo, string_itoa(contexto->pid), 0);
-
 		poner_a_ejecutar_otro_proceso();
-	}else {
+	}else {//si existe un lock lectura o no
 		sem_wait(&m_proceso_ejecutando);
 		agregar_como_participante_a_lock_lectura_para_archivo(nombre_archivo, proceso_ejecutando);
 		sem_post(&m_proceso_ejecutando);
 
 		decrementar_recurso_en_matriz(&matriz_recursos_pendientes, nombre_archivo, string_itoa(contexto->pid), 0);
-		incrementar_recurso_en_matriz(&matriz_recursos_asignados, nombre_archivo, string_itoa(contexto->pid), 0);
+		//no es necesario incrementar como recurso asignado a este proceso porque estan en modo lectura
 
 		enviar_contexto_de_ejecucion_a(contexto, PETICION_CPU, socket_cliente);
 	}
@@ -251,8 +270,27 @@ void actualizar_archivos_abiertos_por_proceso(t_pcb* proceso, char* nombre_archi
 	list_add(proceso->tabla_archivos_abiertos_del_proceso, entrada_archivo_abierto_proceso);
 }
 
+void actualizar_pcb(t_contexto_ejec* contexto){
+
+	sem_wait(&m_proceso_ejecutando);
+	proceso_ejecutando->program_counter = contexto->program_counter;
+
+	if(proceso_ejecutando->registros_CPU == NULL){
+		proceso_ejecutando->registros_CPU = contexto->registros_CPU;
+	} else {
+		proceso_ejecutando->registros_CPU->AX = contexto->registros_CPU->AX;
+		proceso_ejecutando->registros_CPU->BX = contexto->registros_CPU->BX;
+		proceso_ejecutando->registros_CPU->CX = contexto->registros_CPU->CX;
+		proceso_ejecutando->registros_CPU->DX = contexto->registros_CPU->DX;
+	}
+	sem_post(&m_proceso_ejecutando);
+
+}
+
 void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, int socket_filesystem){
 	t_contexto_ejec* contexto = recibir_contexto_de_ejecucion(socket_cpu);
+
+	actualizar_pcb(contexto);
 
 	char* nombre_archivo = strdup(contexto->instruccion->parametros[0]);
 	agregar_recurso_a_matrices(nombre_archivo, contexto->pid);
@@ -270,11 +308,7 @@ void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, int socket_filesystem){
 	//	SI EXISTE, MANDARA EL TAM DEL ARCHIVO;
 	//	SI NO EXISTE, MANDARA UN -1 Y MANDAREMOS ORDEN DE CREAR EL ARCHIVO
 
-	log_info(logger, "socket_fs: %d", socket_filesystem);//TODO borrar log
-
 	int opcode = recibir_operacion(socket_filesystem);
-	log_info(logger, "Respuesta de Fs, continuo");//TODO borrar log
-
 
 	if(opcode == MENSAJE){
 		//si el archivo no existe
@@ -305,8 +339,16 @@ void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, int socket_filesystem){
 		free(mensaje);
 
 		t_tabla_global_de_archivos_abiertos *tabla_global = dictionary_get(tabla_global_de_archivos_abiertos, nombre_archivo);
-		tabla_global->open ++;
+
+		if(tabla_global != NULL){
+			tabla_global->open ++;
+		} else {
+			crear_entrada_tabla_global_archivos_abiertos(nombre_archivo);
+		}
 	}
+
+	//para el algoritmo de deteccion, segun corresponda
+	incrementar_recurso_en_matriz(&matriz_recursos_pendientes, nombre_archivo, string_itoa(contexto->pid), 0);
 
 	//maneja los locks
 
@@ -318,7 +360,7 @@ void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, int socket_filesystem){
 		manejar_lock_lectura(nombre_archivo, contexto, socket_cpu);
 	}
 
-	//dependiendo del lock, va a seguir ejecutando el proceso o se va a bloquear y llama a otro proceso de ready, etc
+	//dependiendo del lock, va a seguir ejecutando el proceso o se va a bloquear y llama a otro proceso de ready
 
 	contexto_ejecucion_destroy(contexto);
 	return;
@@ -330,6 +372,8 @@ void enviar_a_fs_truncar_archivo(int socket_cpu, int socket_filesystem)
 
 	char* nombre_archivo = strdup(contexto->instruccion->parametros[0]);
 	char* tamanio_archivo = strdup(contexto->instruccion->parametros[1]);
+
+	actualizar_pcb(contexto);
 
 	log_info(logger,"PID: %d - Archivo: %s - Tamaño: %s",contexto->pid, nombre_archivo, tamanio_archivo);
 
@@ -378,9 +422,7 @@ void reposicionar_puntero(int cliente_fd){
 	t_contexto_ejec* contexto = (t_contexto_ejec*) recibir_contexto_de_ejecucion(cliente_fd);
 	t_instruccion* instruccion_peticion = contexto->instruccion;
 
-	sem_wait(&m_proceso_ejecutando);
-	proceso_ejecutando->program_counter = contexto->program_counter;
-	sem_post(&m_proceso_ejecutando);
+	actualizar_pcb(contexto);
 
 	char* nombre_archivo = strdup(instruccion_peticion->parametros[0]);
 	int posicion = atoi(instruccion_peticion->parametros[1]);
@@ -402,10 +444,10 @@ void reposicionar_puntero(int cliente_fd){
 void enviar_peticion_puntero_fs(op_code opcode, t_instruccion *instruccion, int puntero, int pid){
 	t_paquete* paquete = crear_paquete(opcode);
 	agregar_a_paquete_sin_agregar_tamanio(paquete, &pid, sizeof(int));
-	agregar_a_paquete(paquete, instruccion->opcode,sizeof(instruccion->opcode_lenght));
-	agregar_a_paquete(paquete, instruccion->parametros[0],sizeof(instruccion->parametro1_lenght));
-	agregar_a_paquete(paquete, instruccion->parametros[1],sizeof(instruccion->parametro2_lenght));
-	agregar_a_paquete(paquete, instruccion->parametros[2],sizeof(instruccion->parametro3_lenght));
+	agregar_a_paquete(paquete, instruccion->opcode,instruccion->opcode_lenght);
+	agregar_a_paquete(paquete, instruccion->parametros[0],instruccion->parametro1_lenght);
+	agregar_a_paquete(paquete, instruccion->parametros[1],instruccion->parametro2_lenght);
+	agregar_a_paquete(paquete, instruccion->parametros[2],instruccion->parametro3_lenght);
 	agregar_a_paquete_sin_agregar_tamanio(paquete, &puntero, sizeof(int));
 	enviar_paquete(paquete, socket_fs);
 	eliminar_paquete(paquete);
@@ -415,9 +457,7 @@ void leer_archivo(int socket_cpu){
 	t_contexto_ejec* contexto = (t_contexto_ejec*) recibir_contexto_de_ejecucion(socket_cpu);
 	t_instruccion* instruccion_peticion = contexto->instruccion;
 
-	sem_wait(&m_proceso_ejecutando);
-	proceso_ejecutando->program_counter = contexto->program_counter;
-	sem_post(&m_proceso_ejecutando);
+	actualizar_pcb(contexto);
 
 	char* nombre_archivo = strdup(instruccion_peticion->parametros[0]);
 	sem_wait(&m_proceso_ejecutando);
@@ -493,9 +533,7 @@ void escribir_archivo(int socket_cpu){
 	t_contexto_ejec* contexto = (t_contexto_ejec*) recibir_contexto_de_ejecucion(socket_cpu);
 	t_instruccion* instruccion_peticion = contexto->instruccion;
 
-	sem_wait(&m_proceso_ejecutando);
-	proceso_ejecutando->program_counter = contexto->program_counter;
-	sem_post(&m_proceso_ejecutando);
+	actualizar_pcb(contexto);
 
 	char* nombre_archivo = strdup(instruccion_peticion->parametros[0]);
 
@@ -550,11 +588,12 @@ void cerrar_archivo(int cliente_fd){
 	t_contexto_ejec* contexto = (t_contexto_ejec*) recibir_contexto_de_ejecucion(cliente_fd);
 	t_instruccion* instruccion_peticion = contexto->instruccion;
 
-	sem_wait(&m_proceso_ejecutando);
-	proceso_ejecutando->program_counter = contexto->program_counter;
-	sem_post(&m_proceso_ejecutando);
+
+	actualizar_pcb(contexto);
 
 	char* nombre_archivo = strdup(instruccion_peticion->parametros[0]);
+
+	log_info(logger, "Cerrar Archivo: “PID: %d - Cerrar Archivo: %s”", contexto->pid, nombre_archivo);
 
 	sem_wait(&m_proceso_ejecutando);
 	t_tabla_de_archivos_por_proceso *entrada_tabla_arch_abierto_proceso = obtener_entrada_archivos_abiertos_proceso(proceso_ejecutando->tabla_archivos_abiertos_del_proceso, nombre_archivo);
@@ -592,13 +631,12 @@ void cerrar_archivo(int cliente_fd){
 
 		free(tabla->file);
 		free(tabla);
+		tabla = NULL;
 	}
 
-	sem_wait(&m_proceso_ejecutando);
-	pcb_args_destroy(proceso_ejecutando);
-	sem_post(&m_proceso_ejecutando);
+	enviar_contexto_de_ejecucion_a(contexto, PETICION_CPU, cliente_fd);
+
 	contexto_ejecucion_destroy(contexto);
-	poner_a_ejecutar_otro_proceso();
 	free(nombre_archivo);
 }
 
