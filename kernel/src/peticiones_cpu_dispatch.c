@@ -61,6 +61,9 @@ void manejar_sleep(int socket_cliente){
 
 	t_instruccion* instruccion = contexto->instruccion;
 
+
+	//se actualiza el program_counter por las dudas
+	actualizar_pcb(contexto);
 	pthread_t hilo_simulacion;
 
 	sem_init(&esperar_proceso_ejecutando, 0, 0);
@@ -77,8 +80,6 @@ void manejar_sleep(int socket_cliente){
 
 	pthread_detach(hilo_simulacion);
 
-	//se actualiza el program_counter por las dudas
-	actualizar_pcb(contexto);
 
 
 	sem_wait(&esperar_proceso_ejecutando);
