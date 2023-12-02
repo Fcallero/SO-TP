@@ -24,7 +24,7 @@ t_dictionary* colas_de_procesos_bloqueados_por_pf;
 t_dictionary* recurso_bloqueado;
 pthread_mutex_t m_planificador_largo_plazo;
 pthread_mutex_t m_planificador_corto_plazo;
-
+pthread_mutex_t m_espero_respuesta_pf;
 
 void inicializar_colas_y_semaforos(){
 	cola_new = queue_create();
@@ -44,6 +44,7 @@ void inicializar_colas_y_semaforos(){
 	sem_init(&m_colas_de_procesos_bloqueados_por_pf, 0, 1);
 	pthread_mutex_init(&m_planificador_largo_plazo, NULL);
 	pthread_mutex_init(&m_planificador_corto_plazo, NULL);
+	pthread_mutex_init(&m_espero_respuesta_pf, NULL);
 }
 
 // si el proceso no es new, no es necesario el socket de memoria

@@ -691,13 +691,16 @@ void* hilo_que_maneja_pf(void* args){
 
 	eliminar_paquete(paquete);
 
-	 int cod_op = recibir_operacion(socket_memoria);
+	// int cod_op = recibir_operacion(socket_memoria);
 
-
+/*
 	 if(cod_op!=PAGE_FAULT){
 		 log_error(logger, "No se pudo recibir bloques asignados. Terminando servidor");
 		 return NULL;
 	 }
+*/
+	pthread_mutex_lock(&m_espero_respuesta_pf);
+
 	 //aca deberia llegar un ok
 	 char* mensaje = recibir_mensaje(socket_memoria);
 

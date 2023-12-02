@@ -165,25 +165,31 @@ int main(int argc, char *argv[]) {
 
 	t_args_manejar_peticiones_modulos *args_dispatch = malloc(sizeof(t_args_manejar_peticiones_modulos));
 	t_args_manejar_peticiones_modulos *args_interrupt = malloc(sizeof(t_args_manejar_peticiones_modulos));
+	t_args_manejar_peticiones_modulos *args_memoria = malloc(sizeof(t_args_manejar_peticiones_modulos));
 
 	args_dispatch->cliente_fd = socket_cpu_dispatch;
 
 	args_interrupt->cliente_fd = socket_cpu_interrupt;
 
+	args_memoria->cliente_fd = socket_memoria;
+
 	pthread_create(&hilo_planificador_corto_plazo, NULL, planificar_nuevos_procesos_corto_plazo, NULL);
 	pthread_create(&hilo_planificador_largo_plazo, NULL, planificar_nuevos_procesos_largo_plazo, NULL);
 	pthread_create(&hilo_peticiones_cpu_dispatch, NULL, escuchar_peticiones_cpu_dispatch, args_dispatch);
 	pthread_create(&hilo_peticiones_cpu_interrupt, NULL, manejar_peticiones_modulos, args_interrupt);
+	pthread_create(&hilo_peticiones_memoria, NULL, manejar_peticiones_modulos, args_memoria);
 
 	pthread_detach(hilo_peticiones_cpu_dispatch);
 	pthread_detach(hilo_peticiones_cpu_interrupt);
 	pthread_detach(hilo_planificador_largo_plazo);
+	pthread_detach(hilo_peticiones_memoria);
 
 	//espero peticiones por consola
 	levantar_consola();
 
 	free(args_dispatch);
 	free(args_interrupt);
+	free(args_memoria);
 	terminar_programa(logger, config);
 
 } //Fin del main
@@ -329,6 +335,9 @@ void* manejar_peticiones_modulos(void *args) {
 				contexto_ejecucion_destroy(contexto);
 				sem_post(&recibir_interrupcion);
 				break;
+			case PAGE_FAULT:
+				pthread_mutex_unlock(&m_espero_respuesta_pf);
+				break;
 			case -1:
 				log_error(logger, "El cliente se desconecto. Terminando servidor");
 				return NULL;
@@ -390,13 +399,7 @@ void* escuchar_peticiones_cpu_dispatch(void *args) {
 				case INTERRUPCION:
 					t_contexto_ejec *contexto = recibir_contexto_de_ejecucion(socket_cpu_dispatch);
 
-					sem_wait(&m_proceso_ejecutando);
-					proceso_ejecutando->program_counter = contexto->program_counter;
-					proceso_ejecutando->registros_CPU->AX = contexto->registros_CPU->AX;
-					proceso_ejecutando->registros_CPU->BX = contexto->registros_CPU->BX;
-					proceso_ejecutando->registros_CPU->CX = contexto->registros_CPU->CX;
-					proceso_ejecutando->registros_CPU->DX = contexto->registros_CPU->DX;
-					sem_post(&m_proceso_ejecutando);
+					actualizar_pcb(contexto);
 
 					contexto_ejecucion_destroy(contexto);
 					sem_post(&espero_desalojo_CPU);
