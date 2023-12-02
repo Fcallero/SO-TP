@@ -588,7 +588,6 @@ void cerrar_archivo(int cliente_fd){
 	t_contexto_ejec* contexto = (t_contexto_ejec*) recibir_contexto_de_ejecucion(cliente_fd);
 	t_instruccion* instruccion_peticion = contexto->instruccion;
 
-
 	actualizar_pcb(contexto);
 
 	char* nombre_archivo = strdup(instruccion_peticion->parametros[0]);
@@ -599,39 +598,72 @@ void cerrar_archivo(int cliente_fd){
 	t_tabla_de_archivos_por_proceso *entrada_tabla_arch_abierto_proceso = obtener_entrada_archivos_abiertos_proceso(proceso_ejecutando->tabla_archivos_abiertos_del_proceso, nombre_archivo);
 	sem_post(&m_proceso_ejecutando);
 
-	t_tabla_global_de_archivos_abiertos* tabla = dictionary_get(tabla_global_de_archivos_abiertos, nombre_archivo);
+	t_tabla_global_de_archivos_abiertos* tabla_global_archivo = dictionary_get(tabla_global_de_archivos_abiertos, nombre_archivo);
 
 	if(strcmp(entrada_tabla_arch_abierto_proceso->modo_apertura, "R") == 0){
-		tabla->lock_de_archivo->read_lock_count --;
+		tabla_global_archivo->lock_de_archivo->read_lock_count --;
 
 		bool esElProceso(void* arg){
 			t_pcb* proceso_n = (t_pcb*) arg;
 
 			return proceso_n->PID == contexto->pid;
 		}
-		list_remove_by_condition(tabla->lock_de_archivo->lista_locks_read, esElProceso);
+		list_remove_by_condition(tabla_global_archivo->lock_de_archivo->lista_locks_read, esElProceso);
 
 	} else {
-		tabla->lock_de_archivo->write_lock_count --;
+		tabla_global_archivo->lock_de_archivo->write_lock_count --;
 
-		if(tabla->lock_de_archivo->write_lock_count > 0){
-			t_pcb* proceso_a_desbloquear = queue_pop(tabla->lock_de_archivo->cola_locks);
-			tabla->lock_de_archivo->proceso_write_lock = proceso_a_desbloquear;
-			desbloquear_por_espera_a_fs(proceso_a_desbloquear->PID, nombre_archivo);
+		if(queue_size(tabla_global_archivo->lock_de_archivo->cola_locks) > 0){
+			t_pcb* proceso_a_desbloquear = queue_pop(tabla_global_archivo->lock_de_archivo->cola_locks);
+
+			bool esElArchivo(void* args){
+				t_tabla_de_archivos_por_proceso* entrada_n = (t_tabla_de_archivos_por_proceso*) args;
+
+				return strcmp(entrada_n->nombre_archivo, nombre_archivo) == 0;
+			}
+
+			t_tabla_de_archivos_por_proceso* entrada_arch_abierto_proceso = list_find(proceso_a_desbloquear->tabla_arch_abiertos_proceso, esElArchivo);
+
+			if(entrada_arch_abierto_proceso != NULL && strcmp(entrada_arch_abierto_proceso->modo_apertura, "R") == 0){
+				tabla_global_archivo->lock_de_archivo->proceso_write_lock = NULL;
+				desbloquear_por_espera_a_fs(proceso_a_desbloquear->PID, nombre_archivo);
+
+				t_pcb* proceso_posible_a_desbloquear;
+				t_tabla_de_archivos_por_proceso* entrada_arch_abierto_proceso_n = entrada_arch_abierto_proceso;
+				
+				while(strcmp(entrada_arch_abierto_proceso_n->modo_apertura, "R") == 0){
+					//no lo saco para evaluar si es de lectura, si lo es hace el pop para sacarlo
+					proceso_posible_a_desbloquear = queue_peek(tabla_global_archivo->lock_de_archivo->cola_locks);
+					entrada_arch_abierto_proceso_n = list_find(proceso_posible_a_desbloquear->tabla_arch_abiertos_proceso, esElArchivo);
+
+					if(strcmp(entrada_arch_abierto_proceso_n->modo_apertura, "R") == 0){
+						proceso_posible_a_desbloquear= queue_pop(tabla_global_archivo->lock_de_archivo->cola_locks);
+						desbloquear_por_espera_a_fs(proceso_posible_a_desbloquear->PID, nombre_archivo);
+					}
+				}
+
+
+			} else if(entrada_arch_abierto_proceso != NULL && strcmp(entrada_arch_abierto_proceso->modo_apertura, "W") == 0){
+				tabla_global_archivo->lock_de_archivo->proceso_write_lock = proceso_a_desbloquear;
+				desbloquear_por_espera_a_fs(proceso_a_desbloquear->PID, nombre_archivo);
+			}
+
+			
 		}
 
 	}
-	tabla->open --;
+	tabla_global_archivo->open --;
 
-	if(tabla->open == 0){
-		list_destroy(tabla->lock_de_archivo->lista_locks_read);
-		queue_destroy(tabla->lock_de_archivo->cola_locks);
-		tabla->lock_de_archivo->proceso_write_lock = NULL;
-		free(tabla->lock_de_archivo);
+	if(tabla_global_archivo->open == 0){
+		list_destroy(tabla_global_archivo->lock_de_archivo->lista_locks_read);
+		queue_destroy(tabla_global_archivo->lock_de_archivo->cola_locks);
+		tabla_global_archivo->lock_de_archivo->proceso_write_lock = NULL;
+		free(tabla_global_archivo->lock_de_archivo);
 
-		free(tabla->file);
-		free(tabla);
-		tabla = NULL;
+		free(tabla_global_archivo->file);
+		free(tabla_global_archivo);
+		
+		dictionary_remove(tabla_global_de_archivos_abiertos, nombre_archivo);
 	}
 
 	enviar_contexto_de_ejecucion_a(contexto, PETICION_CPU, cliente_fd);
