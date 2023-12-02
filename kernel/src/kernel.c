@@ -336,6 +336,9 @@ void* manejar_peticiones_modulos(void *args) {
 				sem_post(&recibir_interrupcion);
 				break;
 			case PAGE_FAULT:
+				//aca deberia llegar un ok
+	 			char* mensaje = recibir_mensaje(socket_memoria);
+				log_info(logger, "Se recibio un %s de memoria, procede el manejo del page fault", mensaje);
 				pthread_mutex_unlock(&m_espero_respuesta_pf);
 				break;
 			case -1:
