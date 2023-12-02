@@ -622,7 +622,7 @@ void cerrar_archivo(int cliente_fd){
 				return strcmp(entrada_n->nombre_archivo, nombre_archivo) == 0;
 			}
 
-			t_tabla_de_archivos_por_proceso* entrada_arch_abierto_proceso = list_find(proceso_a_desbloquear->tabla_arch_abiertos_proceso, esElArchivo);
+			t_tabla_de_archivos_por_proceso* entrada_arch_abierto_proceso = list_find(proceso_a_desbloquear->tabla_archivos_abiertos_del_proceso, esElArchivo);
 
 			if(entrada_arch_abierto_proceso != NULL && strcmp(entrada_arch_abierto_proceso->modo_apertura, "R") == 0){
 				tabla_global_archivo->lock_de_archivo->proceso_write_lock = NULL;
@@ -634,7 +634,7 @@ void cerrar_archivo(int cliente_fd){
 				while(strcmp(entrada_arch_abierto_proceso_n->modo_apertura, "R") == 0){
 					//no lo saco para evaluar si es de lectura, si lo es hace el pop para sacarlo
 					proceso_posible_a_desbloquear = queue_peek(tabla_global_archivo->lock_de_archivo->cola_locks);
-					entrada_arch_abierto_proceso_n = list_find(proceso_posible_a_desbloquear->tabla_arch_abiertos_proceso, esElArchivo);
+					entrada_arch_abierto_proceso_n = list_find(proceso_posible_a_desbloquear->tabla_archivos_abiertos_del_proceso, esElArchivo);
 
 					if(strcmp(entrada_arch_abierto_proceso_n->modo_apertura, "R") == 0){
 						proceso_posible_a_desbloquear= queue_pop(tabla_global_archivo->lock_de_archivo->cola_locks);
