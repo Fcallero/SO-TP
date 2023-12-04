@@ -64,9 +64,11 @@ int main(int argc, char* argv[]) {
 		char* path_directorio_actual =malloc(PATH_MAX);
 		getcwd(path_directorio_actual, PATH_MAX);
 
-		path_fat = string_replace(path_fat_relativo, ".", path_directorio_actual);
-		path_bloques = string_replace(path_bloques_relativo, ".", path_directorio_actual);
-		path_fcb = string_replace(path_fcb_relativo, ".", path_directorio_actual);
+		string_append(&path_directorio_actual, "/");
+
+		path_fat = string_replace(path_fat_relativo, "./", path_directorio_actual);
+		path_bloques = string_replace(path_bloques_relativo, "./", path_directorio_actual);
+		path_fcb = string_replace(path_fcb_relativo, "./", path_directorio_actual);
 
 
 	/*-------------------------------CONEXIONES KERNEL---------------------------------------------------------------*/

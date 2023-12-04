@@ -1,8 +1,8 @@
 #!/bin/bash
 
 
-rm /home/utnso/fs/bloques.dat
+rm ./fs/bloques.dat
 
-rm /home/utnso/fs/fat.dat
+rm ./fs/fat.dat
 
-rm /home/utnso/fs/fcbs/*
+rm ./fs/fcbs/*
