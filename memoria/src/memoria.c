@@ -87,6 +87,7 @@ int main(int argc, char *argv[]) {
 		marco_n->numero_marco = i;
 		marco_n->posicion_inicio_marco = i*tam_pagina;
 		marco_n->esLibre = true;
+		marco_n->pid=0;
 		list_add(situacion_marcos, marco_n);
 	}
 

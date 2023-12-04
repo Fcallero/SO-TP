@@ -10,7 +10,7 @@ t_fcb* iniciar_fcb(t_config* config){
 
 	t_fcb* fcb = malloc(sizeof(t_fcb));
 
-	fcb->nombre_archivo = config_get_string_value(config, "NOMBRE_ARCHIVO");
+	fcb->nombre_archivo = strdup(config_get_string_value(config, "NOMBRE_ARCHIVO"));//duplico porque luego se libera el t_config
 	fcb->tamanio_archivo = config_get_int_value(config, "TAMANIO_ARCHIVO");
 	fcb->bloque_inicial = config_get_int_value(config, "BLOQUE_INICIAL");
 
