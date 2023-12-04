@@ -95,7 +95,6 @@ int main(int argc, char *argv[]) {
 		terminar_programa(logger, config);
 	}
 
-	log_info(logger, "socket_fs: %d", socket_fs);//TODO borrar log
 
 	log_info(logger,
 			"El Kernel se conecto con el modulo Filesystem correctamente");

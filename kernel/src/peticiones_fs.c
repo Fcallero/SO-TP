@@ -163,8 +163,10 @@ void crear_entrada_tabla_global_archivos_abiertos(char *nombre_archivo){
 
 void bloquear_por_espera_a_fs(t_pcb* proceso_a_bloquear, char*nombre_archivo){
 	//Si no existe el archivo en el diccionario, lo creo.
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_bloquear->PID, "EXEC","BLOC");
-	log_info(logger, "PID: %d - Bloqueado por: %s", proceso_a_bloquear->PID, nombre_archivo);
+	log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", proceso_a_bloquear->PID, "EXEC","BLOC");
+	log_info(logger, "Motivo de Bloqueo: “PID: %d - Bloqueado por: %s“", proceso_a_bloquear->PID, nombre_archivo);
+
+	actualizar_estado_a_pcb(proceso_a_bloquear, "BLOC");
 
 	if(!dictionary_has_key(colas_de_procesos_bloqueados_para_cada_archivo, nombre_archivo)){
 		t_queue* cola_bloqueados = queue_create();
@@ -201,7 +203,9 @@ void desbloquear_por_espera_a_fs(int pid, char*nombre_archivo){
 				queue_push(cola_bloqueados, pcb_a_desbloquear);
 			}
 		}
-		log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", pid, "BLOC","READY");
+		log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", pid, "BLOC","READY");
+
+		actualizar_estado_a_pcb(pcb_a_desbloquear, "READY");
 
 		pasar_a_ready(pcb_a_desbloquear);
 	}
@@ -295,7 +299,7 @@ void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, int socket_filesystem){
 	char* nombre_archivo = strdup(contexto->instruccion->parametros[0]);
 	agregar_recurso_a_matrices(nombre_archivo, contexto->pid);
 
-	log_info(logger,"PID %d - ABRIR ARCHIVO: %s",contexto->pid, nombre_archivo);
+	log_info(logger,"Abrir Archivo: “PID %d - ABRIR ARCHIVO: %s“",contexto->pid, nombre_archivo);
 
 	char *modo_apertura =  strdup(contexto->instruccion->parametros[1]);
 	sem_wait(&m_proceso_ejecutando);
@@ -375,7 +379,7 @@ void enviar_a_fs_truncar_archivo(int socket_cpu, int socket_filesystem)
 
 	actualizar_pcb(contexto);
 
-	log_info(logger,"PID: %d - Archivo: %s - Tamaño: %s",contexto->pid, nombre_archivo, tamanio_archivo);
+	log_info(logger,"Truncar Archivo: “PID: %d - Archivo: %s - Tamaño: %s“",contexto->pid, nombre_archivo, tamanio_archivo);
 
 	//ya recibimos la instruccion con los parametros, ahora hay que mandarle a filesystem la orden
 	enviar_instruccion(contexto->instruccion, socket_filesystem, TRUNCAR_ARCHIVO);
@@ -432,7 +436,7 @@ void reposicionar_puntero(int cliente_fd){
 	sem_post(&m_proceso_ejecutando);
 	entrada_tabla_arch_por_proceso->puntero_posicion= posicion;
 
-	log_info(logger, "PID: %d - Actualizar puntero Archivo: %s - Puntero %d", contexto->pid, nombre_archivo, posicion);
+	log_info(logger, "Actualizar Puntero Archivo: “PID: %d - Actualizar puntero Archivo: %s - Puntero %d“", contexto->pid, nombre_archivo, posicion);
 
 	// continua con el mismo proceso
 	enviar_contexto_de_ejecucion_a(contexto, PETICION_CPU, cliente_fd);
@@ -468,7 +472,7 @@ void leer_archivo(int socket_cpu){
 	char* direccion_fisica = strdup(instruccion_peticion->parametros[1]);
 	char* bytes_a_leer_string = strdup(instruccion_peticion->parametros[2]);
 
-	log_info(logger, "PID: %d - Leer Archivo: %s - Puntero %d - Dirección Memoria %s - Tamaño %s", contexto->pid, nombre_archivo, puntero, direccion_fisica, bytes_a_leer_string);
+	log_info(logger, "Leer Archivo: “PID: %d - Leer Archivo: %s - Puntero %d - Dirección Memoria %s - Tamaño %s“", contexto->pid, nombre_archivo, puntero, direccion_fisica, bytes_a_leer_string);
 
 	free(direccion_fisica);
 	free(bytes_a_leer_string);
@@ -512,8 +516,8 @@ void finalizar_por_invalid_write_proceso_ejecutando(t_contexto_ejec** contexto){
 
 	eliminar_paquete(paquete);
 
-	log_info(logger, "Finaliza el proceso %d - Motivo: INVALID_WRITE", proceso_ejecutando->PID);
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_ejecutando->PID, "EXEC","EXIT");
+	log_info(logger, "Fin de Proceso: “Finaliza el proceso %d - Motivo: INVALID_WRITE“", proceso_ejecutando->PID);
+	log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", proceso_ejecutando->PID, "EXEC","EXIT");
 
 	sem_wait(&m_cola_exit);
 	queue_push(cola_exit, string_itoa(proceso_ejecutando->PID));
@@ -545,7 +549,7 @@ void escribir_archivo(int socket_cpu){
 	char* direccion_fisica = strdup(instruccion_peticion->parametros[1]);
 	char* bytes_a_escribir_string = strdup(instruccion_peticion->parametros[2]);
 
-	log_info(logger, "PID: %d - Escribir Archivo: %s - Puntero %d - Dirección Memoria %s - Tamaño %s", contexto->pid, nombre_archivo, puntero, direccion_fisica, bytes_a_escribir_string);
+	log_info(logger, "Escribir Archivo: “PID: %d - Escribir Archivo: %s - Puntero %d - Dirección Memoria %s - Tamaño %s“", contexto->pid, nombre_archivo, puntero, direccion_fisica, bytes_a_escribir_string);
 
 	free(bytes_a_escribir_string);
 	free(direccion_fisica);

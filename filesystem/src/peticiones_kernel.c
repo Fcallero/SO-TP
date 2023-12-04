@@ -30,11 +30,9 @@ void abrir_archivo(int cliente_fd){
 	//VARIABLES Y DATOS PARA LA FUNCION
 	t_instruccion* instruccion = recibir_instruccion(cliente_fd);
 
-	log_info(logger, "socket_kernel: %d", cliente_fd);//TODO borrar log
-
 	char* nombre_archivo = strdup(instruccion->parametros[0]);
 
-	log_info(logger, "Abrir Archivo: %s", nombre_archivo);
+	log_info(logger, "Apertura de Archivo: “Abrir Archivo: %s“", nombre_archivo);
 
 	char* direccion_fcb = string_new();
 	string_append(&direccion_fcb, path_fcb);
@@ -69,7 +67,6 @@ void abrir_archivo(int cliente_fd){
 
 			log_info(logger, "El archivo %s no se encontro ", nombre_archivo);
 			//Doy aviso a Kernel
-			log_info(logger, "socket_kernel: %d", cliente_fd);//TODO borrar log
 			enviar_mensaje("-1", cliente_fd, MENSAJE);
 
 		}
@@ -108,7 +105,7 @@ void crear_archivo(int cliente_fd){
 
 	char* nombre_archivo = strdup(instruccion->parametros[0]);
 
-	log_info(logger, "Crear Archivo: %s", nombre_archivo);
+	log_info(logger, "Crear Archivo: “Crear Archivo: %s“", nombre_archivo);
 
 	char* direccion_fcb = string_new();
 	string_append(&direccion_fcb, path_fcb);
@@ -151,7 +148,7 @@ void agregar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_agregar){
 		posicion_fat = primer_bloque_fat;
 
 		while(bits_fat[posicion_fat] != 0){ //Bucle auxiliar para encontrar un bloque libre
-			log_info(logger, "Acceso a FAT buscando bloque libre: - Entrada: %d - Valor: %d", posicion_fat, bits_fat[posicion_fat]);
+			log_info(logger, "Acceso a FAT: “Acceso FAT buscando bloque libre: - Entrada: %d - Valor: %d“", posicion_fat, bits_fat[posicion_fat]);
 			posicion_fat ++;
 		}
 
@@ -160,7 +157,7 @@ void agregar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_agregar){
 	}
 
 	while(bits_fat[posicion_fat] != UINT32_MAX){
-		log_info(logger, "Acceso a FAT - Entrada: %d - Valor: %d", posicion_fat, bits_fat[posicion_fat]);
+		log_info(logger, "Acceso a FAT: “Acceso a FAT - Entrada: %d - Valor: %d“", posicion_fat, bits_fat[posicion_fat]);
 		posicion_fat = bits_fat[posicion_fat];
 	}
 
@@ -174,16 +171,16 @@ void agregar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_agregar){
 
 		//busco un bloque libre
 		while(bits_fat[aux_busqueda] != 0){ //Bucle auxiliar para encontrar un bloque libre
-			log_info(logger, "Acceso a FAT buscando bloque libre: - Entrada: %d - Valor: %d", aux_busqueda, bits_fat[aux_busqueda]);
+			log_info(logger, "Acceso a FAT: “Acceso a FAT buscando bloque libre: - Entrada: %d - Valor: %d“", aux_busqueda, bits_fat[aux_busqueda]);
 			aux_busqueda ++;
 		}
 		//Encontrado el bloque libre al anterior le asigno el encontrado en la fat (donde antes estaba el uint32_max )
-		log_info(logger, "Acceso a FAT - Entrada: %d - Valor: %d", num_bloque_anterior, bits_fat[num_bloque_anterior]);
+		log_info(logger, "Acceso a FAT: “Acceso a FAT - Entrada: %d - Valor: %d“", num_bloque_anterior, bits_fat[num_bloque_anterior]);
 		bits_fat[num_bloque_anterior] = aux_busqueda;
 		bloques_restantes_por_agregar --;
 
 		// y al encontrado un uint32_max por si es el ulimo, sino en la proxima iteracion del while lo cambia por el numero al siguiente bloque
-		log_info(logger, "Acceso a FAT - Entrada: %d - Valor: %d", aux_busqueda, bits_fat[aux_busqueda]);
+		log_info(logger, "Acceso a FAT: “Acceso a FAT - Entrada: %d - Valor: %d“", aux_busqueda, bits_fat[aux_busqueda]);
 		bits_fat[aux_busqueda] = UINT32_MAX;
 		num_bloque_anterior=aux_busqueda;
 
@@ -201,7 +198,7 @@ void sacar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_sacar, int bloques_act
 	uint32_t posicion_fat = fcb_a_actualizar->bloque_inicial;
 
 	for(int i = 1; i<bloques_actual+1; i++){
-		log_info(logger, "Acceso a FAT - Entrada: %d - Valor: %d", posicion_fat, bits_fat[posicion_fat]);
+		log_info(logger, "Acceso a FAT: “Acceso a FAT - Entrada: %d - Valor: %d“", posicion_fat, bits_fat[posicion_fat]);
 		punteros_en_orden[i]= bits_fat[posicion_fat];
 		posicion_fat++;
 	}
@@ -210,9 +207,9 @@ void sacar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_sacar, int bloques_act
 	int bloques_a_sacar_inicial = bloques_a_sacar;
 	while(bloques_a_sacar != 0){
 
-		log_info(logger, "Acceso a FAT - Entrada: %d - Valor: %d", punteros_en_orden[num_ultimo_bloque], bits_fat[punteros_en_orden[num_ultimo_bloque]]);
+		log_info(logger, "Acceso a FAT: “Acceso a FAT - Entrada: %d - Valor: %d“", punteros_en_orden[num_ultimo_bloque], bits_fat[punteros_en_orden[num_ultimo_bloque]]);
 		bits_fat[punteros_en_orden[num_ultimo_bloque]] = 0;
-		log_info(logger, "Acceso a FAT - Entrada: %d - Valor: %d", punteros_en_orden[num_ultimo_bloque-1], bits_fat[punteros_en_orden[num_ultimo_bloque-1]]);
+		log_info(logger, "Acceso a FAT: “Acceso a FAT - Entrada: %d - Valor: %d“", punteros_en_orden[num_ultimo_bloque-1], bits_fat[punteros_en_orden[num_ultimo_bloque-1]]);
 		bits_fat[punteros_en_orden[num_ultimo_bloque-1]] = UINT32_MAX;
 
 
@@ -223,7 +220,7 @@ void sacar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_sacar, int bloques_act
 
 	//saco el ultimo bloque para que tenga 0 si debo sacarle todos
 	if(bloques_a_sacar_inicial == bloques_actual){
-		printf("Acceso a FAT - Entrada: %d - Valor: %d\n", punteros_en_orden[num_ultimo_bloque], bits_fat[punteros_en_orden[num_ultimo_bloque]]);
+		log_info(logger, "Acceso a FAT: “Acceso a FAT - Entrada: %d - Valor: %d“", punteros_en_orden[num_ultimo_bloque], bits_fat[punteros_en_orden[num_ultimo_bloque]]);
 		bits_fat[punteros_en_orden[num_ultimo_bloque]] = 0;
 
 		fcb_a_actualizar->bloque_inicial = -1;
@@ -241,7 +238,7 @@ void truncar_archivo(int cliente_fd){
 		int nuevo_tamano_archivo = atoi(instruccion_peticion->parametros[1]);
 
 
-		log_info(logger, "Truncar Archivo: %s - Tamaño: %d", nombre_archivo, nuevo_tamano_archivo);
+		log_info(logger, "Truncate de Archivo: “Truncar Archivo: %s - Tamaño: %d“", nombre_archivo, nuevo_tamano_archivo);
 		t_fcb* fcb_a_truncar = dictionary_get(fcb_por_archivo, nombre_archivo);
 
 
@@ -328,8 +325,6 @@ void escribir_archivo_fs(int cliente_fd){
 	agregar_a_paquete(paquete, instruccion->parametros[2],instruccion->parametro3_lenght);
 	enviar_paquete(paquete, socket_memoria);
 
-	log_info(logger, "socket_memoria enviado: %d y socket_kernel: %d y socket_fs: %d", socket_memoria, cliente_fd, socket_fs);//TODO borrar log
-
 	op_code cod_op = recibir_operacion(socket_memoria);
 
 	if(cod_op != READ_MEMORY){
@@ -349,11 +344,11 @@ void escribir_archivo_fs(int cliente_fd){
 		int aux_busqueda_fat = fcb->bloque_inicial;
 
 		while(i < bloque_a_escribir){
-			log_info(logger, "Acceso a FAT - Entrada: %d - Valor: %d", aux_busqueda_fat, bits_fat[aux_busqueda_fat]);
+			log_info(logger, "Acceso a FAT: “Acceso a FAT - Entrada: %d - Valor: %d“", aux_busqueda_fat, bits_fat[aux_busqueda_fat]);
 			aux_busqueda_fat = bits_fat[aux_busqueda_fat];
 			i++;
 		}
-		log_info(logger, "Acceso a bloque - Archivo: %s - Bloque archivo: %d - Bloque FS: %d", nombre_archivo, bloque_a_escribir, aux_busqueda_fat);
+		log_info(logger, "Acceso a Bloque Archivo: “Acceso a bloque - Archivo: %s - Bloque archivo: %d - Bloque FS: %d“", nombre_archivo, bloque_a_escribir, aux_busqueda_fat);
 
 		memcpy(array_bloques[aux_busqueda_fat], contenido_a_escribir, tam_bloque);
 
@@ -399,12 +394,12 @@ void leer_archivo_fs(int cliente_fd){
 		int aux_busqueda_fat = fcb->bloque_inicial;
 
 		while(i < bloque_a_leer){
-			log_info(logger, "Acceso a FAT - Entrada: %d - Valor: %d", aux_busqueda_fat, bits_fat[aux_busqueda_fat]);
+			log_info(logger, "Acceso a FAT: “Acceso a FAT - Entrada: %d - Valor: %d“", aux_busqueda_fat, bits_fat[aux_busqueda_fat]);
 			aux_busqueda_fat = bits_fat[aux_busqueda_fat];
 			i++;
 		}
 
-		log_info(logger, "Acceso a bloque - Archivo: %s - Bloque archivo: %d - Bloque FS: %d ", nombre_archivo, bloque_a_leer, aux_busqueda_fat);
+		log_info(logger, "Acceso a Bloque Archivo: “Acceso a bloque - Archivo: %s - Bloque archivo: %d - Bloque FS: %d“", nombre_archivo, bloque_a_leer, aux_busqueda_fat);
 		void *contenido_leido = array_bloques[aux_busqueda_fat];
 
 		char* aux_direccion_fisica = strdup(instruccion->parametros[0]);

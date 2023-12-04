@@ -296,13 +296,12 @@ void finalizar_proceso(int cliente_fd){
 	}
 	list_iterator_destroy(iterador_lista);
 
-	esperar_por(retardo_respuesta);
 
 	//limpiar las referencias a este proceso
 	limpiar_referencias_proceso(pid);
 
 	//destruir TP
-	log_info(logger,"PID: %d - Tamaño: %d",pid,cant_paginas_proceso);
+	log_info(logger,"Destrucción de Tabla de Páginas: “PID: %d - Tamaño: %d”",pid,cant_paginas_proceso);
 
 	list_destroy_and_destroy_elements(lista_de_marcos, free);
 
@@ -344,13 +343,11 @@ void crear_proceso(int cliente_fd){
 	memcpy(&tamanio,buffer,sizeof(int));
 	memcpy(&pid,buffer+sizeof(int),sizeof(int));
 
-	log_info(logger, "socket_kernel: %d", cliente_fd);//TODO borrar log
-
-	esperar_por(retardo_respuesta);
 
 	 t_paquete* paquete = crear_paquete(INICIAR_PROCESO);
 
 	 agregar_a_paquete_sin_agregar_tamanio(paquete,&tamanio,sizeof(int));
+
 	 enviar_paquete(paquete,socket_fs);
 
 	 eliminar_paquete(paquete);
@@ -388,7 +385,7 @@ void crear_proceso(int cliente_fd){
 		 list_add(lista_de_marcos_x_procesos,tabla_por_proceso);
 	}
 
-	log_info(logger,"PID: %d - Tamaño: %d",pid,cant_paginas);
+	log_info(logger,"Creación de Tabla de Páginas: “PID: %d - Tamaño: %d”",pid,cant_paginas);
 
 	dictionary_put(paginas_por_PID,string_itoa(pid),lista_de_marcos_x_procesos);
 
@@ -424,21 +421,22 @@ void devolver_marco(int cliente_fd){
 
 	t_tabla_de_paginas* entrada_de_pagina =list_get(lista_de_marcos,numero_pagina);
 
-
-
-	esperar_por(retardo_respuesta);
-
 	//a cpu  por ACCESO_A_PAGINA
 	if(entrada_de_pagina->presencia){
 		t_paquete* paquete=crear_paquete(ACCESO_A_PAGINA);
 		agregar_a_paquete_sin_agregar_tamanio(paquete,&(entrada_de_pagina->marco),sizeof(int));
 
 		//log obligatorio solo cuando se encuentra
-		log_info(logger,"PID: %d - Pagina: %d - Marco: %d",pid_entero,numero_pagina,entrada_de_pagina->marco);
+		log_info(logger,"Acceso a Tabla de Páginas: “PID: %d - Pagina: %d - Marco: %d”",pid_entero,numero_pagina,entrada_de_pagina->marco);
+
+
+		esperar_por(retardo_respuesta);
 
 		enviar_paquete(paquete,cliente_fd);
 	}
 	else{
+		esperar_por(retardo_respuesta);
+
 		enviar_mensaje("No se encontro en memoria el marco buscado :(",cliente_fd,PAGE_FAULT);
 
 	}
@@ -463,7 +461,7 @@ void *obtener_contenido_de_marco(int numero_marco, int pid){
 	void* contenido = malloc(tam_pagina);
 
 	t_situacion_marco* situacion_marco = obtener_situacion_marco(numero_marco);
-	log_info(logger,"PID: %d - Accion: LEER - Direccion fisica Marco: %d",pid,situacion_marco->posicion_inicio_marco);//TODO borrar log
+	log_info(logger,"Acceso a espacio de usuario: “PID: %d - Accion: LEER - Direccion fisica Marco: %d“",pid,situacion_marco->posicion_inicio_marco);
 
 	memcpy(contenido, espacio_usuario+situacion_marco->posicion_inicio_marco, tam_pagina);
 	return contenido;
@@ -482,12 +480,12 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 	t_list* paginas_del_proceso =dictionary_get(paginas_por_PID,string_itoa(pid));
 	t_tabla_de_paginas* pagina_a_actualizar =list_get(paginas_del_proceso,numero_pagina);
 
-	esperar_por(retardo_respuesta);
-	//log obligatorio
+
 
 	 t_paquete* paquete = crear_paquete(LEER_CONTENIDO_PAGINA);
 
 	 agregar_a_paquete_sin_agregar_tamanio(paquete,&(pagina_a_actualizar->posicion_swap),sizeof(int));
+
 	 enviar_paquete(paquete,socket_fs);
 
 	 eliminar_paquete(paquete);
@@ -541,10 +539,7 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 		{
 			//actualiza en el bloque de swap la pagina modificada de memoria
 
-			esperar_por(retardo_respuesta);
-
-			//Escritura de Página en SWAP: “SWAP OUT -  PID: <PID> - Marco: <MARCO> - Page Out: <PID>-<NRO_PAGINA>”
-			log_info(logger,"SWAP OUT -  PID: %d - Marco: %d - Page Out: %d-%d",pid,marco->marco,marco_a_guardar->pid,pagina_a_reemplazar);
+			log_info(logger,"Escritura de Página en SWAP: “SWAP OUT -  PID: %d - Marco: %d - Page Out: %d-%d”",pid,marco->marco,marco_a_guardar->pid,pagina_a_reemplazar);
 
 
 			void *contenido_acutualizado = obtener_contenido_de_marco(marco->marco, pid);
@@ -552,7 +547,6 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 			agregar_a_paquete_sin_agregar_tamanio(paquete, &(marco->posicion_swap), sizeof(uint32_t));
 			agregar_a_paquete_sin_agregar_tamanio(paquete, contenido_acutualizado, tam_pagina);
 
-			enviar_paquete(paquete, socket_fs);
 			eliminar_paquete(paquete);
 
 			int cod_op = recibir_operacion(socket_fs);
@@ -572,9 +566,9 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 
 
 
-		log_info(logger," “REEMPLAZO - Marco: %d - Page Out: %d-%d - Page In: %d-%d",numero_marco,marco_a_guardar->pid,pagina_a_reemplazar,pid,numero_pagina);
+		log_info(logger,"Reemplazo Página: “REEMPLAZO - Marco: %d - Page Out: %d-%d - Page In: %d-%d“",numero_marco,marco_a_guardar->pid,pagina_a_reemplazar,pid,numero_pagina);
 
-		log_info(logger,"SWAP IN -  PID: %d - Marco: %d - Page In: %d-%d",pid,marco_a_guardar->numero_marco,pid,numero_pagina);
+		log_info(logger,"Lectura de Página de SWAP: “SWAP IN -  PID: %d - Marco: %d - Page In: %d-%d“",pid,marco_a_guardar->numero_marco,pid,numero_pagina);
 
 		reemplazar_marco(contenido_bloque,pid,pagina_a_actualizar,marco_a_guardar);
 	}else{
@@ -585,7 +579,7 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 		}
 		t_situacion_marco* marco_a_guardar = list_find(situacion_marcos,esMarcoLibre);
 
-		log_info(logger,"SWAP IN -  PID: %d - Marco: %d - Page In: %d-%d",pid,pagina_a_actualizar->marco,pid,numero_pagina);
+		log_info(logger,"Lectura de Página de SWAP: “SWAP IN -  PID: %d - Marco: %d - Page In: %d-%d“",pid,pagina_a_actualizar->marco,pid,numero_pagina);
 
 		reemplazar_marco(contenido_bloque,pid,pagina_a_actualizar,marco_a_guardar);
 
@@ -594,10 +588,11 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 
 	log_info(logger, "sustitucion terminada, procedo llamando a kernel");//TODO borrar log
 
+	esperar_por(retardo_respuesta);
+
 	enviar_mensaje("OK",cliente_fd,PAGE_FAULT);
 }
 
-//	int list_iterator_index(t_list_iterator* iterator);
 
 int obtener_pagina_a_reemplazar(int numero_marco,int pid){
 
@@ -620,7 +615,7 @@ int obtener_pagina_a_reemplazar(int numero_marco,int pid){
 
 void reemplazar_marco(void*contenido_bloque,int pid,t_tabla_de_paginas*pagina_a_actualizar,t_situacion_marco* marco_a_guardar){
 
-	log_info(logger,"PID: %d - Accion: ESCRIBIR - Direccion fisica Marco: %d",pid,marco_a_guardar->posicion_inicio_marco);//TODO borrar log
+	log_info(logger,"Acceso a espacio de usuario: “PID: %d - Accion: ESCRIBIR - Direccion fisica Marco: %d“",pid,marco_a_guardar->posicion_inicio_marco);
 
 	memcpy(espacio_usuario+marco_a_guardar->posicion_inicio_marco,contenido_bloque,tam_pagina);
 	marco_a_guardar->esLibre=false;
@@ -657,7 +652,7 @@ int aplicarFifo(){
 		int numero_pagina_a_buscar=referencia_victima->numero_pagina;
 		char* pid_pagina_a_buscar=referencia_victima->pid;
 
-		log_info(logger,"PID: %s - pagina a buscar: %d",pid_pagina_a_buscar,numero_pagina_a_buscar);//TODO borrar log
+		log_info(logger,"PID: %s - Pagina a buscar: %d",pid_pagina_a_buscar,numero_pagina_a_buscar);
 
 
 		void esPaginaPresente(char*pid,void*args){
@@ -762,15 +757,17 @@ void read_memory(int cliente_fd){
 
 	void* contenido = malloc(tam_pagina+1);
 
-	esperar_por(retardo_respuesta);
 
-	log_info(logger,"PID: %d - Accion: LEER - Direccion fisica: %d",pid,direccion_fisica);
+	log_info(logger,"Acceso a espacio de usuario: “PID: %d - Accion: LEER - Direccion fisica: %d“",pid,direccion_fisica);
 
 	memcpy(contenido, espacio_usuario+direccion_fisica, tam_pagina);
 
 
 	t_paquete* paquete = crear_paquete(READ_MEMORY);
 	agregar_a_paquete_sin_agregar_tamanio(paquete, contenido, tam_pagina);
+
+	esperar_por(retardo_respuesta);
+
 	enviar_paquete(paquete, cliente_fd);
 
 	eliminar_paquete(paquete);
@@ -816,12 +813,11 @@ void write_memory(int cliente_fd){
 	t_tabla_de_paginas* entrada_TP=list_find(lista_de_TP,esMarcoBuscado);
 	entrada_TP->modificado=true;
 
-	esperar_por(retardo_respuesta);
-
-	log_info(logger,"PID: %d - Accion: ESCRIBIR - Direccion fisica: %d",pid,direccion_fisica);
+	log_info(logger,"Acceso a espacio de usuario: “PID: %d - Accion: ESCRIBIR - Direccion fisica: %d“",pid,direccion_fisica);
 
 	memcpy(espacio_usuario+direccion_fisica, &valor_a_escribir, sizeof(uint32_t));
 
+	esperar_por(retardo_respuesta);
 
 	enviar_mensaje("OK",cliente_fd,WRITE_MEMORY);
 
@@ -865,12 +861,12 @@ void write_memory_fs(int cliente_fd){
 	t_tabla_de_paginas* entrada_TP=list_find(lista_de_TP,esMarcoBuscado);
 	entrada_TP->modificado=true;
 
-	esperar_por(retardo_respuesta);
 
-	log_info(logger,"PID: %d - Accion: ESCRIBIR - Direccion fisica: %d",pid,direccion_fisica);
+	log_info(logger,"Acceso a espacio de usuario: “PID: %d - Accion: ESCRIBIR - Direccion fisica: %d“",pid,direccion_fisica);
 
 	memcpy(espacio_usuario+direccion_fisica, valor_a_escribir, tam_pagina);
 
+	esperar_por(retardo_respuesta);
 
 	enviar_mensaje("OK",cliente_fd,WRITE_MEMORY_FS);
 

@@ -20,19 +20,22 @@ void setear_registro(t_contexto_ejec** contexto, char* registro, uint32_t valor)
 	if(strcmp(registro,"AX")==0)
 	{
 		(*contexto)->registros_CPU->AX=valor;
-
-		log_info(logger, "se guarda AX: %d", (*contexto)->registros_CPU->AX);//TODO borrar log
+		log_info(logger, "Se setea en %s el valor: %d",registro,  (*contexto)->registros_CPU->AX);
 
 	}else if(strcmp(registro,"BX")==0)
 	{
 		(*contexto)->registros_CPU->BX=valor;
+		log_info(logger, "Se setea en %s el valor: %d",registro,  (*contexto)->registros_CPU->BX);
 	}else if(strcmp(registro,"CX")==0)
 	{
 		(*contexto)->registros_CPU->CX=valor;
+		log_info(logger, "Se setea en %s el valor: %d",registro,  (*contexto)->registros_CPU->CX);
 	}else if(strcmp(registro,"DX")==0)
 	{
 		(*contexto)->registros_CPU->DX=valor;
+		log_info(logger, "Se setea en %s el valor: %d",registro,  (*contexto)->registros_CPU->DX);
 	}
+
 }
 
 void manejar_instruccion_sum(t_contexto_ejec** contexto_actual,t_instruccion* instruccion)
@@ -112,10 +115,7 @@ uint32_t obtener_valor_del_registro(char* registro_a_leer, t_contexto_ejec** con
 
 	if(strcmp(registro_a_leer,"AX")==0)
 	{
-
-	log_info(logger, "se va a guardar valor(antes): %d", (*contexto_actual)->registros_CPU->AX);//TODO borrar log
-	valor_leido= (*contexto_actual)->registros_CPU->AX;
-
+		valor_leido= (*contexto_actual)->registros_CPU->AX;
 
 	}else if(strcmp(registro_a_leer,"BX")==0)
 	{
@@ -132,7 +132,8 @@ uint32_t obtener_valor_del_registro(char* registro_a_leer, t_contexto_ejec** con
 		valor_leido= (*contexto_actual)->registros_CPU->DX;
 	}
 
-	log_info(logger, "se va a guardar valor(despues): %d", valor_leido);//TODO borrar log
+	log_info(logger, "Se se lee en %s el valor: %d",registro_a_leer,  valor_leido);
+
 	return valor_leido;
 }
 
@@ -161,7 +162,7 @@ int solicitar_marco(int numero_pagina, int pid){
 	} else if(cod_op == PAGE_FAULT) { // sino significaria page fault
 
 		char* mensaje = recibir_mensaje(socket_memoria);
-		log_info(logger, "Se recibio: \"%s\" de memoria", mensaje);
+		log_info(logger, "Se recibio: “%s“ de memoria", mensaje);
 		free(mensaje);
 		return -1;
 	} else {
@@ -179,7 +180,7 @@ int traducir_direccion_logica(int direccion_logica, int pid, t_contexto_ejec* co
 	int marco_pagina = solicitar_marco(numero_pagina,pid);
 
 	if(marco_pagina == -1){
-		log_info(logger, "Page Fault PID: %d - Página: %d", pid, numero_pagina);
+		log_info(logger, "Page Fault: “Page Fault PID: %d - Página: %d“", pid, numero_pagina);
 		// AVISO A KERNEL PARA QUE MANEJE EL PAGE fAULT
 
 		t_paquete *paquete_contexto = crear_paquete(PAGE_FAULT);
@@ -203,7 +204,7 @@ int traducir_direccion_logica(int direccion_logica, int pid, t_contexto_ejec* co
 
 		return -1; // page fault
 	} else {
-		log_info(logger, "PID: %d - OBTENER MARCO - Página: %d - Marco: %d", pid, numero_pagina, marco_pagina);
+		log_info(logger, "Obtener Marco: “PID: %d - OBTENER MARCO - Página: %d - Marco: %d“", pid, numero_pagina, marco_pagina);
 	}
 
 	return desplazamiento + marco_pagina * tamano_pagina;
@@ -283,7 +284,7 @@ void guardar_valor_en(int direccion_fisica, uint32_t valor_a_guardar, int pid){
 		char* mensaje = recibir_mensaje(socket_memoria);
 
 		if(strcmp(mensaje,"OK") == 0){
-			log_info(logger,"PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %d ", pid, direccion_fisica, valor_a_guardar);
+			log_info(logger,"Escritura Memoria: “PID: %d - Acción: ESCRIBIR - Dirección Física: %d - Valor: %d“", pid, direccion_fisica, valor_a_guardar);
 		} else {
 			// si esto se llega a ejecutar, debe haber algun error en memoria o aca o algo raro falla
 			log_error(logger,"PID: %d - no se pudo escribir en memoria, esto no deberia pasar, poque recibi el mensaje: %s", pid, mensaje);
@@ -338,7 +339,7 @@ uint32_t leer_valor(int direccion_fisica, int pid){
 
 		memcpy(&valor_leido, valor_leido_sin_realizar, sizeof(uint32_t));
 
-		log_info(logger,"PID: %d - Acción: LEER - Dirección Física: %d - Valor: %d", pid, direccion_fisica, valor_leido);
+		log_info(logger,"Lectura Memoria: “PID: %d - Acción: LEER - Dirección Física: %d - Valor: %d“", pid, direccion_fisica, valor_leido);
 
 	} else {
 		log_error(logger,"Se recibio cod_op: %d esto no deberia pasar", cod_op );

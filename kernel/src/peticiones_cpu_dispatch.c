@@ -39,7 +39,7 @@ void* simular_sleep(void* arg){
 	esperar_por((tiempo_sleep) *1000);
 
 	sem_wait(&m_proceso_ejecutando);
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_en_sleep->PID, "BLOC","READY");
+	log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", proceso_en_sleep->PID, "BLOC","READY");
 
 	actualizar_estado_a_pcb(proceso_en_sleep, "READY");
 	sem_post(&m_proceso_ejecutando);
@@ -84,8 +84,8 @@ void manejar_sleep(int socket_cliente){
 
 	sem_wait(&esperar_proceso_ejecutando);
 
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", contexto->pid, "EXEC","BLOC");
-	log_info(logger, "PID: %d - Bloqueado por: SLEEP", contexto->pid);
+	log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", contexto->pid, "EXEC","BLOC");
+	log_info(logger, "Motivo de Bloqueo: “PID: %d - Bloqueado por: SLEEP“", contexto->pid);
 
 
 	sem_wait(&m_proceso_ejecutando);
@@ -242,7 +242,7 @@ void loggear_deadlock(void *pid_sin_parsear){
 
 	t_recurso *recurso_requerido = list_find(recursos_pendientes, es_recurso_solicitado);
 
-	log_info(logger, "Deadlock detectado: %s - Recursos en posesión %s - Recurso requerido: %s", pid, lista_recursos_asignados, recurso_requerido->nombre_recurso);
+	log_info(logger, "Detección de deadlock: “Deadlock detectado: %s - Recursos en posesión %s - Recurso requerido: %s“", pid, lista_recursos_asignados, recurso_requerido->nombre_recurso);
 
 	free(lista_recursos_asignados);
 }
@@ -407,8 +407,8 @@ void bloquear_proceso_por_recurso(t_pcb* proceso_a_bloquear, char* nombre_recurs
 
 	deteccion_de_deadlock();
 
-	log_info(logger, "PID: %s - Estado Anterior: %s - Estado Actual: %s", pid, "EXEC","BLOC");
-	log_info(logger, "PID: %s - Bloqueado por: %s", pid, nombre_recurso);
+	log_info(logger, "Cambio de Estado: “PID: %s - Estado Anterior: %s - Estado Actual: %s“", pid, "EXEC","BLOC");
+	log_info(logger, "Motivo de Bloqueo: “PID: %s - Bloqueado por: %s“", pid, nombre_recurso);
 
 	actualizar_estado_a_pcb(proceso_a_bloquear, "BLOC");
 
@@ -428,8 +428,8 @@ void finalizar_por_invalid_resource_proceso_ejecutando(t_contexto_ejec** context
 
 	eliminar_paquete(paquete);
 
-	log_info(logger, "Finaliza el proceso %d - Motivo: INVALID_RESOURCE", proceso_ejecutando->PID);
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_ejecutando->PID, "EXEC","EXIT");
+	log_info(logger, "Fin de Proceso: “Finaliza el proceso %d - Motivo: INVALID_RESOURCE“", proceso_ejecutando->PID);
+	log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", proceso_ejecutando->PID, "EXEC","EXIT");
 
 	sem_wait(&m_cola_exit);
 	queue_push(cola_exit, string_itoa(proceso_ejecutando->PID));
@@ -447,7 +447,7 @@ void finalizar_por_invalid_resource_proceso_ejecutando(t_contexto_ejec** context
 
 void logear_instancias(char* pid, char* nombre_recurso, int *recurso_disponible, int cantidad_de_recursos){
 	char* recursos_disponibles_string = listar_recursos_disponibles(recurso_disponible, cantidad_de_recursos);
-	log_info(logger, "PID: %s - Wait: %s - Instancias: [%s]", pid, nombre_recurso, recursos_disponibles_string);
+	log_info(logger, "Wait: “PID: %s - Wait: %s - Instancias: [%s]“", pid, nombre_recurso, recursos_disponibles_string);
 
 	free(recursos_disponibles_string);
 }
@@ -545,7 +545,9 @@ void desalojar_recursos(int socket_cliente,char** recursos, int* recurso_disponi
 		t_pcb* proceso_desbloqueado = queue_pop(cola_bloqueados);
 		char * pid_desbloqueado = string_itoa(proceso_desbloqueado->PID);
 
-		log_info(logger, "PID: %s - Estado Anterior: %s - Estado Actual: %s", pid_desbloqueado, "BLOC","READY");
+		log_info(logger, "Cambio de Estado: “PID: %s - Estado Anterior: %s - Estado Actual: %s“", pid_desbloqueado, "BLOC","READY");
+
+		actualizar_estado_a_pcb(pid_desbloqueado, "READY");
 
 		//actualizo los recursos disponibles para que no se le actualize a otro proceso
 		recurso_disponible[indice_recurso] --;
@@ -573,7 +575,7 @@ void finalinzar_proceso(int socket_cliente){
 	actualizar_pcb(contexto);
 
 	sem_wait(&m_proceso_ejecutando);
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_ejecutando->PID, "EXEC","EXIT");
+	log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", proceso_ejecutando->PID, "EXEC","EXIT");
 
 	actualizar_estado_a_pcb(proceso_ejecutando, "EXIT");
 
@@ -584,7 +586,7 @@ void finalinzar_proceso(int socket_cliente){
 	eliminar_paquete(paquete);
 
 
-	log_info(logger, "Finaliza el proceso %d - Motivo: SUCCESS", proceso_ejecutando->PID);
+	log_info(logger, "Fin de Proceso: “Finaliza el proceso %d - Motivo: SUCCESS“", proceso_ejecutando->PID);
 
 	sem_wait(&m_cola_exit);
 	queue_push(cola_exit, string_itoa(proceso_ejecutando->PID));
@@ -678,9 +680,11 @@ void* hilo_que_maneja_pf(void* args){
 	dictionary_put(colas_de_procesos_bloqueados_por_pf,pid_del_bloqueado,proceso_a_bloquear);
 	sem_post(&m_colas_de_procesos_bloqueados_por_pf);
 
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", pid, "EXEC","BLOC");
-	log_info(logger, "PID: %d - Bloqueado por: PAGE_FAULT", proceso_a_bloquear->PID);
-	log_info(logger, "Page Fault PID: %d - Pagina: %d  ", pid,numero_pagina);
+	log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", pid, "EXEC","BLOC");
+	log_info(logger, "Motivo de Bloqueo: “PID: %d - Bloqueado por: PAGE_FAULT“", proceso_a_bloquear->PID);
+	log_info(logger, "Page Fault: “Page Fault PID: %d - Pagina: %d“", pid,numero_pagina);
+
+	actualizar_estado_a_pcb(proceso_a_bloquear, "BLOC");
 
 	poner_a_ejecutar_otro_proceso();
 	t_paquete* paquete= crear_paquete(PAGE_FAULT);
@@ -691,21 +695,14 @@ void* hilo_que_maneja_pf(void* args){
 
 	eliminar_paquete(paquete);
 
-	// int cod_op = recibir_operacion(socket_memoria);
 
-/*
-	 if(cod_op!=PAGE_FAULT){
-		 log_error(logger, "No se pudo recibir bloques asignados. Terminando servidor");
-		 return NULL;
-	 }
-*/
 	pthread_mutex_lock(&m_espero_respuesta_pf);
 	 
 	sem_wait(&m_colas_de_procesos_bloqueados_por_pf);
 	t_pcb* proceso_a_ready = dictionary_remove(colas_de_procesos_bloqueados_por_pf, pid_del_bloqueado);
 	sem_post(&m_colas_de_procesos_bloqueados_por_pf);
 
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_ready->PID, "BLOC","READY");
+	log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", proceso_a_ready->PID, "BLOC","READY");
 
 	actualizar_estado_a_pcb(proceso_a_ready, "READY");
 	pasar_a_ready(proceso_a_ready);

@@ -190,23 +190,23 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 
 		//FETCH
 
-		log_info(logger, "PID: %d - FETCH - Program Counter: %d",contexto_actual->pid, contexto_actual->program_counter);
+		log_info(logger, "Fetch Instrucción: “PID: %d - FETCH - Program Counter: %d“",contexto_actual->pid, contexto_actual->program_counter);
 
 		contexto_actual->instruccion = recibir_instruccion_memoria(contexto_actual->program_counter,contexto_actual->pid);
 
 		t_instruccion *instruccion = contexto_actual->instruccion;
 
 		if (instruccion->parametro1_lenght == 0) {
-			log_info(logger, "PID: %d - Ejecutando: %s ", contexto_actual->pid,instruccion->opcode);
+			log_info(logger, "Instrucción Ejecutada: “PID: %d - Ejecutando: %s“", contexto_actual->pid,instruccion->opcode);
 
 		} else if (instruccion->parametro2_lenght == 0) {
-			log_info(logger, "PID: %d - Ejecutando: %s - %s",contexto_actual->pid, instruccion->opcode,instruccion->parametros[0]);
+			log_info(logger, "Instrucción Ejecutada: “PID: %d - Ejecutando: %s - %s“",contexto_actual->pid, instruccion->opcode,instruccion->parametros[0]);
 
 		} else if (instruccion->parametro3_lenght == 0) {
-			log_info(logger, "PID: %d - Ejecutando: %s - %s %s",contexto_actual->pid, instruccion->opcode,instruccion->parametros[0], instruccion->parametros[1]);
+			log_info(logger, "Instrucción Ejecutada: “PID: %d - Ejecutando: %s - %s %s“",contexto_actual->pid, instruccion->opcode,instruccion->parametros[0], instruccion->parametros[1]);
 
 		} else {
-			log_info(logger, "PID: %d - Ejecutando: %s - %s %s %s",contexto_actual->pid, instruccion->opcode,instruccion->parametros[0], instruccion->parametros[1],instruccion->parametros[2]);
+			log_info(logger, "Instrucción Ejecutada: “PID: %d - Ejecutando: %s - %s %s %s“",contexto_actual->pid, instruccion->opcode,instruccion->parametros[0], instruccion->parametros[1],instruccion->parametros[2]);
 		}
 
 		contexto_actual->program_counter++;
@@ -392,9 +392,7 @@ t_instruccion* recibir_instruccion_memoria(int program_counter,int pid) {
 	op_code opcode = recibir_operacion(socket_memoria);
 
 	if (opcode != INSTRUCCION) {
-		log_error(logger,
-				"No se pudo recibir la instruccion de memoria! codigo de operacion recibido: %d",
-				opcode);
+		log_error(logger,"No se pudo recibir la instruccion de memoria! codigo de operacion recibido: %d",opcode);
 		return NULL;
 	}
 

@@ -53,7 +53,7 @@ void agregar_proceso_a_ready(int conexion_memoria, char* algoritmo_planificacion
 	t_pcb* proceso_new_a_ready = (t_pcb *) queue_pop(cola_new);
 	sem_post(&m_cola_new);
 
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_new_a_ready->PID, "NEW", "READY");
+	log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", proceso_new_a_ready->PID, "NEW", "READY");
 
 	actualizar_estado_a_pcb(proceso_new_a_ready, "READY");
 
@@ -94,7 +94,7 @@ void agregar_proceso_a_ready(int conexion_memoria, char* algoritmo_planificacion
 	char *pids = listar_pids_cola(cola_ready);
 	sem_post(&m_cola_ready);
 
-	log_info(logger, "Cola Ready %s: [%s]",algoritmo_planificacion, pids);
+	log_info(logger, "Ingreso a Ready: “Cola Ready %s: [%s]“",algoritmo_planificacion, pids);
 
 	free(pids);
 
@@ -194,7 +194,7 @@ void pasar_a_ready(t_pcb* proceso_bloqueado){
 	sem_post(&m_cola_ready);
 
 
-	log_info(logger, "Cola Ready %s: [%s]",algoritmo_planificacion, pids);
+	log_info(logger, "Ingreso a Ready: “Cola Ready %s: [%s]“",algoritmo_planificacion, pids);
 
 	free(pids);
 
@@ -214,7 +214,7 @@ void agregar_cola_new(t_pcb** pcb_proceso){
 	queue_push(cola_new, *pcb_proceso);
 	sem_post(&m_cola_new);
 
-	log_info(logger, "Se crea el proceso %d en NEW", (*pcb_proceso)->PID);
+	log_info(logger, "Creación de Proceso: “Se crea el proceso %d en NEW“", (*pcb_proceso)->PID);
 }
 
 void pcb_args_destroy(t_pcb* pcb_a_destruir){

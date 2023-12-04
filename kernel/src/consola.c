@@ -142,7 +142,7 @@ void avisar_memoria_finalizar_proceso(t_pcb* proceso_a_finalizar, char* estado_a
 
 	enviar_paquete(paquete,socket_memoria);
 	eliminar_paquete(paquete);
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_finalizar->PID, estado_anterior,"EXIT");
+	log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", proceso_a_finalizar->PID, estado_anterior,"EXIT");
 }
 
 bool finalizar_proceso_si_esta_en_list(t_list* procesos_bloqueado, bool(*closure)(void*), char *estado_anterior){
@@ -220,7 +220,9 @@ void liberar_recursos_de(int pid_proceso_a_liberar){
 				t_pcb *proceso_desbloqueado = queue_pop(cola_bloqueados);
 				char *pid_desbloqueado = string_itoa(proceso_desbloqueado->PID);
 
-				log_info(logger, "PID: %s - Estado Anterior: %s - Estado Actual: %s", pid_desbloqueado, "BLOC","READY");
+				log_info(logger, "Cambio de Estado: “PID: %s - Estado Anterior: %s - Estado Actual: %s“", pid_desbloqueado, "BLOC","READY");
+
+				actualizar_estado_a_pcb(proceso_desbloqueado, "READY");
 
 				int indice_recurso = obtener_indice_recurso(recursos, recurso_n->nombre_recurso);
 
@@ -352,7 +354,6 @@ void sacar_proceso_de_diccionary_de_colas(t_dictionary* colas, bool(*condicion)(
 		}
 
 		if(indice_pcb_a_sacar != -1){
-			log_info(logger, "sacando al elemento %d de la cola", indice_pcb_a_sacar);//TODO borrar log
 			list_remove(cola_bloqueado->elements, indice_pcb_a_sacar);
 		}
 	}
@@ -490,7 +491,7 @@ void finalizar_proceso(t_instruccion *comando) {
 	queue_push(cola_exit, strdup(comando->parametros[0]));
 	sem_post(&m_cola_exit);
 
-	log_info(logger, "Finaliza el proceso %d - Motivo: SUCCESS", pid_buscado);
+	log_info(logger, "Fin de Proceso: “Finaliza el proceso %d - Motivo: SUCCESS“", pid_buscado);
 
 	sem_wait(&m_proceso_ejecutando);
 	if(proceso_ejecutando == NULL){
@@ -512,7 +513,7 @@ void detener_planificacion() {
 		pthread_mutex_lock(&m_planificador_largo_plazo);
 		pthread_mutex_lock(&m_planificador_corto_plazo);
 		planificacion_detenida = true;
-		log_info(logger, "PAUSA DE PLANIFICACIÓN");
+		log_info(logger, "Pausa planificación: “PAUSA DE PLANIFICACIÓN“");
 	}
 }
 
@@ -524,7 +525,7 @@ void iniciar_planificacion() {
 		pthread_mutex_unlock(&m_planificador_largo_plazo);
 		pthread_mutex_unlock(&m_planificador_corto_plazo);
 		planificacion_detenida = false;
-		log_info(logger, "INICIO DE PLANIFICACIÓN");
+		log_info(logger, "Inicio de planificación: “INICIO DE PLANIFICACIÓN“");
 	}
 }
 
@@ -532,7 +533,7 @@ void multiprogramacion(t_instruccion* comando) {
 	//Modificar el grado de multiprogramacion (no desalojar procesos)
 	int nuevo_grado_multiprogramacion = atoi(comando->parametros[0]);
 
-	log_info(logger, "Grado Anterior: %d - Grado Actual: %d", grado_max_multiprogramacion, nuevo_grado_multiprogramacion);
+	log_info(logger, "Cambio de Grado de Multiprogramación: “Grado Anterior: %d - Grado Actual: %d“", grado_max_multiprogramacion, nuevo_grado_multiprogramacion);
 	grado_max_multiprogramacion = nuevo_grado_multiprogramacion;
 
 	destroy_commando(comando);

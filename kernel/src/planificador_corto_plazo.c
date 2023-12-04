@@ -50,7 +50,7 @@ void planificar_corto_plazo_fifo() {
 	sem_wait(&m_proceso_ejecutando);
 	proceso_ejecutando = proceso_a_ejecutar;
 
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_ejecutar->PID, "READY", "EXEC");
+	log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", proceso_a_ejecutar->PID, "READY", "EXEC");
 	actualizar_estado_a_pcb(proceso_a_ejecutar, "EXEC");
 	sem_post(&m_proceso_ejecutando);
 
@@ -82,7 +82,7 @@ void planificar_corto_plazo_prioridades() {
 
 	sem_wait(&m_proceso_ejecutando);
 	proceso_ejecutando = proceso_a_ejecutar;
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_ejecutar->PID, "READY", "EXEC");
+	log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", proceso_a_ejecutar->PID, "READY", "EXEC");
 	actualizar_estado_a_pcb(proceso_a_ejecutar, "EXEC");
 	sem_post(&m_proceso_ejecutando);
 
@@ -108,7 +108,7 @@ void planificar_corto_plazo_round_robbin() {
 	sem_wait(&m_proceso_ejecutando);
 	proceso_ejecutando = proceso_a_ejecutar;
 
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_ejecutar->PID, "READY", "EXEC");
+	log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", proceso_a_ejecutar->PID, "READY", "EXEC");
 	actualizar_estado_a_pcb(proceso_a_ejecutar, "EXEC");
 	sem_post(&m_proceso_ejecutando);
 
@@ -140,8 +140,8 @@ void planificar_corto_plazo_round_robbin() {
 
 	sem_wait(&m_proceso_ejecutando);
 
-	log_info(logger, "PID: %d - Desalojado por fin de Quantum", proceso_a_ejecutar->PID);
-	log_info(logger, "PID: %d - Estado Anterior: %s - Estado Actual: %s", proceso_a_ejecutar->PID, "EXEC", "READY");
+	log_info(logger, "Fin de Quantum: “PID: %d - Desalojado por fin de Quantum“", proceso_a_ejecutar->PID);
+	log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", proceso_a_ejecutar->PID, "EXEC", "READY");
 	actualizar_estado_a_pcb(proceso_a_ejecutar, "READY");
 	sem_post(&m_proceso_ejecutando);
 

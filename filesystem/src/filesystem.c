@@ -16,6 +16,9 @@ int main(int argc, char* argv[]) {
 		char* puerto_escucha;
 		char* path_fat;
 		char* path_bloques;
+		char* path_fat_relativo;
+		char* path_bloques_relativo;
+		char* path_fcb_relativo;
 		int cant_bloques_total;
 		int cant_bloques_swap;
 		int retardo_acceso_bloque;
@@ -39,9 +42,9 @@ int main(int argc, char* argv[]) {
 
 		puerto_escucha = config_get_string_value(config, "PUERTO_ESCUCHA");
 
-		path_fat = config_get_string_value(config, "PATH_FAT");
-		path_bloques = config_get_string_value(config, "PATH_BLOQUES");
-		path_fcb = config_get_string_value(config, "PATH_FCB");
+		path_fat_relativo = config_get_string_value(config, "PATH_FAT");
+		path_bloques_relativo = config_get_string_value(config, "PATH_BLOQUES");
+		path_fcb_relativo = config_get_string_value(config, "PATH_FCB");
 
 		cant_bloques_total = config_get_int_value(config, "CANT_BLOQUES_TOTAL");
 		cant_bloques_swap = config_get_int_value(config, "CANT_BLOQUES_SWAP");
@@ -51,17 +54,20 @@ int main(int argc, char* argv[]) {
 		retardo_acceso_fat = config_get_int_value(config, "RETARDO_ACCESO_FAT");
 
 		// Control archivo configuracion
-		if(!ip_memoria || !puerto_memoria || !puerto_escucha || !path_fat || !path_bloques || !path_fcb || !cant_bloques_total || !cant_bloques_swap || !tam_bloque || !retardo_acceso_bloque || !retardo_acceso_fat){
+		if(!ip_memoria || !puerto_memoria || !puerto_escucha || !path_fcb_relativo || !path_bloques_relativo || !path_fcb_relativo || !cant_bloques_total || !cant_bloques_swap || !tam_bloque || !retardo_acceso_bloque || !retardo_acceso_fat){
 			log_error(logger, "Error al recibir los datos del archivo de configuracion del Filesystem");
 			terminar_programa(logger, config);
 		}
 
-		//Remplazo path con ruta base
-/*
-		path_fat = string_replace(path_bitmap, "~", "/home/utnso");
-		path_bloques = string_replace(path_bloques, "~", "/home/utnso");
-		path_fcb = string_replace(path_fcb, "~", "/home/utnso");
-		*/
+		//paso de ruta relativa a ruta absoluta de los archivos
+
+		char* path_directorio_actual =malloc(PATH_MAX);
+		getcwd(path_directorio_actual, PATH_MAX);
+
+		path_fat = string_replace(path_fat_relativo, ".", path_directorio_actual);
+		path_bloques = string_replace(path_bloques_relativo, ".", path_directorio_actual);
+		path_fcb = string_replace(path_fcb_relativo, ".", path_directorio_actual);
+
 
 	/*-------------------------------CONEXIONES KERNEL---------------------------------------------------------------*/
 
@@ -131,6 +137,7 @@ int main(int argc, char* argv[]) {
 	munmap(bits_fat,  tamanio_fat);
 	munmap(bits_bloques,  cant_bloques_total * tam_bloque);
 	free(array_bloques);
+	free(path_directorio_actual);
 	terminar_programa(logger, config);
     return 0;
 }
@@ -181,8 +188,6 @@ void manejar_peticiones(){
 	while(1){
 			pthread_t thread;
 			int cliente_fd = esperar_cliente(socket_fs);
-
-			log_info(logger, "cliente_fd: %d", cliente_fd);//TODO borrar log
 
 			t_arg_atender_cliente* argumentos_atender_cliente = malloc(sizeof(t_arg_atender_cliente));
 			argumentos_atender_cliente->cliente_fd = cliente_fd;
