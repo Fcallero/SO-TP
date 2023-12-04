@@ -191,6 +191,9 @@ void manejar_peticiones(){
 			pthread_create(&thread, NULL, atender_cliente, (void*) argumentos_atender_cliente);
 
 			pthread_detach(thread);
+
+			
+			
 		}
 }
 
@@ -200,9 +203,9 @@ int conectar_memoria(char* ip_memoria, char* puerto_memoria){
 	//enviar handshake
 	enviar_mensaje("OK", socket_memoria, HANDSHAKE);
 
-	op_code cod_op = recibir_operacion(socket_memoria);
-
-	if (cod_op != HANDSHAKE) {
+	
+	int cod_op = recibir_operacion(socket_memoria);
+	if(cod_op != HANDSHAKE){
 		return -1;
 	}
 
@@ -222,17 +225,20 @@ void *atender_cliente(void* args){
 
 	int cliente_fd = argumentos->cliente_fd;
 
+	
+
 	while(1){
 		int cod_op = recibir_operacion(cliente_fd);
-
-		if(cod_op != HANDSHAKE){
+		
+		// logicamente puede enerar un pronlema de condicion de carrera, pero si anda la mayoria de las veces dejarlo
+		if(socket_memoria == 0&& cod_op != HANDSHAKE){
 			int result_conexion_memoria = conectar_memoria(ip_memoria, puerto_memoria);
 
 			if (result_conexion_memoria == -1) {
 				log_error(logger, "No se pudo conectar con el modulo Memoria !!");
 				return NULL;
 			}
-		}
+		}	
 
 		switch(cod_op){
 			case HANDSHAKE:
@@ -246,7 +252,7 @@ void *atender_cliente(void* args){
 				break;
 			case TRUNCAR_ARCHIVO:
 				truncar_archivo(cliente_fd);
-					break;
+				break;
 			case LEER_ARCHIVO:
 				 leer_archivo_fs(cliente_fd);
 				break;
@@ -272,12 +278,10 @@ void *atender_cliente(void* args){
 				log_warning(logger, "Operacion desconocida. No quieras meter la pata");
 				break;
 		}
-
-		if(cod_op != HANDSHAKE){
-			close(socket_memoria);
-		}
+		
 	}
 
+	close(socket_memoria);
 	free(argumentos);
 	return NULL;
 }

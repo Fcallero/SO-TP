@@ -304,12 +304,12 @@ uint32_t leer_valor(int direccion_fisica, int pid){
 	string_append(&(instruccion->opcode), "MOV_IN");
 	instruccion->opcode_lenght = strlen(instruccion->opcode) +1;
 
-	instruccion->parametros[0] = string_itoa(direccion_fisica);
-	instruccion->parametro1_lenght = strlen(instruccion->parametros[0]) +1;
+	instruccion->parametros[1] = string_itoa(direccion_fisica);
+	instruccion->parametro2_lenght = strlen(instruccion->parametros[1]) +1;
 
 	char *bytes_a_escribir = string_itoa(sizeof(uint32_t));
-	instruccion->parametro2_lenght = strlen(bytes_a_escribir) + 1;
-	instruccion->parametros[1] = bytes_a_escribir;
+	instruccion->parametro1_lenght = strlen(bytes_a_escribir) + 1;
+	instruccion->parametros[0] = bytes_a_escribir;
 
 	instruccion->parametros[2] = NULL;
 	instruccion->parametro3_lenght = 0;

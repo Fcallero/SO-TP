@@ -54,7 +54,10 @@ void planificar_corto_plazo_fifo() {
 	actualizar_estado_a_pcb(proceso_a_ejecutar, "EXEC");
 	sem_post(&m_proceso_ejecutando);
 
+	sem_wait(&m_proceso_ejecutando);
 	crear_contexto_y_enviar_a_CPU(proceso_a_ejecutar);
+	sem_post(&m_proceso_ejecutando);
+
 	pthread_mutex_unlock(&m_planificador_corto_plazo);
 }
 
