@@ -235,7 +235,10 @@ void duplicar_diccionario(t_dictionary** duplicado, t_dictionary *a_duplicar){
 
 void loggear_deadlock(void *pid_sin_parsear){
 	char *pid = (char *) pid_sin_parsear;
+
+	pthread_mutex_lock(&m_matriz_recursos_asignados);
 	t_list *recursos_asignados = dictionary_get(matriz_recursos_asignados, pid);
+	pthread_mutex_lock(&m_matriz_recursos_pendientes);
 	t_list *recursos_pendientes = dictionary_get(matriz_recursos_pendientes, pid);
 
 	bool tiene_instancias(t_recurso *recurso_n){
@@ -243,6 +246,7 @@ void loggear_deadlock(void *pid_sin_parsear){
 	}
 
 	char *lista_recursos_asignados =listar_recursos_lista_recursos_por_condicion(recursos_asignados, tiene_instancias);
+	pthread_mutex_unlock(&m_matriz_recursos_asignados);
 
 	bool es_recurso_solicitado(void *recurso_sin_parsear){
 		t_recurso *recurso = (t_recurso *) recurso_sin_parsear;
@@ -250,6 +254,7 @@ void loggear_deadlock(void *pid_sin_parsear){
 	}
 
 	t_recurso *recurso_requerido = list_find(recursos_pendientes, es_recurso_solicitado);
+	pthread_mutex_unlock(&m_matriz_recursos_pendientes);
 
 	log_info(logger, "Detección de deadlock: “Deadlock detectado: %s - Recursos en posesión %s - Recurso requerido: %s“", pid, lista_recursos_asignados, recurso_requerido->nombre_recurso);
 
@@ -303,7 +308,9 @@ void calcular_recursos_asignados(t_list **recursos_asignados){
 		list_iterate(recursos, contar_recursos);
 	}
 
+	pthread_mutex_lock(&m_matriz_recursos_asignados);
 	dictionary_iterator(matriz_recursos_asignados, contar_recursos_asignados);
+	pthread_mutex_unlock(&m_matriz_recursos_asignados);
 }
 
 void calcular_recursos_disponible(t_list **recursos_disponible, t_list *recursos_asignados){
@@ -333,8 +340,14 @@ void deteccion_de_deadlock(){
 	t_list *recursos_disponible_cop = list_create();
 	t_list *recursos_asignados = list_create();
 
+	pthread_mutex_lock(&m_matriz_recursos_asignados);
 	duplicar_diccionario(&matriz_asignados_cop, matriz_recursos_asignados);
+	pthread_mutex_unlock(&m_matriz_recursos_asignados);
+
+	pthread_mutex_lock(&m_matriz_recursos_pendientes);
 	duplicar_diccionario(&matriz_necesidad_cop, matriz_recursos_pendientes);
+	pthread_mutex_unlock(&m_matriz_recursos_pendientes);
+
 	calcular_recursos_asignados(&recursos_asignados);
 	calcular_recursos_disponible(&recursos_disponible_cop, recursos_asignados);
 
@@ -388,6 +401,7 @@ t_list *obtener_recursos_en_base_a_pid_en_matriz(t_dictionary **matriz, char *pi
 			list_add(recursos_a_devolver, recurso_n);
 		}
 
+		//Entra en condicion de carrera cuando destruye al proceso de la matriz
 		dictionary_put(*matriz,pid, recursos_a_devolver);
 	}
 
@@ -412,7 +426,9 @@ void bloquear_proceso_por_recurso(t_pcb* proceso_a_bloquear, char* nombre_recurs
 
 	char *pid = string_itoa(proceso_a_bloquear->PID);
 
+	pthread_mutex_lock(&m_matriz_recursos_pendientes);
 	incrementar_recurso_en_matriz(&matriz_recursos_pendientes, nombre_recurso, pid, cantidad_de_recursos);
+	pthread_mutex_unlock(&m_matriz_recursos_pendientes);
 
 	deteccion_de_deadlock();
 
@@ -486,7 +502,9 @@ void apropiar_recursos(int socket_cliente, char** recursos, int* recurso_disponi
 	if(recurso_disponible[indice_recurso] < 0){
 
 		//lamo a esta funcion para inicializar la matriz de recursos asignados para la deteccion de deadlock
+		pthread_mutex_lock(&m_matriz_recursos_asignados);
 		obtener_recursos_en_base_a_pid_en_matriz(&matriz_recursos_asignados, pid, cantidad_de_recursos);
+		pthread_mutex_unlock(&m_matriz_recursos_asignados);
 
 		sem_wait(&m_proceso_ejecutando);
 		bloquear_proceso_por_recurso(proceso_ejecutando, recursos[indice_recurso], cantidad_de_recursos);
@@ -501,7 +519,9 @@ void apropiar_recursos(int socket_cliente, char** recursos, int* recurso_disponi
 		return;
 	}
 
+	pthread_mutex_lock(&m_matriz_recursos_asignados);
 	incrementar_recurso_en_matriz(&matriz_recursos_asignados, nombre_recurso, pid, cantidad_de_recursos);
+	pthread_mutex_unlock(&m_matriz_recursos_asignados);
 
 	logear_instancias(pid, recursos[indice_recurso], recurso_disponible, cantidad_de_recursos);
 
@@ -534,12 +554,17 @@ void desalojar_recursos(int socket_cliente,char** recursos, int* recurso_disponi
 
 	recurso_disponible[indice_recurso] ++;
 
+	pthread_mutex_lock(&m_matriz_recursos_asignados);
 	t_list *recursos_del_proceso = obtener_recursos_en_base_a_pid_en_matriz(&matriz_recursos_asignados, pid, cantidad_de_recursos);
+	pthread_mutex_unlock(&m_matriz_recursos_asignados);
 
 	t_recurso *recurso_buscado = obtener_recurso_con_nombre(recursos_del_proceso, nombre_recurso);
 
 	if(recurso_buscado->instancias_en_posesion > 0){ // si este proceso solicito el recurso
+		pthread_mutex_lock(&m_matriz_recursos_asignados);
 		decrementar_recurso_en_matriz(&matriz_recursos_asignados, nombre_recurso, pid, cantidad_de_recursos);
+		pthread_mutex_unlock(&m_matriz_recursos_asignados);
+
 	} else { //este proceso no solicito una instancia del recurso
 		log_info(logger, "Finaliza el proceso %d por recurso no tomado", contexto->pid);
 		finalizar_por_invalid_resource_proceso_ejecutando(&contexto);
@@ -561,8 +586,13 @@ void desalojar_recursos(int socket_cliente,char** recursos, int* recurso_disponi
 		//actualizo los recursos disponibles para que no se le actualize a otro proceso
 		recurso_disponible[indice_recurso] --;
 
+		pthread_mutex_lock(&m_matriz_recursos_pendientes);
 		decrementar_recurso_en_matriz(&matriz_recursos_pendientes, nombre_recurso, pid_desbloqueado, cantidad_de_recursos);
+		pthread_mutex_unlock(&m_matriz_recursos_pendientes);
+
+		pthread_mutex_lock(&m_matriz_recursos_asignados);
 		incrementar_recurso_en_matriz(&matriz_recursos_asignados, nombre_recurso, pid_desbloqueado, cantidad_de_recursos);
+		pthread_mutex_unlock(&m_matriz_recursos_asignados);
 
 		pasar_a_ready(proceso_desbloqueado);
 	}

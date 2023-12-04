@@ -129,8 +129,13 @@ void agregar_recurso_a_matriz(char *nombre_archivo, int pid, t_dictionary** matr
 }
 
 void agregar_recurso_a_matrices(char *nombre_archivo, int pid){
+	pthread_mutex_lock(&m_matriz_recursos_pendientes);
 	agregar_recurso_a_matriz(nombre_archivo, pid, &matriz_recursos_pendientes);
+	pthread_mutex_unlock(&m_matriz_recursos_pendientes);
+
+	pthread_mutex_lock(&m_matriz_recursos_asignados);
 	agregar_recurso_a_matriz(nombre_archivo, pid, &matriz_recursos_asignados);
+	pthread_mutex_unlock(&m_matriz_recursos_asignados);
 }
 
 void enviar_instruccion(t_instruccion* instruccion, int socket_a_enviar, int opcode){
@@ -228,8 +233,13 @@ void manejar_lock_escritura(char *nombre_archivo, t_contexto_ejec* contexto, int
 		crear_lock_escritura_para(nombre_archivo, proceso_ejecutando);
 		sem_post(&m_proceso_ejecutando);
 
+		pthread_mutex_lock(&m_matriz_recursos_pendientes);
 		decrementar_recurso_en_matriz(&matriz_recursos_pendientes, nombre_archivo, string_itoa(contexto->pid), 0);
+		pthread_mutex_unlock(&m_matriz_recursos_pendientes);
+
+		pthread_mutex_lock(&m_matriz_recursos_asignados);
 		incrementar_recurso_en_matriz(&matriz_recursos_asignados, nombre_archivo, string_itoa(contexto->pid), 0);
+		pthread_mutex_unlock(&m_matriz_recursos_asignados);
 
 		enviar_contexto_de_ejecucion_a(contexto, PETICION_CPU, socket_cliente);
 	}
@@ -252,7 +262,9 @@ void manejar_lock_lectura(char *nombre_archivo, t_contexto_ejec* contexto, int s
 		agregar_como_participante_a_lock_lectura_para_archivo(nombre_archivo, proceso_ejecutando);
 		sem_post(&m_proceso_ejecutando);
 
+		pthread_mutex_lock(&m_matriz_recursos_pendientes);
 		decrementar_recurso_en_matriz(&matriz_recursos_pendientes, nombre_archivo, string_itoa(contexto->pid), 0);
+		pthread_mutex_unlock(&m_matriz_recursos_pendientes);
 		//no es necesario incrementar como recurso asignado a este proceso porque estan en modo lectura
 
 		enviar_contexto_de_ejecucion_a(contexto, PETICION_CPU, socket_cliente);
@@ -352,7 +364,9 @@ void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, int socket_filesystem){
 	}
 
 	//para el algoritmo de deteccion, segun corresponda
+	pthread_mutex_lock(&m_matriz_recursos_pendientes);
 	incrementar_recurso_en_matriz(&matriz_recursos_pendientes, nombre_archivo, string_itoa(contexto->pid), 0);
+	pthread_mutex_unlock(&m_matriz_recursos_pendientes);
 
 	//maneja los locks
 

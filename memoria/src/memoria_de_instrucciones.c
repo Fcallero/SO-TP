@@ -41,8 +41,8 @@ void leer_pseudo(int cliente_fd){
 	while(feof(archivo) == 0)
 	{
 
-		cadena = malloc(30);
-		char *resultado_cadena = fgets(cadena, 30, archivo);
+		cadena = malloc(300);
+		char *resultado_cadena = fgets(cadena, 300, archivo);
 
 
 

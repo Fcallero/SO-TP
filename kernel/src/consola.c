@@ -180,6 +180,7 @@ bool finalizar_proceso_si_esta_en_alguna_queue_del_list(t_list* lista_de_colas, 
 void liberar_recursos_de(int pid_proceso_a_liberar){
 	char *pid = string_itoa(pid_proceso_a_liberar);
 
+	 pthread_mutex_lock(&m_matriz_recursos_asignados);
 	t_list *recursos_del_proceso = dictionary_get(matriz_recursos_asignados, pid);
 
 	//si la matriz no tenia a este proceso, se va porque no hay nada que liberar
@@ -199,9 +200,15 @@ void liberar_recursos_de(int pid_proceso_a_liberar){
 	}
 
 	list_iterate(recursos_del_proceso, actualizar_recurso_disponible);
+	 pthread_mutex_unlock(&m_matriz_recursos_asignados);
 
+	pthread_mutex_lock(&m_matriz_recursos_pendientes);
 	destroy_proceso_en_matriz(matriz_recursos_pendientes, pid);
+	pthread_mutex_unlock(&m_matriz_recursos_pendientes);
+
+	pthread_mutex_lock(&m_matriz_recursos_asignados);
 	destroy_proceso_en_matriz(matriz_recursos_asignados, pid);
+	pthread_mutex_unlock(&m_matriz_recursos_asignados);
 
 	deteccion_de_deadlock();
 
@@ -229,8 +236,12 @@ void liberar_recursos_de(int pid_proceso_a_liberar){
 				//actualizo los recursos disponibles para que no se le actualize a otro proceso
 				recursos_disponible[indice_recurso] --;
 
+				pthread_mutex_lock(&m_matriz_recursos_pendientes);
 				decrementar_recurso_en_matriz(&matriz_recursos_pendientes, nombre_recurso, pid_desbloqueado, cant_recursos);
+				pthread_mutex_unlock(&m_matriz_recursos_pendientes);
+				pthread_mutex_lock(&m_matriz_recursos_asignados);
 				incrementar_recurso_en_matriz(&matriz_recursos_asignados, nombre_recurso, pid_desbloqueado, cant_recursos);
+				pthread_mutex_unlock(&m_matriz_recursos_asignados);
 
 				pasar_a_ready(proceso_desbloqueado);
 			}
@@ -411,7 +422,7 @@ void finalizar_proceso(t_instruccion *comando) {
 		string_append(&mensaje, pid_str);
 		enviar_mensaje(mensaje, socket_cpu_interrupt, INTERRUPCION);
 
-		sem_wait(&recibir_interrupcion);//espero recibir la interrupcion de cpu
+		sem_wait(&espero_desalojo_CPU);
 
 		sem_wait(&m_proceso_ejecutando);
 		avisar_memoria_finalizar_proceso(proceso_ejecutando, "EXEC");

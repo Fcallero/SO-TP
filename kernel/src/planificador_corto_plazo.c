@@ -84,9 +84,9 @@ void planificar_corto_plazo_prioridades() {
 	proceso_ejecutando = proceso_a_ejecutar;
 	log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", proceso_a_ejecutar->PID, "READY", "EXEC");
 	actualizar_estado_a_pcb(proceso_a_ejecutar, "EXEC");
+	crear_contexto_y_enviar_a_CPU(proceso_a_ejecutar);
 	sem_post(&m_proceso_ejecutando);
 
-	crear_contexto_y_enviar_a_CPU(proceso_a_ejecutar);
 	pthread_mutex_unlock(&m_planificador_corto_plazo);
 }
 
@@ -110,9 +110,9 @@ void planificar_corto_plazo_round_robbin() {
 
 	log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", proceso_a_ejecutar->PID, "READY", "EXEC");
 	actualizar_estado_a_pcb(proceso_a_ejecutar, "EXEC");
+	crear_contexto_y_enviar_a_CPU(proceso_a_ejecutar);
 	sem_post(&m_proceso_ejecutando);
 
-	crear_contexto_y_enviar_a_CPU(proceso_a_ejecutar);
 
 	esperar_por(quantum);
 
