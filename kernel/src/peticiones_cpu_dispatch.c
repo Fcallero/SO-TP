@@ -44,6 +44,10 @@ void* simular_sleep(void* arg){
 	actualizar_estado_a_pcb(proceso_en_sleep, "READY");
 	sem_post(&m_proceso_ejecutando);
 
+	sem_wait(&m_colas_de_procesos_bloqueados_por_pf);
+	dictionary_remove(colas_de_procesos_bloqueados_por_pf,string_itoa(proceso_en_sleep->PID));
+	sem_post(&m_colas_de_procesos_bloqueados_por_pf);
+
 	pasar_a_ready(proceso_en_sleep);
 
 	sem_wait(&m_proceso_ejecutando);
@@ -90,6 +94,11 @@ void manejar_sleep(int socket_cliente){
 
 	sem_wait(&m_proceso_ejecutando);
 	actualizar_estado_a_pcb(proceso_ejecutando, "BLOC");
+
+	//lo agrego a la cola para que lo encuentre el proceso_estado de la consola
+	sem_wait(&m_colas_de_procesos_bloqueados_por_pf);
+	dictionary_put(colas_de_procesos_bloqueados_por_pf,string_itoa(contexto->pid),proceso_ejecutando);
+	sem_post(&m_colas_de_procesos_bloqueados_por_pf);
 	sem_post(&m_proceso_ejecutando);
 
 	poner_a_ejecutar_otro_proceso();
@@ -547,7 +556,7 @@ void desalojar_recursos(int socket_cliente,char** recursos, int* recurso_disponi
 
 		log_info(logger, "Cambio de Estado: “PID: %s - Estado Anterior: %s - Estado Actual: %s“", pid_desbloqueado, "BLOC","READY");
 
-		actualizar_estado_a_pcb(pid_desbloqueado, "READY");
+		actualizar_estado_a_pcb(proceso_desbloqueado, "READY");
 
 		//actualizo los recursos disponibles para que no se le actualize a otro proceso
 		recurso_disponible[indice_recurso] --;
