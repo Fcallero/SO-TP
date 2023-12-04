@@ -547,6 +547,8 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 			agregar_a_paquete_sin_agregar_tamanio(paquete, &(marco->posicion_swap), sizeof(uint32_t));
 			agregar_a_paquete_sin_agregar_tamanio(paquete, contenido_acutualizado, tam_pagina);
 
+			enviar_paquete(paquete, socket_fs);
+
 			eliminar_paquete(paquete);
 
 			int cod_op = recibir_operacion(socket_fs);
@@ -579,7 +581,7 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 		}
 		t_situacion_marco* marco_a_guardar = list_find(situacion_marcos,esMarcoLibre);
 
-		log_info(logger,"Lectura de Página de SWAP: “SWAP IN -  PID: %d - Marco: %d - Page In: %d-%d“",pid,pagina_a_actualizar->marco,pid,numero_pagina);
+		log_info(logger,"Lectura de Página de SWAP: “SWAP IN -  PID: %d - Marco: %d - Page In: %d-%d“",pid,marco_a_guardar->numero_marco,pid,numero_pagina);
 
 		reemplazar_marco(contenido_bloque,pid,pagina_a_actualizar,marco_a_guardar);
 
