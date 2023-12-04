@@ -328,13 +328,17 @@ uint32_t leer_valor(int direccion_fisica, int pid){
 
 	int cod_op = recibir_operacion(socket_memoria);
 
-	char* valor_leido_string;
+	void* valor_leido_sin_realizar;
+	uint32_t valor_leido;
 
 	if(cod_op == READ_MEMORY){
 		// recibo el valor leido de memoria
-		valor_leido_string = recibir_mensaje(socket_memoria);
+		int size_recibido;
+		valor_leido_sin_realizar = recibir_buffer(&size_recibido, socket_memoria);
 
-		log_info(logger,"PID: %d - Acción: LEER - Dirección Física: %d - Valor: %s", pid, direccion_fisica, valor_leido_string);
+		memcpy(&valor_leido, valor_leido_sin_realizar, sizeof(uint32_t));
+
+		log_info(logger,"PID: %d - Acción: LEER - Dirección Física: %d - Valor: %d", pid, direccion_fisica, valor_leido);
 
 	} else {
 		log_error(logger,"Se recibio cod_op: %d esto no deberia pasar", cod_op );
@@ -342,8 +346,6 @@ uint32_t leer_valor(int direccion_fisica, int pid){
 		return -1;
 	}
 
-	int valor_leido = atoi(valor_leido_string);
-
-	free(valor_leido_string);
+	free(valor_leido_sin_realizar);
 	return valor_leido;
 }

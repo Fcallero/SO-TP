@@ -336,8 +336,11 @@ void escribir_archivo_fs(int cliente_fd){
 		log_error(logger, "No se pudo leer el contenido del archivo en la memoria");
 		return;
 	}
+	int size_recibido;
+	void* buffer_recibido = recibir_buffer(&size_recibido, socket_memoria);
 
-	char* contenido_a_escribir = recibir_mensaje(socket_memoria);
+	void * contenido_a_escribir = malloc(tam_bloque);
+	memcpy(contenido_a_escribir, buffer_recibido, tam_bloque);
 
 	if(dictionary_has_key(fcb_por_archivo, nombre_archivo)){
 
@@ -352,7 +355,7 @@ void escribir_archivo_fs(int cliente_fd){
 		}
 		log_info(logger, "Acceso a bloque - Archivo: %s - Bloque archivo: %d - Bloque FS: %d", nombre_archivo, bloque_a_escribir, aux_busqueda_fat);
 
-		strncpy(array_bloques[aux_busqueda_fat], contenido_a_escribir, tam_bloque);
+		memcpy(array_bloques[aux_busqueda_fat], contenido_a_escribir, tam_bloque);
 
 		log_info(logger, "Archivo escrito: %s - Puntero: %d - Memoria: %s", nombre_archivo, puntero, instruccion->parametros[1]);
 
@@ -413,7 +416,7 @@ void leer_archivo_fs(int cliente_fd){
 		instruccion->parametro2_lenght = aux_len_direccion_fisica;
 
 
-		t_paquete *paquete = crear_paquete(WRITE_MEMORY);
+		t_paquete *paquete = crear_paquete(WRITE_MEMORY_FS);
 		agregar_a_paquete_sin_agregar_tamanio(paquete, &pid, sizeof(int));
 		agregar_a_paquete(paquete, instruccion->opcode,instruccion->opcode_lenght);
 		agregar_a_paquete(paquete, instruccion->parametros[0],instruccion->parametro1_lenght);
@@ -428,7 +431,7 @@ void leer_archivo_fs(int cliente_fd){
 
 		op_code cod_op = recibir_operacion(socket_memoria);
 
-		if(cod_op != WRITE_MEMORY){
+		if(cod_op != WRITE_MEMORY_FS){
 			log_error(logger, "No se pudo escribir el contenido del archivo en la memoria");
 			return;
 		}

@@ -73,5 +73,5 @@ void reemplazar_marco(void*contenido_bloque,int pid,t_tabla_de_paginas*pagina_a_
 int obtener_pagina_a_reemplazar(int numero_marco,int pid);
 void read_memory(int cliente_fd);
 void write_memory(int cliente_fd);
-
+void write_memory_fs(int cliente_fd);
 #endif
