@@ -9,6 +9,8 @@ t_bitarray *bitarray_bloques; // solo para swap
 int primer_bloque_fat;
 char* ip_memoria;
 char* puerto_memoria;
+int retardo_acceso_bloque;
+int retardo_acceso_fat;
 
 int main(int argc, char* argv[]) {
 	//Declaraciones de variables para config:
@@ -21,8 +23,7 @@ int main(int argc, char* argv[]) {
 		char* path_fcb_relativo;
 		int cant_bloques_total;
 		int cant_bloques_swap;
-		int retardo_acceso_bloque;
-		int retardo_acceso_fat;
+
 
 	/*------------------------------LOGGER Y CONFIG--------------------------------------------------*/
 
@@ -226,6 +227,10 @@ int conectar_memoria(char* ip_memoria, char* puerto_memoria){
 	return 0;
 }
 
+void esperar_por_fs(int milisegundos_a_esperar){
+	// el * 1000 es para pasarlo a microsegundos
+	usleep(milisegundos_a_esperar*1000);
+}
 
 void *atender_cliente(void* args){
 	t_arg_atender_cliente* argumentos = (t_arg_atender_cliente*) args;
@@ -292,4 +297,5 @@ void *atender_cliente(void* args){
 	free(argumentos);
 	return NULL;
 }
+
 
