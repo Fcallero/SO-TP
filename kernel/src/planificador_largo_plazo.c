@@ -25,7 +25,7 @@ t_dictionary* colas_de_procesos_bloqueados_por_pf;
 t_dictionary* recurso_bloqueado;
 pthread_mutex_t m_planificador_largo_plazo;
 pthread_mutex_t m_planificador_corto_plazo;
-pthread_mutex_t m_espero_respuesta_pf;
+sem_t m_espero_respuesta_pf;
 pthread_mutex_t m_matriz_recursos_asignados;
 pthread_mutex_t m_matriz_recursos_pendientes;
 
@@ -45,10 +45,10 @@ void inicializar_colas_y_semaforos(){
 	sem_init(&proceso_creado_memoria, 0, 0);
 	sem_init(&espero_desalojo_CPU, 0, 0);
 	sem_init(&espero_actualizacion_pcb, 0, 0);
+	sem_init(&m_espero_respuesta_pf, 0, 0);
 	sem_init(&m_colas_de_procesos_bloqueados_por_pf, 0, 1);
 	pthread_mutex_init(&m_planificador_largo_plazo, NULL);
 	pthread_mutex_init(&m_planificador_corto_plazo, NULL);
-	pthread_mutex_init(&m_espero_respuesta_pf, NULL);
 	pthread_mutex_init(&m_matriz_recursos_asignados, NULL);
 	pthread_mutex_init(&m_matriz_recursos_pendientes, NULL);
 }

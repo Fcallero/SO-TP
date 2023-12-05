@@ -735,7 +735,7 @@ void* hilo_que_maneja_pf(void* args){
 	eliminar_paquete(paquete);
 
 
-	pthread_mutex_lock(&m_espero_respuesta_pf);
+	sem_wait(&m_espero_respuesta_pf);
 	 
 	sem_wait(&m_colas_de_procesos_bloqueados_por_pf);
 	t_pcb* proceso_a_ready = dictionary_remove(colas_de_procesos_bloqueados_por_pf, pid_del_bloqueado);
