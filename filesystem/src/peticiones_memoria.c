@@ -17,6 +17,7 @@ void liberar_bloque_bitarray(uint32_t puntero_bloque){
 
 void *leer_bloque_swap(uint32_t puntero){
 	log_info(logger, "Acceso a Bloque SWAP: “Acceso a SWAP: %d“", puntero);
+	esperar_por_fs(retardo_acceso_bloque);
 	return array_bloques[puntero];
 }
 
@@ -44,6 +45,7 @@ void reservar_bloques(int cliente_fd){
 
 		//marcar \0 al los bloques en el archivo de bloques
 		log_info(logger, "Acceso a Bloque SWAP: “Acceso a SWAP: %d“", puntero_n_bloque);
+		esperar_por_fs(retardo_acceso_bloque);
 		strncpy(array_bloques[puntero_n_bloque], basura, tam_bloque);
 	}
 
@@ -89,6 +91,7 @@ void marcar_bloques_libres(int cliente_fd){
 	char *basura = string_repeat('\0', tam_bloque);
 	for(int i = 0; i<cant_paginas; i++){
 		log_info(logger, "Acceso a Bloque SWAP: “Acceso a SWAP: %d“", punteros[i]);
+		esperar_por_fs(retardo_acceso_bloque);
 		strncpy(array_bloques[punteros[i]], basura, tam_bloque);
 	}
 
@@ -123,6 +126,7 @@ void escribir_en_bloque_swap(int cliente_fd){
 	memcpy(contenido_a_guardar, buffer +sizeof(uint32_t), tam_bloque);
 
 	log_info(logger, "Acceso a Bloque SWAP: “Acceso a SWAP: %d“", pos_swap_a_escribir);
+	esperar_por_fs(retardo_acceso_bloque);
 	memcpy(array_bloques[pos_swap_a_escribir], contenido_a_guardar, tam_bloque);
 
 	enviar_mensaje("OK",cliente_fd, ESCRIBIR_CONTENIDO_PAGINA);

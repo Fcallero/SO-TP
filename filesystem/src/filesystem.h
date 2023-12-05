@@ -43,4 +43,5 @@ void manejar_peticiones();
 FILE* levantar_archivo_binario(char* path_archivo);
 void *atender_cliente(void* args);
 int conectar_memoria(char* ip_memoria, char* puerto_memoria);
+void esperar_por_fs(int milisegundos_a_esperar);
 #endif

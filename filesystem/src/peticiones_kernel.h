@@ -6,6 +6,8 @@
 #include <math.h>
 #include "filesystem.h"
 
+extern int retardo_acceso_bloque;
+extern int retardo_acceso_fat;
 extern int tam_bloque;
 extern uint32_t *bits_fat; //Array con tabla FAT
 extern char* path_fcb;

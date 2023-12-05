@@ -148,15 +148,18 @@ void agregar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_agregar){
 		posicion_fat = primer_bloque_fat;
 
 		while(bits_fat[posicion_fat] != 0){ //Bucle auxiliar para encontrar un bloque libre
+			esperar_por_fs(retardo_acceso_fat);
 			log_info(logger, "Acceso a FAT: “Acceso FAT buscando bloque libre: - Entrada: %d - Valor: %d“", posicion_fat, bits_fat[posicion_fat]);
 			posicion_fat ++;
 		}
 
 		fcb_a_actualizar->bloque_inicial= posicion_fat;
+		esperar_por_fs(retardo_acceso_fat);
 		bits_fat[posicion_fat]= UINT32_MAX;
 	}
 
 	while(bits_fat[posicion_fat] != UINT32_MAX){
+		esperar_por_fs(retardo_acceso_fat);
 		log_info(logger, "Acceso a FAT: “Acceso a FAT - Entrada: %d - Valor: %d“", posicion_fat, bits_fat[posicion_fat]);
 		posicion_fat = bits_fat[posicion_fat];
 	}
@@ -171,16 +174,19 @@ void agregar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_agregar){
 
 		//busco un bloque libre
 		while(bits_fat[aux_busqueda] != 0){ //Bucle auxiliar para encontrar un bloque libre
+			esperar_por_fs(retardo_acceso_fat);
 			log_info(logger, "Acceso a FAT: “Acceso a FAT buscando bloque libre: - Entrada: %d - Valor: %d“", aux_busqueda, bits_fat[aux_busqueda]);
 			aux_busqueda ++;
 		}
 		//Encontrado el bloque libre al anterior le asigno el encontrado en la fat (donde antes estaba el uint32_max )
 		log_info(logger, "Acceso a FAT: “Acceso a FAT - Entrada: %d - Valor: %d“", num_bloque_anterior, bits_fat[num_bloque_anterior]);
+		esperar_por_fs(retardo_acceso_fat);
 		bits_fat[num_bloque_anterior] = aux_busqueda;
 		bloques_restantes_por_agregar --;
 
 		// y al encontrado un uint32_max por si es el ulimo, sino en la proxima iteracion del while lo cambia por el numero al siguiente bloque
 		log_info(logger, "Acceso a FAT: “Acceso a FAT - Entrada: %d - Valor: %d“", aux_busqueda, bits_fat[aux_busqueda]);
+		esperar_por_fs(retardo_acceso_fat);
 		bits_fat[aux_busqueda] = UINT32_MAX;
 		num_bloque_anterior=aux_busqueda;
 
@@ -198,6 +204,7 @@ void sacar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_sacar, int bloques_act
 	uint32_t posicion_fat = fcb_a_actualizar->bloque_inicial;
 
 	for(int i = 1; i<bloques_actual+1; i++){
+		esperar_por_fs(retardo_acceso_fat);
 		log_info(logger, "Acceso a FAT: “Acceso a FAT - Entrada: %d - Valor: %d“", posicion_fat, bits_fat[posicion_fat]);
 		punteros_en_orden[i]= bits_fat[posicion_fat];
 		posicion_fat++;
@@ -206,9 +213,10 @@ void sacar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_sacar, int bloques_act
 	int num_ultimo_bloque = bloques_actual;
 	int bloques_a_sacar_inicial = bloques_a_sacar;
 	while(bloques_a_sacar != 0){
-
+		esperar_por_fs(retardo_acceso_fat);
 		log_info(logger, "Acceso a FAT: “Acceso a FAT - Entrada: %d - Valor: %d“", punteros_en_orden[num_ultimo_bloque], bits_fat[punteros_en_orden[num_ultimo_bloque]]);
 		bits_fat[punteros_en_orden[num_ultimo_bloque]] = 0;
+		esperar_por_fs(retardo_acceso_fat);
 		log_info(logger, "Acceso a FAT: “Acceso a FAT - Entrada: %d - Valor: %d“", punteros_en_orden[num_ultimo_bloque-1], bits_fat[punteros_en_orden[num_ultimo_bloque-1]]);
 		bits_fat[punteros_en_orden[num_ultimo_bloque-1]] = UINT32_MAX;
 
@@ -221,6 +229,7 @@ void sacar_bloques(t_fcb* fcb_a_actualizar, int bloques_a_sacar, int bloques_act
 	//saco el ultimo bloque para que tenga 0 si debo sacarle todos
 	if(bloques_a_sacar_inicial == bloques_actual){
 		log_info(logger, "Acceso a FAT: “Acceso a FAT - Entrada: %d - Valor: %d“", punteros_en_orden[num_ultimo_bloque], bits_fat[punteros_en_orden[num_ultimo_bloque]]);
+		esperar_por_fs(retardo_acceso_fat);
 		bits_fat[punteros_en_orden[num_ultimo_bloque]] = 0;
 
 		fcb_a_actualizar->bloque_inicial = -1;
@@ -344,12 +353,14 @@ void escribir_archivo_fs(int cliente_fd){
 		int aux_busqueda_fat = fcb->bloque_inicial;
 
 		while(i < bloque_a_escribir){
+			esperar_por_fs(retardo_acceso_fat);
 			log_info(logger, "Acceso a FAT: “Acceso a FAT - Entrada: %d - Valor: %d“", aux_busqueda_fat, bits_fat[aux_busqueda_fat]);
 			aux_busqueda_fat = bits_fat[aux_busqueda_fat];
 			i++;
 		}
 		log_info(logger, "Acceso a Bloque Archivo: “Acceso a bloque - Archivo: %s - Bloque archivo: %d - Bloque FS: %d“", nombre_archivo, bloque_a_escribir, aux_busqueda_fat);
 
+		esperar_por_fs(retardo_acceso_bloque);
 		memcpy(array_bloques[aux_busqueda_fat], contenido_a_escribir, tam_bloque);
 
 		log_info(logger, "Archivo escrito: %s - Puntero: %d - Memoria: %s", nombre_archivo, puntero, instruccion->parametros[1]);
@@ -395,11 +406,13 @@ void leer_archivo_fs(int cliente_fd){
 
 		while(i < bloque_a_leer){
 			log_info(logger, "Acceso a FAT: “Acceso a FAT - Entrada: %d - Valor: %d“", aux_busqueda_fat, bits_fat[aux_busqueda_fat]);
+			esperar_por_fs(retardo_acceso_fat);
 			aux_busqueda_fat = bits_fat[aux_busqueda_fat];
 			i++;
 		}
 
 		log_info(logger, "Acceso a Bloque Archivo: “Acceso a bloque - Archivo: %s - Bloque archivo: %d - Bloque FS: %d“", nombre_archivo, bloque_a_leer, aux_busqueda_fat);
+		esperar_por_fs(retardo_acceso_bloque);
 		void *contenido_leido = array_bloques[aux_busqueda_fat];
 
 		char* aux_direccion_fisica = strdup(instruccion->parametros[0]);

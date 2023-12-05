@@ -588,7 +588,6 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 	}
 
 
-	log_info(logger, "sustitucion terminada, procedo llamando a kernel");//TODO borrar log
 
 	esperar_por(retardo_respuesta);
 
