@@ -18,6 +18,7 @@ void notificar_desalojo_cpu_interrupt(){
 	enviar_mensaje("Desalojo por fin de quantum", socket_cpu_interrupt, INTERRUPCION);
 
 	sem_wait(&espero_desalojo_CPU);
+	sem_wait(&espero_actualizacion_pcb);
 }
 
 void crear_contexto_y_enviar_a_CPU(t_pcb* proceso_a_ejecutar){
@@ -145,7 +146,14 @@ void planificar_corto_plazo_round_robbin() {
 	actualizar_estado_a_pcb(proceso_a_ejecutar, "READY");
 	sem_post(&m_proceso_ejecutando);
 
+	if(proceso_ejecutando == NULL){
+		log_info(logger, "proceso ejecutando es NULL antes de llamar a CPU");
+	}
 	notificar_desalojo_cpu_interrupt();
+
+	if(proceso_ejecutando == NULL){
+		log_info(logger, "proceso ejecutando ya es NULL, despues de llamar a cpu");
+	}
 
 	sem_wait(&m_proceso_ejecutando);
 	proceso_ejecutando = NULL;

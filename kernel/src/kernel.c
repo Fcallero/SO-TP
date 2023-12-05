@@ -330,11 +330,6 @@ void* manejar_peticiones_modulos(void *args) {
 				sem_post(&memoria_lista);
 				free(mensaje);
 				break;
-			case INTERRUPCION:
-				t_contexto_ejec* contexto = recibir_contexto_de_ejecucion(cliente_fd);
-				contexto_ejecucion_destroy(contexto);
-				sem_post(&recibir_interrupcion);
-				break;
 			case PAGE_FAULT:
 				//aca deberia llegar un ok
 	 			mensaje = recibir_mensaje(socket_memoria);
@@ -400,13 +395,22 @@ void* escuchar_peticiones_cpu_dispatch(void *args) {
 				case PAGE_FAULT:
 					manejar_page_fault(cliente_fd);
 					break;
+
 				case INTERRUPCION:
 					t_contexto_ejec *contexto = recibir_contexto_de_ejecucion(socket_cpu_dispatch);
+					log_info(logger, "program_counter: %d", contexto->program_counter);
+
+					if(proceso_ejecutando == NULL){
+						log_info(logger, "proceso ejecutando NULL en kernel.c antes de despertar al del planificador");
+					}
+
+					sem_post(&espero_desalojo_CPU);
 
 					actualizar_pcb(contexto);
 
 					contexto_ejecucion_destroy(contexto);
-					sem_post(&espero_desalojo_CPU);
+
+					sem_post(&espero_actualizacion_pcb);
 
 					break;
 				case -1:

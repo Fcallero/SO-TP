@@ -289,6 +289,11 @@ void actualizar_archivos_abiertos_por_proceso(t_pcb* proceso, char* nombre_archi
 void actualizar_pcb(t_contexto_ejec* contexto){
 
 	sem_wait(&m_proceso_ejecutando);
+	if(proceso_ejecutando == NULL){
+		sem_post(&m_proceso_ejecutando);
+		log_info(logger, "proceso ejecutando es NULL");
+		return;
+	}
 	proceso_ejecutando->program_counter = contexto->program_counter;
 
 	if(proceso_ejecutando->registros_CPU == NULL){
