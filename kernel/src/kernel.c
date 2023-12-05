@@ -330,6 +330,12 @@ void* manejar_peticiones_modulos(void *args) {
 				sem_post(&memoria_lista);
 				free(mensaje);
 				break;
+			case CREAR_PROCESO:
+				mensaje = recibir_mensaje(cliente_fd);
+				log_info(logger, "Se recibio un %s de memoria, procede planificador de largo plazo", mensaje);
+				sem_post(&proceso_creado_memoria);
+				free(mensaje);
+				break;
 			case PAGE_FAULT:
 				//aca deberia llegar un ok
 	 			mensaje = recibir_mensaje(socket_memoria);

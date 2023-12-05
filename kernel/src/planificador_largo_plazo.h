@@ -56,6 +56,7 @@ extern sem_t m_cola_de_procesos_bloqueados_para_cada_archivo;
 extern sem_t espero_desalojo_CPU;
 extern sem_t m_colas_de_procesos_bloqueados_por_pf;
 extern sem_t espero_actualizacion_pcb;
+extern sem_t proceso_creado_memoria;
 extern pthread_mutex_t m_espero_respuesta_pf;
 extern pthread_mutex_t m_matriz_recursos_asignados;
 extern pthread_mutex_t m_matriz_recursos_pendientes;

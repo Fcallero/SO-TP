@@ -17,6 +17,7 @@ sem_t m_cola_de_procesos_bloqueados_para_cada_archivo;
 sem_t m_colas_de_procesos_bloqueados_por_pf;
 sem_t despertar_planificacion_largo_plazo;
 sem_t memoria_lista;
+sem_t proceso_creado_memoria;
 sem_t espero_desalojo_CPU;
 sem_t espero_actualizacion_pcb;
 t_dictionary* colas_de_procesos_bloqueados_para_cada_archivo;
@@ -41,6 +42,7 @@ void inicializar_colas_y_semaforos(){
 	sem_init(&m_cola_de_procesos_bloqueados_para_cada_archivo, 0,1);
 	sem_init(&despertar_planificacion_largo_plazo,0,0);
 	sem_init(&memoria_lista,0,0);
+	sem_init(&proceso_creado_memoria, 0, 0);
 	sem_init(&espero_desalojo_CPU, 0, 0);
 	sem_init(&espero_actualizacion_pcb, 0, 0);
 	sem_init(&m_colas_de_procesos_bloqueados_por_pf, 0, 1);
@@ -89,9 +91,10 @@ void agregar_proceso_a_ready(int conexion_memoria, char* algoritmo_planificacion
 
 	eliminar_paquete(paquete_tamanio);
 
-
 	free(proceso_new_a_ready->comando);//el comando luego no se va a usar, lo libero
 
+	//espero a que termine memoria
+	sem_wait(&proceso_creado_memoria);
 
 	sem_wait(&m_cola_ready);
 	queue_push(cola_ready, proceso_new_a_ready);

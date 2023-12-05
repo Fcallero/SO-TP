@@ -389,6 +389,7 @@ void crear_proceso(int cliente_fd){
 
 	dictionary_put(paginas_por_PID,string_itoa(pid),lista_de_marcos_x_procesos);
 
+	enviar_mensaje("OK", cliente_fd, CREAR_PROCESO);
 	free(buffer);
 	free(buffer_fs);
 }
