@@ -127,8 +127,9 @@ typedef struct
 } t_pcb;
 
 typedef struct {
-	int read_lock_count; // número de locks de lectura activos
-	int write_lock_count; // número de locks de escritura activos
+	int read_lock_active; //numero de locks de lectura activos
+	int read_lock_count; // número de locks de lectura total
+	int write_lock_count; // número de locks de escritura total
 	t_pcb* proceso_write_lock; // proceso que tiene el lock de escritura
 	t_list* lista_locks_read; // procesos que tienen locks de lectura
 	t_queue* cola_locks; // procesos bloqueados por lock ya sea write o read
