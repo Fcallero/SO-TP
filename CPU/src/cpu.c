@@ -265,6 +265,7 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 		}
 
 		if (strcmp(instruccion->opcode, "F_OPEN") == 0) {
+			log_info(logger, "abierndo archivo, llamando a kernel");//TODO borrar log
 			devolver_a_kernel(contexto_actual, ABRIR_ARCHIVO, socket_kernel);
 			continuar_con_el_ciclo_instruccion = false;
 		}

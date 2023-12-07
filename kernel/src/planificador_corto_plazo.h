@@ -27,5 +27,14 @@ void *planificar_nuevos_procesos_corto_plazo(void *arg);
 
 void enviar_contexto_de_ejecucion_a(t_contexto_ejec* contexto_a_ejecutar, op_code opcode, int socket_cliente);
 
+void aviso_planificador_corto_plazo_proceso_en_ready(t_pcb* proceso_en_ready);
+
+void aviso_planificador_corto_plazo_proceso_en_bloc(t_pcb* proceso_en_bloc);
+
+void aviso_planificador_corto_plazo_proceso_en_exec();
+
+void aviso_planificador_corto_plazo_proceso_en_exit(int pid_proceso_exit);
+
+void poner_a_ejecutar_otro_proceso();
 
 #endif /* SRC_PLANIFICADOR_CORTO_PLAZO_H_ */

@@ -22,6 +22,8 @@
 #include <global/global.h>
 #include <global/utils_cliente.h>
 #include <global/utils_server.h>
+#include "planificador_corto_plazo.h"
+
 
 extern int socket_cpu_dispatch;
 extern int socket_cpu_interrupt;

@@ -430,7 +430,6 @@ void finalizar_proceso(t_instruccion *comando) {
 		pcb_args_destroy(proceso_ejecutando);
 		sem_post(&m_proceso_ejecutando);
 
-		poner_a_ejecutar_otro_proceso();
 	} else {
 		//mutex de la variable compartida
 		sem_post(&m_proceso_ejecutando);
@@ -504,14 +503,7 @@ void finalizar_proceso(t_instruccion *comando) {
 
 	log_info(logger, "Fin de Proceso: “Finaliza el proceso %d - Motivo: SUCCESS“", pid_buscado);
 
-	sem_wait(&m_proceso_ejecutando);
-	if(proceso_ejecutando == NULL){
-		sem_post(&m_proceso_ejecutando);
-
-		poner_a_ejecutar_otro_proceso();
-	}else {
-		sem_post(&m_proceso_ejecutando);
-	}
+	aviso_planificador_corto_plazo_proceso_en_exit(pid_buscado);
 
 	destroy_commando(comando);
 }

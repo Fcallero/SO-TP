@@ -50,22 +50,6 @@ void crear_lock_escritura_para(char* nombre_archivo, t_pcb* proceso){
 	}
 
 }
-//NO SE USA!??
-void actualizar_lock_escritura_para_archivo(char *nombre_archivo, t_pcb* proceso){
-	t_tabla_global_de_archivos_abiertos* tabla = dictionary_get(tabla_global_de_archivos_abiertos, nombre_archivo);
-	if(tabla->lock_de_archivo == NULL ){
-		t_file_lock *lock = malloc(sizeof(t_file_lock));
-		lock->cola_locks = queue_create();
-		lock->lista_locks_read = list_create();
-		lock->read_lock_count = 0;
-		lock->write_lock_count = 1;
-		lock->proceso_write_lock = proceso;
-
-		tabla->lock_de_archivo = lock;
-	}else {
-		log_error(logger, "el tabla global de archivos abiertos no existe, esto es imposible aca");
-	}
-}
 
 
 void agregar_a_array_instancias_recursos(t_list* array_instancias, int instancias_en_posesion, char* nombre_archivo){
@@ -172,7 +156,6 @@ void bloquear_por_espera_a_fs(t_pcb* proceso_a_bloquear, char*nombre_archivo){
 	log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", proceso_a_bloquear->PID, "EXEC","BLOC");
 	log_info(logger, "Motivo de Bloqueo: “PID: %d - Bloqueado por: %s“", proceso_a_bloquear->PID, nombre_archivo);
 
-	actualizar_estado_a_pcb(proceso_a_bloquear, "BLOC");
 
 	if(!dictionary_has_key(colas_de_procesos_bloqueados_para_cada_archivo, nombre_archivo)){
 		t_queue* cola_bloqueados = queue_create();
@@ -228,7 +211,8 @@ void manejar_lock_escritura(char *nombre_archivo, t_contexto_ejec* contexto, int
 		bloquear_por_espera_a_fs(proceso_ejecutando, nombre_archivo);//o mantenerlo bloqueado
 		sem_post(&m_proceso_ejecutando);
 
-		poner_a_ejecutar_otro_proceso();
+		aviso_planificador_corto_plazo_proceso_en_bloc(proceso_ejecutando);
+
 	} else {
 		sem_wait(&m_proceso_ejecutando);
 		crear_lock_escritura_para(nombre_archivo, proceso_ejecutando);
@@ -242,7 +226,7 @@ void manejar_lock_escritura(char *nombre_archivo, t_contexto_ejec* contexto, int
 		incrementar_recurso_en_matriz(&matriz_recursos_asignados, nombre_archivo, string_itoa(contexto->pid), 0);
 		pthread_mutex_unlock(&m_matriz_recursos_asignados);
 
-		enviar_contexto_de_ejecucion_a(contexto, PETICION_CPU, socket_cliente);
+		aviso_planificador_corto_plazo_proceso_en_exec(proceso_ejecutando);
 	}
 }
 
@@ -257,7 +241,8 @@ void manejar_lock_lectura(char *nombre_archivo, t_contexto_ejec* contexto, int s
 		bloquear_por_espera_a_fs(proceso_ejecutando, nombre_archivo);//o mantenerlo bloqueado
 		sem_post(&m_proceso_ejecutando);
 
-		poner_a_ejecutar_otro_proceso();
+		aviso_planificador_corto_plazo_proceso_en_bloc(proceso_ejecutando);
+
 	}else {//si existe un lock lectura o no
 		sem_wait(&m_proceso_ejecutando);
 		agregar_como_participante_a_lock_lectura_para_archivo(nombre_archivo, proceso_ejecutando);
@@ -268,7 +253,7 @@ void manejar_lock_lectura(char *nombre_archivo, t_contexto_ejec* contexto, int s
 		pthread_mutex_unlock(&m_matriz_recursos_pendientes);
 		//no es necesario incrementar como recurso asignado a este proceso porque estan en modo lectura
 
-		enviar_contexto_de_ejecucion_a(contexto, PETICION_CPU, socket_cliente);
+		aviso_planificador_corto_plazo_proceso_en_exec(proceso_ejecutando);
 	}
 
 }
@@ -327,7 +312,7 @@ void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, int socket_filesystem){
 	enviar_instruccion(contexto->instruccion, socket_filesystem, ABRIR_ARCHIVO);
 
 	//esperamos una respuesata del fs:
-	//	SI EXISTE, MANDARA EL TAM DEL ARCHIVO;
+	//	SI EXISTE, RECIBE UN OK;
 	//	SI NO EXISTE, MANDARA UN -1 Y MANDAREMOS ORDEN DE CREAR EL ARCHIVO
 
 	int opcode = recibir_operacion(socket_filesystem);
@@ -412,7 +397,8 @@ void enviar_a_fs_truncar_archivo(int socket_cpu, int socket_filesystem)
 	sem_wait(&m_proceso_ejecutando);
 	bloquear_por_espera_a_fs(proceso_ejecutando, nombre_archivo);
 	sem_post(&m_proceso_ejecutando);
-	poner_a_ejecutar_otro_proceso();
+
+	aviso_planificador_corto_plazo_proceso_en_bloc(proceso_ejecutando);
 
 	int opcode = recibir_operacion(socket_filesystem);
 
@@ -458,8 +444,7 @@ void reposicionar_puntero(int cliente_fd){
 
 	log_info(logger, "Actualizar Puntero Archivo: “PID: %d - Actualizar puntero Archivo: %s - Puntero %d“", contexto->pid, nombre_archivo, posicion);
 
-	// continua con el mismo proceso
-	enviar_contexto_de_ejecucion_a(contexto, PETICION_CPU, cliente_fd);
+	aviso_planificador_corto_plazo_proceso_en_exec(proceso_ejecutando);
 
 	free(nombre_archivo);
 	contexto_ejecucion_destroy(contexto);
@@ -505,7 +490,7 @@ void leer_archivo(int socket_cpu){
 	bloquear_por_espera_a_fs(proceso_ejecutando, nombre_archivo);
 	sem_post(&m_proceso_ejecutando);
 
-	poner_a_ejecutar_otro_proceso();
+	aviso_planificador_corto_plazo_proceso_en_bloc(proceso_ejecutando);
 
 	op_code cod_op = recibir_operacion(socket_fs);
 
@@ -536,13 +521,16 @@ void finalizar_por_invalid_write_proceso_ejecutando(t_contexto_ejec** contexto){
 
 	eliminar_paquete(paquete);
 
-	log_info(logger, "Fin de Proceso: “Finaliza el proceso %d - Motivo: INVALID_WRITE“", proceso_ejecutando->PID);
-	log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", proceso_ejecutando->PID, "EXEC","EXIT");
+	int pid_proceso_exit =  proceso_ejecutando->PID;
+	sem_post(&m_proceso_ejecutando);
+
+	log_info(logger, "Fin de Proceso: “Finaliza el proceso %d - Motivo: INVALID_WRITE“", pid_proceso_exit);
+	log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", pid_proceso_exit, "EXEC","EXIT");
 
 	sem_wait(&m_cola_exit);
-	queue_push(cola_exit, string_itoa(proceso_ejecutando->PID));
+	queue_push(cola_exit, string_itoa(pid_proceso_exit));
 	sem_post(&m_cola_exit);
-	sem_post(&m_proceso_ejecutando);
+
 
 
 	contexto_ejecucion_destroy(*contexto);
@@ -550,7 +538,8 @@ void finalizar_por_invalid_write_proceso_ejecutando(t_contexto_ejec** contexto){
 	sem_wait(&m_proceso_ejecutando);
 	pcb_args_destroy(proceso_ejecutando);
 	sem_post(&m_proceso_ejecutando);
-	poner_a_ejecutar_otro_proceso();
+
+	aviso_planificador_corto_plazo_proceso_en_exit(pid_proceso_exit);
 }
 
 void escribir_archivo(int socket_cpu){
@@ -587,7 +576,7 @@ void escribir_archivo(int socket_cpu){
 	bloquear_por_espera_a_fs(proceso_ejecutando, nombre_archivo);
 	sem_post(&m_proceso_ejecutando);
 
-	poner_a_ejecutar_otro_proceso();
+	aviso_planificador_corto_plazo_proceso_en_bloc(proceso_ejecutando);
 
 	op_code cod_op = recibir_operacion(socket_fs);
 
@@ -739,7 +728,7 @@ void cerrar_archivo(int cliente_fd){
 		dictionary_remove(tabla_global_de_archivos_abiertos, nombre_archivo);
 	}
 
-	enviar_contexto_de_ejecucion_a(contexto, PETICION_CPU, cliente_fd);
+	aviso_planificador_corto_plazo_proceso_en_exec();
 
 	contexto_ejecucion_destroy(contexto);
 	free(nombre_archivo);

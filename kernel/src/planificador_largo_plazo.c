@@ -96,23 +96,7 @@ void agregar_proceso_a_ready(int conexion_memoria, char* algoritmo_planificacion
 	//espero a que termine memoria
 	sem_wait(&proceso_creado_memoria);
 
-	sem_wait(&m_cola_ready);
-	queue_push(cola_ready, proceso_new_a_ready);
-	char *pids = listar_pids_cola(cola_ready);
-	sem_post(&m_cola_ready);
-
-	log_info(logger, "Ingreso a Ready: “Cola Ready %s: [%s]“",algoritmo_planificacion, pids);
-
-	free(pids);
-
-	// si ya esta ejecutando un proceso, cuando termine se llama al planificador de largo plazo
-	sem_wait(&m_proceso_ejecutando);
-	if(proceso_ejecutando == NULL){
-		sem_post(&m_proceso_ejecutando);
-		sem_post(&despertar_corto_plazo);
-	} else {
-		sem_post(&m_proceso_ejecutando);
-	}
+	pasar_a_ready(proceso_new_a_ready);
 }
 
 int calcular_procesos_en_memoria(int procesos_en_ready){
@@ -195,7 +179,6 @@ void pasar_a_ready(t_pcb* proceso_bloqueado){
 	sem_wait(&m_cola_ready);
 
 	queue_push(cola_ready, proceso_bloqueado);
-	int procesos_en_ready = queue_size(cola_ready);
 
 	char *pids = listar_pids_cola(cola_ready);
 	sem_post(&m_cola_ready);
@@ -205,13 +188,7 @@ void pasar_a_ready(t_pcb* proceso_bloqueado){
 
 	free(pids);
 
-	sem_wait(&m_proceso_ejecutando);
-	if(proceso_ejecutando == NULL && procesos_en_ready > 0 ){
-		sem_post(&m_proceso_ejecutando);
-		sem_post(&despertar_corto_plazo);
-	} else {
-		sem_post(&m_proceso_ejecutando);
-	}
+	aviso_planificador_corto_plazo_proceso_en_ready(proceso_bloqueado);
 
 }
 
