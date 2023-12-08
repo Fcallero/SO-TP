@@ -510,7 +510,7 @@ void apropiar_recursos(int socket_cliente, char** recursos, int* recurso_disponi
 	logear_instancias(pid, recursos[indice_recurso], recurso_disponible, cantidad_de_recursos);
 
 
-	aviso_planificador_corto_plazo_proceso_en_exec();
+	aviso_planificador_corto_plazo_proceso_en_exec(proceso_a_operar);
 
 	//destruyo el contexto de ejecucion
 	contexto_ejecucion_destroy(contexto);
@@ -587,7 +587,7 @@ void desalojar_recursos(int socket_cliente,char** recursos, int* recurso_disponi
 	logear_instancias(pid, recursos[indice_recurso], recurso_disponible, cantidad_de_recursos);
 
 	//continua ejecutandose el mismo proceso
-	aviso_planificador_corto_plazo_proceso_en_exec();
+	aviso_planificador_corto_plazo_proceso_en_exec(proceso_a_operar);
 
 	//destruyo el contexto de ejecucion
 	contexto_ejecucion_destroy(contexto);

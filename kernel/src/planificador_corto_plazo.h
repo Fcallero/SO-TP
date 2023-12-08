@@ -31,7 +31,7 @@ void aviso_planificador_corto_plazo_proceso_en_ready(t_pcb* proceso_en_ready);
 
 void aviso_planificador_corto_plazo_proceso_en_bloc(t_pcb* proceso_en_bloc);
 
-void aviso_planificador_corto_plazo_proceso_en_exec();
+void aviso_planificador_corto_plazo_proceso_en_exec(t_pcb* proceso_en_exec);
 
 void aviso_planificador_corto_plazo_proceso_en_exit(int pid_proceso_exit);
 

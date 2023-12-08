@@ -767,7 +767,7 @@ void cerrar_archivo(int cliente_fd, t_contexto_ejec* contexto){
 		dictionary_remove(tabla_global_de_archivos_abiertos, nombre_archivo);
 	}
 
-	aviso_planificador_corto_plazo_proceso_en_exec();
+	aviso_planificador_corto_plazo_proceso_en_exec(proceso_a_leer_archivo);
 
 	contexto_ejecucion_destroy(contexto);
 	free(nombre_archivo);
