@@ -9,13 +9,14 @@ t_dictionary* paginas_por_PID;
 t_list* situacion_marcos;
 t_queue* referencias_paginas;
 int retardo_respuesta;
+char *ip_filesystem;
+char *puerto_filesystem;
+
 
 int main(int argc, char *argv[]) {
 
 	//Declaraciones de variables para config:
 
-	char *ip_filesystem;
-	char *puerto_filesystem;
 	char *puerto_escucha;
 	int tam_memoria;
 	char* algoritmo_reemplazo;
@@ -57,15 +58,6 @@ int main(int argc, char *argv[]) {
 
 	/*-------------------------------CONEXIONES MEMORIA---------------------------------------------------------------*/
 
-	// Realizar las conexiones y probarlas
-	int result_conexion_fs = conectar_fs(ip_filesystem, puerto_filesystem);
-
-	if (result_conexion_fs == -1) {
-		log_error(logger, "No se pudo conectar con el modulo Filesystem !!");
-		terminar_programa(logger, config);
-	}
-
-	log_info(logger, "Memoria se conecto con el modulo Filesystem correctamente");
 
 	//Esperar conexion de FS
 	socket_memoria = iniciar_servidor(puerto_escucha);
@@ -319,6 +311,16 @@ void finalizar_proceso(int cliente_fd){
 
 	list_iterate(situacion_marcos,marcarLibre);
 
+
+	int result_conexion_fs = conectar_fs(ip_filesystem, puerto_filesystem);
+
+	if (result_conexion_fs == -1) {
+		log_error(logger, "No se pudo conectar con el modulo Filesystem !!");
+		return;
+	}
+
+	log_info(logger, "Memoria se conecto con el modulo Filesystem correctamente");
+
 	//avisar a FS para que libere los bloques
 	t_paquete* paquete = crear_paquete(FINALIZAR_PROCESO_FS);
 
@@ -330,7 +332,7 @@ void finalizar_proceso(int cliente_fd){
 	enviar_paquete(paquete, socket_fs);
 
 	eliminar_paquete(paquete);
-
+	close(socket_fs);
 	free(buffer);
 }
 
@@ -343,6 +345,15 @@ void crear_proceso(int cliente_fd){
 	memcpy(&tamanio,buffer,sizeof(int));
 	memcpy(&pid,buffer+sizeof(int),sizeof(int));
 
+
+	int result_conexion_fs = conectar_fs(ip_filesystem, puerto_filesystem);
+
+		if (result_conexion_fs == -1) {
+			log_error(logger, "No se pudo conectar con el modulo Filesystem !!");
+			return;
+		}
+
+		log_info(logger, "Memoria se conecto con el modulo Filesystem correctamente");
 
 	 t_paquete* paquete = crear_paquete(INICIAR_PROCESO);
 
@@ -390,6 +401,7 @@ void crear_proceso(int cliente_fd){
 	dictionary_put(paginas_por_PID,string_itoa(pid),lista_de_marcos_x_procesos);
 
 	enviar_mensaje("OK", cliente_fd, CREAR_PROCESO);
+	close(socket_fs);
 	free(buffer);
 	free(buffer_fs);
 }
@@ -481,7 +493,14 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 	t_list* paginas_del_proceso =dictionary_get(paginas_por_PID,string_itoa(pid));
 	t_tabla_de_paginas* pagina_a_actualizar =list_get(paginas_del_proceso,numero_pagina);
 
+	int result_conexion_fs = conectar_fs(ip_filesystem, puerto_filesystem);
 
+		if (result_conexion_fs == -1) {
+			log_error(logger, "No se pudo conectar con el modulo Filesystem !!");
+			return;
+		}
+
+	log_info(logger, "Memoria se conecto con el modulo Filesystem correctamente");
 
 	 t_paquete* paquete = crear_paquete(LEER_CONTENIDO_PAGINA);
 
@@ -593,6 +612,7 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 	esperar_por(retardo_respuesta);
 
 	enviar_mensaje("OK",cliente_fd,PAGE_FAULT);
+	close(socket_fs);
 }
 
 

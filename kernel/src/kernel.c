@@ -15,7 +15,8 @@ int cant_recursos;
 t_dictionary *matriz_recursos_asignados;
 t_dictionary *matriz_recursos_pendientes;
 t_dictionary *tabla_global_de_archivos_abiertos;
-
+char* ip_filesystem;
+char* puerto_filesystem;
 
 int main(int argc, char *argv[]) {
 
@@ -23,8 +24,6 @@ int main(int argc, char *argv[]) {
 
 	char* ip_memoria;
 	char* puerto_memoria;
-	char* ip_filesystem;
-	char* puerto_filesystem;
 	char* ip_cpu;
 	char* puerto_cpu_dispatch;
 	char* puerto_cpu_interrupt;
@@ -88,16 +87,16 @@ int main(int argc, char *argv[]) {
 	log_info(logger,
 			"El Kernel se conecto con el modulo Memoria correctamente");
 
+	/*
 	int result_conexion_filesystem = conectar_fs(ip_filesystem, puerto_filesystem);
 
 	if (result_conexion_filesystem == -1) {
 		log_error(logger, "No se pudo conectar con el modulo filesystem !!");
 		terminar_programa(logger, config);
 	}
+	log_info(logger,"El Kernel se conecto con el modulo Filesystem correctamente");
+*/
 
-
-	log_info(logger,
-			"El Kernel se conecto con el modulo Filesystem correctamente");
 
 	//PUERTO INTERRUPT
 	int result_conexion_cpu_interrupt = conectar_cpu_interrupt(ip_cpu,
@@ -343,6 +342,16 @@ void* manejar_peticiones_modulos(void *args) {
 				sem_post(&m_espero_respuesta_pf);
 				free(mensaje);
 				break;
+			case INTERRUPCION:
+				mensaje = recibir_mensaje(socket_cpu_interrupt);
+				log_info(logger, "se recibio %s de cpu por cpu interrupt", mensaje);
+
+				sem_post(&espero_desalojo_CPU);
+				sem_post(&espero_actualizacion_pcb);
+
+				free(mensaje);
+
+				break;
 			case -1:
 				log_error(logger, "El cliente se desconecto. Terminando servidor");
 				return NULL;
@@ -381,13 +390,13 @@ void* escuchar_peticiones_cpu_dispatch(void *args) {
 					manejar_sleep(cliente_fd);
 					break;
 				case ABRIR_ARCHIVO:
-					enviar_a_fs_crear_o_abrir_archivo(cliente_fd, socket_fs);
+					enviar_a_fs_crear_o_abrir_archivo(cliente_fd);
 					break;
 				case CERRAR_ARCHIVO:
 					cerrar_archivo(cliente_fd);
 					break;
 				case TRUNCAR_ARCHIVO:
-					enviar_a_fs_truncar_archivo(cliente_fd, socket_fs);
+					enviar_a_fs_truncar_archivo(cliente_fd);
 					break;
 				case APUNTAR_ARCHIVO:
 					reposicionar_puntero(cliente_fd);
@@ -406,13 +415,12 @@ void* escuchar_peticiones_cpu_dispatch(void *args) {
 					t_contexto_ejec *contexto = recibir_contexto_de_ejecucion(socket_cpu_dispatch);
 					log_info(logger, "program_counter: %d", contexto->program_counter);
 
-					if(proceso_ejecutando == NULL){
-						log_info(logger, "proceso ejecutando NULL en kernel.c antes de despertar al del planificador");
-					}
 
 					sem_post(&espero_desalojo_CPU);
 
-					actualizar_pcb(contexto);
+					sem_wait(&m_proceso_ejecutando);
+					actualizar_pcb(contexto, proceso_ejecutando);
+					sem_post(&m_proceso_ejecutando);
 
 					contexto_ejecucion_destroy(contexto);
 

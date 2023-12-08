@@ -60,8 +60,11 @@ void crear_contexto_y_enviar_a_CPU(t_pcb* proceso_a_ejecutar){
 void poner_a_ejecutar_proceso(t_pcb* proceso_a_ejecutar){
 	sem_wait(&m_proceso_ejecutando);
 	proceso_ejecutando = proceso_a_ejecutar;
-	log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", proceso_a_ejecutar->PID, proceso_a_ejecutar->proceso_estado, "EXEC");
-	actualizar_estado_a_pcb(proceso_a_ejecutar, "EXEC");
+	if(strcmp(proceso_a_ejecutar->proceso_estado, "EXEC") != 0)
+	{
+		log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", proceso_a_ejecutar->PID, proceso_a_ejecutar->proceso_estado, "EXEC");
+		actualizar_estado_a_pcb(proceso_a_ejecutar, "EXEC");
+	}
 	crear_contexto_y_enviar_a_CPU(proceso_a_ejecutar);
 	sem_post(&m_proceso_ejecutando);
 }
@@ -105,7 +108,10 @@ void planificar_corto_plazo_prioridades() {
 	sem_post(&m_cola_ready);
 
 	poner_a_ejecutar_proceso(proceso_a_ejecutar);
+
+	pthread_mutex_lock(&m_pid_desalojado);
 	pid_desalojado = 0;
+	pthread_mutex_unlock(&m_pid_desalojado);
 
 	pthread_mutex_unlock(&m_planificador_corto_plazo);
 }
@@ -164,8 +170,9 @@ void planificar_corto_plazo_round_robbin() {
 
 
 	char* mensaje = malloc(300);
+	pthread_mutex_lock(&m_pid_desalojado);
 	sprintf(mensaje, "Desalojo por fin de quantum a %d", pid_desalojado);
-
+	pthread_mutex_unlock(&m_pid_desalojado);
 
 	notificar_desalojo_cpu_interrupt(mensaje);
 
@@ -226,7 +233,7 @@ void aviso_planificador_corto_plazo_proceso_en_ready(t_pcb* proceso_en_ready){
 		reordenar_cola_ready_prioridades();
 
 		sem_wait(&m_cola_ready);
-		t_pcb* proceso_con_menor_prioridad = queue_peek(cola_ready);//obtengo el proceso sin sacarlo de la cola
+		t_pcb* proceso_con_mayor_prioridad = queue_peek(cola_ready);//obtengo el proceso sin sacarlo de la cola
 		sem_post(&m_cola_ready);
 
 		sem_wait(&m_proceso_ejecutando);
@@ -235,22 +242,48 @@ void aviso_planificador_corto_plazo_proceso_en_ready(t_pcb* proceso_en_ready){
 
 			poner_a_ejecutar_otro_proceso();
 
-		}else if(proceso_con_menor_prioridad != NULL && proceso_con_menor_prioridad->prioridad < proceso_ejecutando->prioridad){//si hay alguien ejecutando pero es de menor prioridad
+		}else if(proceso_con_mayor_prioridad != NULL && proceso_con_mayor_prioridad->prioridad < proceso_ejecutando->prioridad){//si hay alguien ejecutando pero es de menor prioridad
 			sem_post(&m_proceso_ejecutando);
+			char* mensaje = malloc(300);
+			sem_wait(&m_proceso_ejecutando);
+			sprintf(mensaje, "Desalojo por proceso de mayor prioridad a %d", proceso_ejecutando->PID);
+			sem_post(&m_proceso_ejecutando);
+
+			notificar_desalojo_cpu_interrupt(mensaje);
+			free(mensaje);
+
+			sem_wait(&m_proceso_ejecutando);
+			t_pcb* proceso_a_desalojar = proceso_ejecutando;
+			proceso_ejecutando = proceso_con_mayor_prioridad;
+			sem_post(&m_proceso_ejecutando);
+
+			if(strcmp(proceso_a_desalojar->proceso_estado, "EXEC") == 0){
+				log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", proceso_a_desalojar->PID, proceso_a_desalojar->proceso_estado,"READY");
+				actualizar_estado_a_pcb(proceso_a_desalojar, "READY");
+
+				sem_wait(&m_cola_ready);
+				queue_push(cola_ready, proceso_a_desalojar);
+				sem_post(&m_cola_ready);
+
+				aviso_planificador_corto_plazo_proceso_en_ready(proceso_a_desalojar);
+
+				char *pids = listar_pids_cola(cola_ready);
+				log_info(logger, "Ingreso a Ready: “Cola Ready %s: [%s]“",algoritmo_planificacion, pids);
+				free(pids);
+			}
+
 
 			sem_wait(&m_cola_ready);
 			t_pcb* proceso_a_ejecutar = queue_pop(cola_ready);//saco el proceso de la cola
 			sem_post(&m_cola_ready);
 
 			sem_wait(&m_proceso_ejecutando);
-			pid_desalojado= proceso_ejecutando->PID;
+			pthread_mutex_lock(&m_pid_desalojado);
+			pid_desalojado= proceso_a_desalojar->PID;
+			pthread_mutex_unlock(&m_pid_desalojado);
 			sem_post(&m_proceso_ejecutando);
 
-			char* mensaje = malloc(300);
-			sprintf(mensaje, "Desalojo por proceso de mayor prioridad a %d", pid_desalojado);
 
-			notificar_desalojo_cpu_interrupt(mensaje);
-			free(mensaje);
 			poner_a_ejecutar_proceso(proceso_a_ejecutar);
 
 		} else {//si hay alguien ejecutando y es el proceso no hago nada
@@ -268,26 +301,32 @@ void aviso_planificador_corto_plazo_proceso_en_ready(t_pcb* proceso_en_ready){
 }
 
 void manejar_desalojo_en_bloc(t_pcb* proceso_en_bloc){
+	pthread_mutex_lock(&m_pid_desalojado);
 	if(pid_desalojado != proceso_en_bloc->PID){
 		poner_a_ejecutar_otro_proceso();
 	}
+	pthread_mutex_unlock(&m_pid_desalojado);
 }
 
 void manejar_proceso_en_bloc(t_pcb* proceso_en_bloc){
 	if(string_equals_ignore_case(algoritmo_planificacion, "FIFO")){
 		poner_a_ejecutar_otro_proceso();
 	}else if(string_equals_ignore_case(algoritmo_planificacion, "PRIORIDADES")){
+		pthread_mutex_lock(&m_pid_desalojado);
 		if(pid_desalojado){// si justo se desaloja un proceso en este instante
 			manejar_desalojo_en_bloc(proceso_en_bloc);
 		}else {
 			poner_a_ejecutar_otro_proceso();
 		}
+		pthread_mutex_unlock(&m_pid_desalojado);
 	}else {
+		pthread_mutex_lock(&m_pid_desalojado);
 		if(pid_desalojado){// si justo se desaloja un proceso en este instante
 			manejar_desalojo_en_bloc(proceso_en_bloc);
 		}else {
 			poner_a_ejecutar_otro_proceso();
 		}
+		pthread_mutex_unlock(&m_pid_desalojado);
 	}
 }
 
@@ -308,21 +347,28 @@ void aviso_planificador_corto_plazo_proceso_en_bloc(t_pcb* proceso_en_bloc){
 
 void aviso_planificador_corto_plazo_proceso_en_exec(){
 	sem_wait(&m_proceso_ejecutando);
+	pthread_mutex_lock(&m_pid_desalojado);
 	if(!pid_desalojado || pid_desalojado != proceso_ejecutando->PID){
 		sem_post(&m_proceso_ejecutando);
 		poner_a_ejecutar_proceso(proceso_ejecutando);
-	}else {
+	}else if(!pid_desalojado &&  pid_desalojado == proceso_ejecutando->PID){
+		sem_post(&m_proceso_ejecutando);
+
+	}else{
 		sem_post(&m_proceso_ejecutando);
 	}
+
+	pthread_mutex_unlock(&m_pid_desalojado);
 }
 
 void aviso_planificador_corto_plazo_proceso_en_exit(int pid_proceso_exit){
 
 	if(string_equals_ignore_case(algoritmo_planificacion, "PRIORIDADES") || string_equals_ignore_case(algoritmo_planificacion, "RR")){
-
+		pthread_mutex_lock(&m_pid_desalojado);
 		if(!pid_desalojado || pid_desalojado != pid_proceso_exit){
 			poner_a_ejecutar_otro_proceso();
 		}
+		pthread_mutex_unlock(&m_pid_desalojado);
 	}else {
 		poner_a_ejecutar_otro_proceso();
 	}

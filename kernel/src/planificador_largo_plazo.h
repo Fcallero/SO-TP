@@ -62,6 +62,8 @@ extern sem_t proceso_creado_memoria;
 extern sem_t m_espero_respuesta_pf;
 extern pthread_mutex_t m_matriz_recursos_asignados;
 extern pthread_mutex_t m_matriz_recursos_pendientes;
+extern pthread_mutex_t m_pid_desalojado;
+
 
 void inicializar_colas_y_semaforos();
 void *planificar_nuevos_procesos_largo_plazo(void *arg);

@@ -30,6 +30,8 @@ int socket_memoria;
 int socket_fs_solo_memoria;
 FILE* bloques;
 t_dictionary* fcb_por_archivo;
+extern char* ip_memoria;
+extern char* puerto_memoria;
 
 typedef struct{
 	int cliente_fd;

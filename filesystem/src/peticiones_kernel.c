@@ -326,6 +326,13 @@ void escribir_archivo_fs(int cliente_fd){
 
 	t_fcb *fcb = dictionary_get(fcb_por_archivo, nombre_archivo);
 
+	int result_conexion_memoria = conectar_memoria(ip_memoria, puerto_memoria);
+
+	if (result_conexion_memoria == -1) {
+		log_error(logger, "No se pudo conectar con el modulo Memoria !!");
+		return;
+	}
+
 	t_paquete *paquete = crear_paquete(READ_MEMORY);
 	agregar_a_paquete_sin_agregar_tamanio(paquete, &pid, sizeof(int));
 	agregar_a_paquete(paquete, instruccion->opcode,instruccion->opcode_lenght);
@@ -374,6 +381,7 @@ void escribir_archivo_fs(int cliente_fd){
 
 	free(nombre_archivo);
 	instruccion_destroy(instruccion);
+	close(socket_memoria);
 	free(buffer);
 }
 
@@ -423,6 +431,12 @@ void leer_archivo_fs(int cliente_fd){
 		instruccion->parametro1_lenght = instruccion->parametro2_lenght;
 		instruccion->parametro2_lenght = aux_len_direccion_fisica;
 
+		int result_conexion_memoria = conectar_memoria(ip_memoria, puerto_memoria);
+
+		if (result_conexion_memoria == -1) {
+			log_error(logger, "No se pudo conectar con el modulo Memoria !!");
+			return;
+		}
 
 		t_paquete *paquete = crear_paquete(WRITE_MEMORY_FS);
 		agregar_a_paquete_sin_agregar_tamanio(paquete, &pid, sizeof(int));
@@ -460,6 +474,7 @@ void leer_archivo_fs(int cliente_fd){
 	free(nombre_archivo);
 	free(buffer);
 	instruccion_destroy(instruccion);
+	close(socket_memoria);
 }
 
 

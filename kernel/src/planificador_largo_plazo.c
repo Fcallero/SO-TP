@@ -28,6 +28,7 @@ pthread_mutex_t m_planificador_corto_plazo;
 sem_t m_espero_respuesta_pf;
 pthread_mutex_t m_matriz_recursos_asignados;
 pthread_mutex_t m_matriz_recursos_pendientes;
+pthread_mutex_t m_pid_desalojado;
 
 void inicializar_colas_y_semaforos(){
 	cola_new = queue_create();
@@ -51,6 +52,7 @@ void inicializar_colas_y_semaforos(){
 	pthread_mutex_init(&m_planificador_corto_plazo, NULL);
 	pthread_mutex_init(&m_matriz_recursos_asignados, NULL);
 	pthread_mutex_init(&m_matriz_recursos_pendientes, NULL);
+	pthread_mutex_init(&m_pid_desalojado, NULL);
 }
 
 // si el proceso no es new, no es necesario el socket de memoria

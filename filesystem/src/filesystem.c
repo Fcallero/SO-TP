@@ -237,20 +237,8 @@ void *atender_cliente(void* args){
 
 	int cliente_fd = argumentos->cliente_fd;
 
-	
-
 	while(1){
 		int cod_op = recibir_operacion(cliente_fd);
-		
-		// logicamente puede enerar un pronlema de condicion de carrera, pero si anda la mayoria de las veces dejarlo
-		if(socket_memoria == 0&& cod_op != HANDSHAKE){
-			int result_conexion_memoria = conectar_memoria(ip_memoria, puerto_memoria);
-
-			if (result_conexion_memoria == -1) {
-				log_error(logger, "No se pudo conectar con el modulo Memoria !!");
-				return NULL;
-			}
-		}	
 
 		switch(cod_op){
 			case HANDSHAKE:
@@ -284,7 +272,7 @@ void *atender_cliente(void* args){
 				reservar_bloques(cliente_fd);
 				break;
 			case -1:
-				log_error(logger, "El cliente se desconecto. Terminando servidor");
+				log_error(logger, "El cliente se desconecto.");
 				return NULL;
 			default:
 				log_warning(logger, "Operacion desconocida. No quieras meter la pata");
@@ -293,7 +281,6 @@ void *atender_cliente(void* args){
 		
 	}
 
-	close(socket_memoria);
 	free(argumentos);
 	return NULL;
 }

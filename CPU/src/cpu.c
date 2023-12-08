@@ -5,6 +5,7 @@ int socket_cpu_interrupt;
 int socket_memoria;
 int socket_kernel_client_fd;
 bool hay_interrupcion_pendiente = false;
+bool continuar_con_el_ciclo_instruccion = true;
 
 int main(int argc, char *argv[]) {
 
@@ -184,7 +185,7 @@ void manejar_peticiones_instruccion() {
 //FETCH DECODE, EXCEC y CHECK INTERRUPT
 void manejar_peticion_al_cpu(int socket_kernel) {
 	t_contexto_ejec *contexto_actual = recibir_contexto_de_ejecucion(socket_kernel);
-	bool continuar_con_el_ciclo_instruccion = true;
+	continuar_con_el_ciclo_instruccion = true;
 
 	while (continuar_con_el_ciclo_instruccion) {
 
@@ -346,6 +347,11 @@ void recibir_interrupcion(int socket_kernel) {
 	log_info(logger, "Interrupcion - Motivo: %s", mensaje);
 
 	hay_interrupcion_pendiente = true;
+
+	if(!continuar_con_el_ciclo_instruccion){//si no hay nadie ejecutando
+		enviar_mensaje("NO hay nadie", socket_kernel, INTERRUPCION);
+	}
+
 }
 
 void devolver_a_kernel(t_contexto_ejec *contexto, op_code code,
