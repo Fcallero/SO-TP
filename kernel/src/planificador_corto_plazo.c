@@ -135,6 +135,10 @@ void planificar_corto_plazo_round_robbin() {
 
 	esperar_por(quantum);
 
+	pthread_mutex_lock(&m_pid_desalojado);
+	pid_desalojado = proceso_a_ejecutar->PID;
+	pthread_mutex_unlock(&m_pid_desalojado);
+
 	sem_wait(&m_proceso_ejecutando);
 	if(proceso_ejecutando == NULL){
 		sem_post(&m_proceso_ejecutando);
@@ -160,14 +164,7 @@ void planificar_corto_plazo_round_robbin() {
 	sem_wait(&m_proceso_ejecutando);
 
 	log_info(logger, "Fin de Quantum: “PID: %d - Desalojado por fin de Quantum“", proceso_a_ejecutar->PID);
-	log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", proceso_a_ejecutar->PID, "EXEC", "READY");
-	actualizar_estado_a_pcb(proceso_a_ejecutar, "READY");
 	sem_post(&m_proceso_ejecutando);
-
-	if(proceso_ejecutando == NULL){
-		log_info(logger, "proceso ejecutando es NULL antes de llamar a CPU");
-	}
-
 
 	char* mensaje = malloc(300);
 	pthread_mutex_lock(&m_pid_desalojado);
@@ -178,11 +175,22 @@ void planificar_corto_plazo_round_robbin() {
 
 	free(mensaje);
 
-	if(proceso_ejecutando == NULL){
-		log_info(logger, "proceso ejecutando ya es NULL, despues de llamar a cpu");
+	sem_wait(&m_proceso_ejecutando);
+	if(string_equals_ignore_case(proceso_a_ejecutar->proceso_estado,"EXEC")){//si el proceso esta en exec (osea no se bloqueo)
+		log_info(logger, "Cambio de Estado: “PID: %d - Estado Anterior: %s - Estado Actual: %s“", proceso_a_ejecutar->PID, "EXEC", "READY");
+		actualizar_estado_a_pcb(proceso_a_ejecutar, "READY");
+
+		proceso_ejecutando = NULL;
+		sem_post(&m_proceso_ejecutando);
+
+		pasar_a_ready(proceso_a_ejecutar);
+	}else {
+		sem_post(&m_proceso_ejecutando);
 	}
 
-	pasar_a_ready(proceso_a_ejecutar);
+	pthread_mutex_lock(&m_pid_desalojado);
+	pid_desalojado = 0;
+	pthread_mutex_unlock(&m_pid_desalojado);
 
 	pthread_mutex_unlock(&m_planificador_corto_plazo);
 }
@@ -293,13 +301,16 @@ void aviso_planificador_corto_plazo_proceso_en_ready(t_pcb* proceso_en_ready){
 			log_info(logger, "Hay alguien ejecutando y es el de mayor prioridad, no hago nada");
 			sem_post(&m_proceso_ejecutando);
 		}
-	}else {
+	}else {// si es FIFO Y RR
+		log_info(logger, "Manejo ingreso a ready");
 		sem_wait(&m_proceso_ejecutando);
 		if(proceso_ejecutando == NULL){//si no hay nadie ejecutando
 			sem_post(&m_proceso_ejecutando);
+			log_info(logger, "Manejo ingreso a ready - no hay nadie ejecutando, pongo a ejecutar a otro proceso");
 			poner_a_ejecutar_otro_proceso();
 		} else {
 			sem_post(&m_proceso_ejecutando);
+			log_info(logger, "Manejo ingreso a ready - hay alguien ejecutando, no hago nada");
 		}
 	}
 }
@@ -328,13 +339,15 @@ void manejar_proceso_en_bloc(t_pcb* proceso_en_bloc){
 			poner_a_ejecutar_otro_proceso();
 		}
 
-	}else {
+	}else {// si es RR
 		pthread_mutex_lock(&m_pid_desalojado);
 		if(pid_desalojado){// si justo se desaloja un proceso en este instante
 			pthread_mutex_unlock(&m_pid_desalojado);
+			log_info(logger, "Manejo de bloc -Hay alguien desalojado");
 			manejar_desalojo_en_bloc(proceso_en_bloc);
 		}else {
 			pthread_mutex_unlock(&m_pid_desalojado);
+			log_info(logger, "Manejo de bloc - no hay naide desalojado, pongo a ejecutar a otro proceso");
 			poner_a_ejecutar_otro_proceso();
 		}
 
