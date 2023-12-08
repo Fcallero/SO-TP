@@ -337,6 +337,7 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 			continuar_con_el_ciclo_instruccion = false;
 			devolver_a_kernel(contexto_actual, INTERRUPCION, socket_kernel);
 			hay_interrupcion_pendiente = false;
+			free(pid_a_desalojar);
 			pid_a_desalojar = NULL;
 		}
 	}
@@ -359,10 +360,12 @@ void recibir_interrupcion(int socket_kernel) {
 
 	if(!continuar_con_el_ciclo_instruccion){//si no hay nadie ejecutando
 		hay_interrupcion_pendiente = false;
+		free(pid_a_desalojar);
 		pid_a_desalojar = NULL;
 		enviar_mensaje("NO hay nadie", socket_kernel, INTERRUPCION);
 	}else if(pid_ejecutando && !string_equals_ignore_case(string_itoa(pid_ejecutando),pid_a_desalojar)){//si esta ejecutando otro proceso del que hay que desalojar
 		hay_interrupcion_pendiente = false;
+		free(pid_a_desalojar);
 		pid_a_desalojar = NULL;
 		enviar_mensaje("El proceso ya fue desalojado, esta ejecutando otro proceso", socket_kernel, INTERRUPCION);
 	}
