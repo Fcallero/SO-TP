@@ -185,6 +185,7 @@ void liberar_recursos_de(int pid_proceso_a_liberar){
 
 	//si la matriz no tenia a este proceso, se va porque no hay nada que liberar
 	if(recursos_del_proceso == NULL){
+		pthread_mutex_unlock(&m_matriz_recursos_asignados);
 		return;
 	}
 	t_list *recursos_del_proceso_dup = duplicar_lista_recursos(recursos_del_proceso);
