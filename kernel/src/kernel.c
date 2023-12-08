@@ -4,7 +4,6 @@ int socket_cpu_dispatch;
 int socket_cpu_interrupt;
 int socket_kernel;
 int socket_memoria;
-int socket_fs;
 int grado_max_multiprogramacion;
 char **recursos;
 int *recursos_disponible;
@@ -215,7 +214,6 @@ void terminar_programa(t_log *logger, t_config *config) {
 	config_destroy(config);
 	close(socket_cpu_dispatch);
 	close(socket_cpu_interrupt);
-	close(socket_fs);
 	close(socket_memoria);
 }
 
@@ -243,21 +241,21 @@ int conectar_memoria(char *ip, char *puerto) {
 	return 0;
 }
 
-int conectar_fs(char *ip, char *puerto) {
+int conectar_fs(char *ip, char *puerto, int *socket_filesystem) {
 
-	socket_fs = crear_conexion(ip, puerto);
+	*socket_filesystem = crear_conexion(ip, puerto);
 
 	//enviar handshake
-	enviar_mensaje("OK", socket_fs, HANDSHAKE);
+	enviar_mensaje("OK", *socket_filesystem , HANDSHAKE);
 
-	op_code cod_op = recibir_operacion(socket_fs);
+	op_code cod_op = recibir_operacion(*socket_filesystem );
 
 	if (cod_op != HANDSHAKE) {
 		return -1;
 	}
 
 	int size;
-	char *buffer = recibir_buffer(&size, socket_fs);
+	char *buffer = recibir_buffer(&size, *socket_filesystem );
 
 	if (strcmp(buffer, "OK") != 0) {
 		return -1;
@@ -364,6 +362,23 @@ void* manejar_peticiones_modulos(void *args) {
 
 // ---------------------------- Peticiones CPU ----------------------------------------------
 
+
+struct args_cliente_fd_y_funcion {
+	int cliente_fd;
+	void (*puntero_a_func_a_ejecutar)(int, t_contexto_ejec*);
+	t_contexto_ejec* contexto;
+};
+
+void * manejo_instruccion(void* args){
+	struct args_cliente_fd_y_funcion *args_hilo = args;
+
+	args_hilo->puntero_a_func_a_ejecutar(args_hilo->cliente_fd,args_hilo->contexto);
+
+	free(args);
+
+	return NULL;
+}
+
 void* escuchar_peticiones_cpu_dispatch(void *args) {
 
 	t_args_manejar_peticiones_modulos * arg_hilo = (t_args_manejar_peticiones_modulos *) args;
@@ -378,7 +393,14 @@ void* escuchar_peticiones_cpu_dispatch(void *args) {
 					recibir_handshake(cliente_fd);
 					break;
 				case FINALIZAR_PROCESO:
-					finalinzar_proceso(cliente_fd);
+					t_contexto_ejec* contexto = recibir_contexto_de_ejecucion(cliente_fd);
+					pthread_t hilo_manejo_fin_proceso;
+					struct args_cliente_fd_y_funcion *args_hilo_fin_proceso = malloc(sizeof(struct args_cliente_fd_y_funcion ));
+					args_hilo_fin_proceso->cliente_fd = cliente_fd;
+					args_hilo_fin_proceso->puntero_a_func_a_ejecutar = finalinzar_proceso;
+					args_hilo_fin_proceso->contexto = contexto;
+					pthread_create(&hilo_manejo_fin_proceso, NULL, manejo_instruccion, args_hilo_fin_proceso);
+					pthread_detach(hilo_manejo_fin_proceso);
 					break;
 				case APROPIAR_RECURSOS:
 					apropiar_recursos(cliente_fd, recursos, recursos_disponible, cantidad_de_recursos);
@@ -390,42 +412,79 @@ void* escuchar_peticiones_cpu_dispatch(void *args) {
 					manejar_sleep(cliente_fd);
 					break;
 				case ABRIR_ARCHIVO:
-					enviar_a_fs_crear_o_abrir_archivo(cliente_fd);
+					t_contexto_ejec* contexto_abrir_archivo = recibir_contexto_de_ejecucion(cliente_fd);
+					pthread_t hilo_manejo_abrir_archivo;
+					struct args_cliente_fd_y_funcion *args_hilo_abrir_archivo = malloc(sizeof(struct args_cliente_fd_y_funcion ));
+					args_hilo_abrir_archivo->cliente_fd = cliente_fd;
+					args_hilo_abrir_archivo->puntero_a_func_a_ejecutar = enviar_a_fs_crear_o_abrir_archivo;
+					args_hilo_abrir_archivo->contexto = contexto_abrir_archivo;
+					pthread_create(&hilo_manejo_abrir_archivo, NULL, manejo_instruccion, args_hilo_abrir_archivo);
+					pthread_detach(hilo_manejo_abrir_archivo);
 					break;
 				case CERRAR_ARCHIVO:
-					cerrar_archivo(cliente_fd);
+					t_contexto_ejec* contexto_cerrar_archivo = recibir_contexto_de_ejecucion(cliente_fd);
+					pthread_t hilo_manejo_cerrar_archivo;
+					struct args_cliente_fd_y_funcion *args_hilo_cerrar_archivo = malloc(sizeof(struct args_cliente_fd_y_funcion ));
+					args_hilo_cerrar_archivo->cliente_fd = cliente_fd;
+					args_hilo_cerrar_archivo->puntero_a_func_a_ejecutar = cerrar_archivo;
+					args_hilo_cerrar_archivo->contexto=contexto_cerrar_archivo;
+
+					pthread_create(&hilo_manejo_cerrar_archivo, NULL, manejo_instruccion, args_hilo_cerrar_archivo);
+					pthread_detach(hilo_manejo_cerrar_archivo);
 					break;
 				case TRUNCAR_ARCHIVO:
-					enviar_a_fs_truncar_archivo(cliente_fd);
+					t_contexto_ejec* contexto_truncar_archivo = recibir_contexto_de_ejecucion(cliente_fd);
+					pthread_t hilo_manejo_truncar_archivo;
+					struct args_cliente_fd_y_funcion *args_hilo_truncar_archivo = malloc(sizeof(struct args_cliente_fd_y_funcion ));
+					args_hilo_truncar_archivo->cliente_fd = cliente_fd;
+					args_hilo_truncar_archivo->puntero_a_func_a_ejecutar = enviar_a_fs_truncar_archivo;
+					args_hilo_truncar_archivo->contexto=contexto_truncar_archivo;
+
+					pthread_create(&hilo_manejo_truncar_archivo, NULL, manejo_instruccion, args_hilo_truncar_archivo);
+					pthread_detach(hilo_manejo_truncar_archivo);
 					break;
 				case APUNTAR_ARCHIVO:
-					reposicionar_puntero(cliente_fd);
+					t_contexto_ejec* contexto_apuntar_archivo = recibir_contexto_de_ejecucion(cliente_fd);
+					reposicionar_puntero(cliente_fd, contexto_apuntar_archivo);
 					break;
 				case LEER_ARCHIVO:
-					leer_archivo(cliente_fd);
+					t_contexto_ejec* contexto_leer_archivo = recibir_contexto_de_ejecucion(cliente_fd);
+					pthread_t hilo_manejo_leer_archivo;
+					struct args_cliente_fd_y_funcion *args_hilo_leer_archivo = malloc(sizeof(struct args_cliente_fd_y_funcion ));
+					args_hilo_leer_archivo->cliente_fd = cliente_fd;
+					args_hilo_leer_archivo->puntero_a_func_a_ejecutar = leer_archivo;
+					args_hilo_leer_archivo->contexto=contexto_leer_archivo;
+					pthread_create(&hilo_manejo_leer_archivo, NULL, manejo_instruccion, args_hilo_leer_archivo);
+					pthread_detach(hilo_manejo_leer_archivo);
 					break;
 				case ESCRIBIR_ARCHIVO:
-					escribir_archivo(cliente_fd);
+					t_contexto_ejec* contexto_escribir_archivo = recibir_contexto_de_ejecucion(cliente_fd);
+					pthread_t hilo_manejo_escribir_archivo;
+					struct args_cliente_fd_y_funcion *args_hilo_escribir_archivo = malloc(sizeof(struct args_cliente_fd_y_funcion ));
+					args_hilo_escribir_archivo->cliente_fd = cliente_fd;
+					args_hilo_escribir_archivo->puntero_a_func_a_ejecutar = escribir_archivo;
+					args_hilo_escribir_archivo->contexto = contexto_escribir_archivo;
+
+					pthread_create(&hilo_manejo_escribir_archivo, NULL, manejo_instruccion, args_hilo_escribir_archivo);
+					pthread_detach(hilo_manejo_escribir_archivo);
 					break;
 				case PAGE_FAULT:
-					manejar_page_fault(cliente_fd);
+					manejar_page_fault(cliente_fd);//dentro levanta su propio hilo
 					break;
-
 				case INTERRUPCION:
-					t_contexto_ejec *contexto = recibir_contexto_de_ejecucion(socket_cpu_dispatch);
-					log_info(logger, "program_counter: %d", contexto->program_counter);
+					t_contexto_ejec *contexto_interrupcion = recibir_contexto_de_ejecucion(socket_cpu_dispatch);
+					log_info(logger, "program_counter: %d", contexto_interrupcion->program_counter);
 
 
 					sem_post(&espero_desalojo_CPU);
 
 					sem_wait(&m_proceso_ejecutando);
-					actualizar_pcb(contexto, proceso_ejecutando);
+					actualizar_pcb(contexto_interrupcion, proceso_ejecutando);
 					sem_post(&m_proceso_ejecutando);
 
-					contexto_ejecucion_destroy(contexto);
+					contexto_ejecucion_destroy(contexto_interrupcion);
 
 					sem_post(&espero_actualizacion_pcb);
-
 					break;
 				case -1:
 					log_error(logger, "La CPU se desconecto. Terminando servidor ");

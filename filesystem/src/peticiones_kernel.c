@@ -42,7 +42,7 @@ void abrir_archivo(int cliente_fd){
 	//CASO 1: La FCB esta en el diccionario (en memoria) => el archivo existe
 	if(dictionary_has_key(fcb_por_archivo, nombre_archivo)){
 
-		enviar_mensaje("OK", cliente_fd, ABRIR_ARCHIVO);
+		enviar_mensaje("OK", cliente_fd, ABRIR_ARCHIVO_RESPUESTA);
 
 	//CASO 2: La FCB no esta en memoria pero si esta en el sistema
 	}else {
@@ -59,7 +59,7 @@ void abrir_archivo(int cliente_fd){
 
 			dictionary_put(fcb_por_archivo, nombre_archivo, fcb);
 
-			enviar_mensaje("OK", cliente_fd, ABRIR_ARCHIVO);
+			enviar_mensaje("OK", cliente_fd, ABRIR_ARCHIVO_RESPUESTA);
 
 
 		//CASO B: La FCB no existe => el archivo tampoco
@@ -120,7 +120,7 @@ void crear_archivo(int cliente_fd){
 
 	//Cargo estructuras resantes
 	dictionary_put(fcb_por_archivo, nombre_archivo, fcb);
-	enviar_mensaje("OK", cliente_fd, CREAR_ARCHIVO);
+	enviar_mensaje("OK", cliente_fd, CREAR_ARCHIVO_RESPUESTA);
 }
 
 
@@ -289,7 +289,7 @@ void truncar_archivo(int cliente_fd){
 
 		if(archivo_fcb == NULL){
 			log_error(logger, "No se encontro el fcb del archivo %s", fcb_a_truncar->nombre_archivo);
-			enviar_mensaje("ERROR", cliente_fd, TRUNCAR_ARCHIVO);
+			enviar_mensaje("ERROR", cliente_fd, TRUNCAR_ARCHIVO_RESPUESTA);
 			return;
 
 		}
@@ -302,7 +302,7 @@ void truncar_archivo(int cliente_fd){
 
 
 	   // respondo a kernel un OK
-		enviar_mensaje("OK", cliente_fd, TRUNCAR_ARCHIVO);
+		enviar_mensaje("OK", cliente_fd, TRUNCAR_ARCHIVO_RESPUESTA);
 
 		free(nombre_archivo);
 }
@@ -343,7 +343,7 @@ void escribir_archivo_fs(int cliente_fd){
 
 	op_code cod_op = recibir_operacion(socket_memoria);
 
-	if(cod_op != READ_MEMORY){
+	if(cod_op != READ_MEMORY_RESPUESTA){
 		log_error(logger, "No se pudo leer el contenido del archivo en la memoria");
 		return;
 	}
@@ -372,7 +372,7 @@ void escribir_archivo_fs(int cliente_fd){
 
 		log_info(logger, "Archivo escrito: %s - Puntero: %d - Memoria: %s", nombre_archivo, puntero, instruccion->parametros[1]);
 
-		enviar_mensaje("OK", cliente_fd, ESCRIBIR_ARCHIVO);
+		enviar_mensaje("OK", cliente_fd, ESCRIBIR_ARCHIVO_RESPUESTA);
 
 	}else{
 		log_error(logger, "El archivo no se encuentra en el FS");
@@ -453,7 +453,7 @@ void leer_archivo_fs(int cliente_fd){
 
 		op_code cod_op = recibir_operacion(socket_memoria);
 
-		if(cod_op != WRITE_MEMORY_FS){
+		if(cod_op != WRITE_MEMORY_FS_RESPUESTA){
 			log_error(logger, "No se pudo escribir el contenido del archivo en la memoria");
 			return;
 		}
@@ -462,7 +462,7 @@ void leer_archivo_fs(int cliente_fd){
 		if(strcmp(mensaje,"OK") == 0){
 			log_info(logger, "se recibio un  %s de memoria", mensaje);
 
-			enviar_mensaje(mensaje, cliente_fd, LEER_ARCHIVO);
+			enviar_mensaje(mensaje, cliente_fd, LEER_ARCHIVO_RESPUESTA);
 			free(mensaje);
 		}
 

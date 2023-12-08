@@ -132,9 +132,9 @@ void enviar_instruccion(t_instruccion* instruccion, int socket_a_enviar, int opc
 	eliminar_paquete(paquete);
 }
 
-void enviar_instruccion_a_fs(t_instruccion* instruccion, op_code opcode){
+void enviar_instruccion_a_fs(t_instruccion* instruccion, op_code opcode, int *socket_filesystem){
 	//conectar con FS
-		int result_conexion_filesystem = conectar_fs(ip_filesystem, puerto_filesystem);
+		int result_conexion_filesystem = conectar_fs(ip_filesystem, puerto_filesystem, socket_filesystem);
 
 		if (result_conexion_filesystem == -1) {
 			log_error(logger, "No se pudo conectar con el modulo filesystem !!");
@@ -143,7 +143,7 @@ void enviar_instruccion_a_fs(t_instruccion* instruccion, op_code opcode){
 		log_info(logger,"El Kernel se conecto con el modulo Filesystem correctamente");
 
 
-		enviar_instruccion(instruccion, socket_fs,opcode);
+		enviar_instruccion(instruccion, *socket_filesystem,opcode);
 }
 
 void crear_entrada_tabla_global_archivos_abiertos(char *nombre_archivo){
@@ -306,9 +306,7 @@ void actualizar_pcb(t_contexto_ejec* contexto, t_pcb* proceso_a_actualizar){
 
 }
 
-void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu){
-	t_contexto_ejec* contexto = recibir_contexto_de_ejecucion(socket_cpu);
-
+void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, t_contexto_ejec* contexto){
 
 	sem_wait(&m_proceso_ejecutando);
 	t_pcb* proceso_a_leer_archivo = proceso_ejecutando;
@@ -324,30 +322,30 @@ void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu){
 	sem_wait(&m_proceso_ejecutando);
 	actualizar_archivos_abiertos_por_proceso(proceso_a_leer_archivo, nombre_archivo, modo_apertura);
 	sem_post(&m_proceso_ejecutando);
-
-	enviar_instruccion_a_fs(contexto->instruccion, ABRIR_ARCHIVO);
+	int socket_filesystem;
+	enviar_instruccion_a_fs(contexto->instruccion, ABRIR_ARCHIVO, &socket_filesystem);
 
 	//esperamos una respuesata del fs:
 	//	SI EXISTE, RECIBE UN OK;
 	//	SI NO EXISTE, MANDARA UN -1 Y MANDAREMOS ORDEN DE CREAR EL ARCHIVO
 
-	int opcode = recibir_operacion(socket_fs);
+	int opcode = recibir_operacion(socket_filesystem);
 
 	if(opcode == MENSAJE){
 		//si el archivo no existe
-		if(atoi(recibir_mensaje(socket_fs))==-1){
+		if(atoi(recibir_mensaje(socket_filesystem))==-1){
 			//mandamos la orden
-			enviar_instruccion(contexto->instruccion, socket_fs, CREAR_ARCHIVO);
+			enviar_instruccion(contexto->instruccion, socket_filesystem, CREAR_ARCHIVO);
 
 			//epero la respuesta de la creacion del archivo
-			int opcode = recibir_operacion(socket_fs);
+			int opcode = recibir_operacion(socket_filesystem);
 
-			if(opcode != CREAR_ARCHIVO){
+			if(opcode != CREAR_ARCHIVO_RESPUESTA){
 				log_error(logger, "No se pudo crear el archivo, hubo un error");
 				return;
 			}
 
-			char *mensaje = recibir_mensaje(socket_fs);
+			char *mensaje = recibir_mensaje(socket_filesystem);
 			log_info(logger, "Se recibio %s de Filesystem, arhivo creado exitosamente", mensaje);
 			free(mensaje);
 
@@ -356,8 +354,8 @@ void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu){
 			log_error(logger, "Hubo un error al recibir de FS si el archivo %s existe o no", nombre_archivo);
 		}
 	// si existe el archivo
-	} else if(opcode == ABRIR_ARCHIVO){
-		char* mensaje = recibir_mensaje(socket_fs);
+	} else if(opcode == ABRIR_ARCHIVO_RESPUESTA){
+		char* mensaje = recibir_mensaje(socket_filesystem);
 		log_info(logger, "se reicibo un %s de FS, archivo abierto correctamente", mensaje);
 		free(mensaje);
 
@@ -387,14 +385,13 @@ void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu){
 
 	//dependiendo del lock, va a seguir ejecutando el proceso o se va a bloquear y llama a otro proceso de ready
 
-	close(socket_fs);
+	close(socket_filesystem);
 	contexto_ejecucion_destroy(contexto);
 	return;
 }
 
-void enviar_a_fs_truncar_archivo(int socket_cpu)
+void enviar_a_fs_truncar_archivo(int socket_cpu, t_contexto_ejec* contexto)
 {
-	t_contexto_ejec* contexto = recibir_contexto_de_ejecucion(socket_cpu);
 
 	char* nombre_archivo = strdup(contexto->instruccion->parametros[0]);
 	char* tamanio_archivo = strdup(contexto->instruccion->parametros[1]);
@@ -407,8 +404,8 @@ void enviar_a_fs_truncar_archivo(int socket_cpu)
 
 	log_info(logger,"Truncar Archivo: “PID: %d - Archivo: %s - Tamaño: %s“",contexto->pid, nombre_archivo, tamanio_archivo);
 
-
-	enviar_instruccion_a_fs(contexto->instruccion, TRUNCAR_ARCHIVO);
+	int socket_filesystem;
+	enviar_instruccion_a_fs(contexto->instruccion, TRUNCAR_ARCHIVO, &socket_filesystem);
 
 	//bloquear mientras espera a FS y desbloquear el proceso cuando termina FS.
 
@@ -421,20 +418,20 @@ void enviar_a_fs_truncar_archivo(int socket_cpu)
 
 	aviso_planificador_corto_plazo_proceso_en_bloc(proceso_a_leer_archivo);
 
-	int opcode = recibir_operacion(socket_fs);
+	int opcode = recibir_operacion(socket_filesystem);
 
-	if(opcode != TRUNCAR_ARCHIVO){
+	if(opcode != TRUNCAR_ARCHIVO_RESPUESTA){
 		log_error(logger, "No se pudo truncar el archivo, hubo un error");
 		return ;
 	}
 
-	char *mensaje = recibir_mensaje(socket_fs);
+	char *mensaje = recibir_mensaje(socket_filesystem);
 
 	log_info(logger, "se reicibio un %s de FS, archivo truncado correctamente ", mensaje);
 
 	desbloquear_por_espera_a_fs(contexto->pid, nombre_archivo);
 
-	close(socket_fs);
+	close(socket_filesystem);
 	contexto_ejecucion_destroy(contexto);
 	return;
 }
@@ -450,8 +447,7 @@ t_tabla_de_archivos_por_proceso *obtener_entrada_archivos_abiertos_proceso(t_lis
 	return list_find(tabla_arch_abiertos_proceso, buscar_entrada);
 }
 
-void reposicionar_puntero(int cliente_fd){
-	t_contexto_ejec* contexto = (t_contexto_ejec*) recibir_contexto_de_ejecucion(cliente_fd);
+void reposicionar_puntero(int cliente_fd, t_contexto_ejec* contexto){
 	t_instruccion* instruccion_peticion = contexto->instruccion;
 
 	sem_wait(&m_proceso_ejecutando);
@@ -475,10 +471,9 @@ void reposicionar_puntero(int cliente_fd){
 	contexto_ejecucion_destroy(contexto);
 }
 
-void enviar_peticion_puntero_fs(op_code opcode, t_instruccion *instruccion, int puntero, int pid){
-
+void enviar_peticion_puntero_fs(op_code opcode, t_instruccion *instruccion, int puntero, int pid, int* socket_filesystem){
 	//conectar con FS
-	int result_conexion_filesystem = conectar_fs(ip_filesystem, puerto_filesystem);
+	int result_conexion_filesystem = conectar_fs(ip_filesystem, puerto_filesystem, socket_filesystem);
 
 	if (result_conexion_filesystem == -1) {
 		log_error(logger, "No se pudo conectar con el modulo filesystem !!");
@@ -493,12 +488,11 @@ void enviar_peticion_puntero_fs(op_code opcode, t_instruccion *instruccion, int 
 	agregar_a_paquete(paquete, instruccion->parametros[1],instruccion->parametro2_lenght);
 	agregar_a_paquete(paquete, instruccion->parametros[2],instruccion->parametro3_lenght);
 	agregar_a_paquete_sin_agregar_tamanio(paquete, &puntero, sizeof(int));
-	enviar_paquete(paquete, socket_fs);
+	enviar_paquete(paquete, *socket_filesystem);
 	eliminar_paquete(paquete);
 }
 
-void leer_archivo(int socket_cpu){
-	t_contexto_ejec* contexto = (t_contexto_ejec*) recibir_contexto_de_ejecucion(socket_cpu);
+void leer_archivo(int socket_cpu, t_contexto_ejec* contexto){
 	t_instruccion* instruccion_peticion = contexto->instruccion;
 
 	sem_wait(&m_proceso_ejecutando);
@@ -519,8 +513,8 @@ void leer_archivo(int socket_cpu){
 
 	free(direccion_fisica);
 	free(bytes_a_leer_string);
-
-	enviar_peticion_puntero_fs(LEER_ARCHIVO,instruccion_peticion, puntero, contexto->pid);
+	int socket_filesystem;
+	enviar_peticion_puntero_fs(LEER_ARCHIVO,instruccion_peticion, puntero, contexto->pid, &socket_filesystem);
 
 	deteccion_de_deadlock();
 
@@ -530,10 +524,10 @@ void leer_archivo(int socket_cpu){
 
 	aviso_planificador_corto_plazo_proceso_en_bloc(proceso_a_leer_archivo);
 
-	op_code cod_op = recibir_operacion(socket_fs);
+	op_code cod_op = recibir_operacion(socket_filesystem);
 
-	if(cod_op == LEER_ARCHIVO){
-		char* mensaje = recibir_mensaje(socket_fs);
+	if(cod_op == LEER_ARCHIVO_RESPUESTA){
+		char* mensaje = recibir_mensaje(socket_filesystem);
 
 		if(strcmp(mensaje,"OK") == 0){
 			//desbloquear tras recibir "OK"
@@ -545,7 +539,7 @@ void leer_archivo(int socket_cpu){
 			log_error(logger, "No se pudo leer el archivo");
 		}
 	}
-	close(socket_fs);
+	close(socket_filesystem);
 	free(nombre_archivo);
 	contexto_ejecucion_destroy(contexto);
 }
@@ -581,8 +575,7 @@ void finalizar_por_invalid_write_proceso_ejecutando(t_contexto_ejec** contexto, 
 	aviso_planificador_corto_plazo_proceso_en_exit(pid_proceso_exit);
 }
 
-void escribir_archivo(int socket_cpu){
-	t_contexto_ejec* contexto = (t_contexto_ejec*) recibir_contexto_de_ejecucion(socket_cpu);
+void escribir_archivo(int socket_cpu, t_contexto_ejec* contexto){
 	t_instruccion* instruccion_peticion = contexto->instruccion;
 
 	sem_wait(&m_proceso_ejecutando);
@@ -609,8 +602,8 @@ void escribir_archivo(int socket_cpu){
 		finalizar_por_invalid_write_proceso_ejecutando(&contexto, proceso_a_leer_archivo);
 		return;
 	}
-
-	enviar_peticion_puntero_fs(ESCRIBIR_ARCHIVO,instruccion_peticion, puntero, contexto->pid);
+	int socket_filesystem;
+	enviar_peticion_puntero_fs(ESCRIBIR_ARCHIVO,instruccion_peticion, puntero, contexto->pid, &socket_filesystem);
 
 	deteccion_de_deadlock();
 
@@ -620,10 +613,10 @@ void escribir_archivo(int socket_cpu){
 
 	aviso_planificador_corto_plazo_proceso_en_bloc(proceso_a_leer_archivo);
 
-	op_code cod_op = recibir_operacion(socket_fs);
+	op_code cod_op = recibir_operacion(socket_filesystem);
 
-	if(cod_op == ESCRIBIR_ARCHIVO){
-		char* mensaje = recibir_mensaje(socket_fs);
+	if(cod_op == ESCRIBIR_ARCHIVO_RESPUESTA){
+		char* mensaje = recibir_mensaje(socket_filesystem);
 		if(strcmp(mensaje,"OK") == 0){
 			//desbloquear tras recibir "OK"
 			desbloquear_por_espera_a_fs(contexto->pid, nombre_archivo);
@@ -635,13 +628,12 @@ void escribir_archivo(int socket_cpu){
 		}
 	}
 
-	close(socket_fs);
+	close(socket_filesystem);
 	free(nombre_archivo);
 	contexto_ejecucion_destroy(contexto);
 }
 
-void cerrar_archivo(int cliente_fd){
-	t_contexto_ejec* contexto = (t_contexto_ejec*) recibir_contexto_de_ejecucion(cliente_fd);
+void cerrar_archivo(int cliente_fd, t_contexto_ejec* contexto){
 	t_instruccion* instruccion_peticion = contexto->instruccion;
 
 

@@ -236,14 +236,17 @@ void aviso_planificador_corto_plazo_proceso_en_ready(t_pcb* proceso_en_ready){
 		t_pcb* proceso_con_mayor_prioridad = queue_peek(cola_ready);//obtengo el proceso sin sacarlo de la cola
 		sem_post(&m_cola_ready);
 
+		log_info(logger, "Manejo ingreso a ready");
 		sem_wait(&m_proceso_ejecutando);
 		if(proceso_ejecutando == NULL){//si no hay nadie ejecutando
 			sem_post(&m_proceso_ejecutando);
+			log_info(logger, "No hay nadie ejecutando, pongo a ejecutar a otro proceso");
 
 			poner_a_ejecutar_otro_proceso();
 
 		}else if(proceso_con_mayor_prioridad != NULL && proceso_con_mayor_prioridad->prioridad < proceso_ejecutando->prioridad){//si hay alguien ejecutando pero es de menor prioridad
 			sem_post(&m_proceso_ejecutando);
+			log_info(logger, "Hay un proceso ejecutando, pero el que esta en ready es de mayor prioridad, lo desalojo");
 			char* mensaje = malloc(300);
 			sem_wait(&m_proceso_ejecutando);
 			sprintf(mensaje, "Desalojo por proceso de mayor prioridad a %d", proceso_ejecutando->PID);
@@ -283,10 +286,11 @@ void aviso_planificador_corto_plazo_proceso_en_ready(t_pcb* proceso_en_ready){
 			pthread_mutex_unlock(&m_pid_desalojado);
 			sem_post(&m_proceso_ejecutando);
 
-
+			log_info(logger, "Proceso de menor prioridad desalojado, pongo a ejecutar al proceso de mayor prioridad");
 			poner_a_ejecutar_proceso(proceso_a_ejecutar);
 
 		} else {//si hay alguien ejecutando y es el proceso no hago nada
+			log_info(logger, "Hay alguien ejecutando y es el de mayor prioridad, no hago nada");
 			sem_post(&m_proceso_ejecutando);
 		}
 	}else {
@@ -303,6 +307,7 @@ void aviso_planificador_corto_plazo_proceso_en_ready(t_pcb* proceso_en_ready){
 void manejar_desalojo_en_bloc(t_pcb* proceso_en_bloc){
 	pthread_mutex_lock(&m_pid_desalojado);
 	if(pid_desalojado != proceso_en_bloc->PID){
+		log_info(logger, "Manejo de bloc -El desalojado no es el proceso en bloc, pongo a ejecutar a otro proceso");
 		poner_a_ejecutar_otro_proceso();
 	}
 	pthread_mutex_unlock(&m_pid_desalojado);
@@ -314,19 +319,25 @@ void manejar_proceso_en_bloc(t_pcb* proceso_en_bloc){
 	}else if(string_equals_ignore_case(algoritmo_planificacion, "PRIORIDADES")){
 		pthread_mutex_lock(&m_pid_desalojado);
 		if(pid_desalojado){// si justo se desaloja un proceso en este instante
+			pthread_mutex_unlock(&m_pid_desalojado);
+			log_info(logger, "Manejo de bloc -Hay alguien desalojado");
 			manejar_desalojo_en_bloc(proceso_en_bloc);
 		}else {
+			pthread_mutex_unlock(&m_pid_desalojado);
+			log_info(logger, "Manejo de bloc - no hay naide desalojado, pongo a ejecutar a otro proceso");
 			poner_a_ejecutar_otro_proceso();
 		}
-		pthread_mutex_unlock(&m_pid_desalojado);
+
 	}else {
 		pthread_mutex_lock(&m_pid_desalojado);
 		if(pid_desalojado){// si justo se desaloja un proceso en este instante
+			pthread_mutex_unlock(&m_pid_desalojado);
 			manejar_desalojo_en_bloc(proceso_en_bloc);
 		}else {
+			pthread_mutex_unlock(&m_pid_desalojado);
 			poner_a_ejecutar_otro_proceso();
 		}
-		pthread_mutex_unlock(&m_pid_desalojado);
+
 	}
 }
 
@@ -349,16 +360,22 @@ void aviso_planificador_corto_plazo_proceso_en_exec(){
 	sem_wait(&m_proceso_ejecutando);
 	pthread_mutex_lock(&m_pid_desalojado);
 	if(!pid_desalojado || pid_desalojado != proceso_ejecutando->PID){
+		pthread_mutex_unlock(&m_pid_desalojado);
 		sem_post(&m_proceso_ejecutando);
+		log_info(logger, "Manejo de exec -Hay alguien desalojado no es el proceso ejecutando o no hay nadie desalojado, continuo ejecutando el proceso ejecutando");
 		poner_a_ejecutar_proceso(proceso_ejecutando);
 	}else if(!pid_desalojado &&  pid_desalojado == proceso_ejecutando->PID){
+		pthread_mutex_unlock(&m_pid_desalojado);
 		sem_post(&m_proceso_ejecutando);
+		log_info(logger, "Manejo de exec -Hay alguien desalojado y es el proceso ejecutando, no hago nada");
 
 	}else{
+		pthread_mutex_unlock(&m_pid_desalojado);
 		sem_post(&m_proceso_ejecutando);
+		log_info(logger, "Manejo de exec - No deberia entrar aca entonces no hago nada");
 	}
 
-	pthread_mutex_unlock(&m_pid_desalojado);
+
 }
 
 void aviso_planificador_corto_plazo_proceso_en_exit(int pid_proceso_exit){
@@ -366,7 +383,10 @@ void aviso_planificador_corto_plazo_proceso_en_exit(int pid_proceso_exit){
 	if(string_equals_ignore_case(algoritmo_planificacion, "PRIORIDADES") || string_equals_ignore_case(algoritmo_planificacion, "RR")){
 		pthread_mutex_lock(&m_pid_desalojado);
 		if(!pid_desalojado || pid_desalojado != pid_proceso_exit){
+			log_info(logger, "Manejo de exit - no hay nadie desalojado o hay a alguien desalojado pero no es el proceso en exit, pongo a ejecutar a otro proceso");
 			poner_a_ejecutar_otro_proceso();
+		}else{
+			log_info(logger, "Manejo de exit - Hay alguien desalojado y es el proceso en exit, no hago nada");
 		}
 		pthread_mutex_unlock(&m_pid_desalojado);
 	}else {

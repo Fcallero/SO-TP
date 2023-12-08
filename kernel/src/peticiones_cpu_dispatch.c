@@ -594,9 +594,7 @@ void desalojar_recursos(int socket_cliente,char** recursos, int* recurso_disponi
 }
 
 
-void finalinzar_proceso(int socket_cliente){
-	t_contexto_ejec* contexto = recibir_contexto_de_ejecucion(socket_cliente);
-
+void finalinzar_proceso(int socket_cliente, t_contexto_ejec* contexto){
 	sem_wait(&m_proceso_ejecutando);
 	t_pcb* proceso_a_operar= proceso_ejecutando;
 	actualizar_pcb(contexto, proceso_a_operar);

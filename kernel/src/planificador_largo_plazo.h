@@ -29,7 +29,6 @@ extern int socket_cpu_dispatch;
 extern int socket_cpu_interrupt;
 extern int socket_kernel;
 extern int socket_memoria;
-extern int socket_fs;
 extern int grado_max_multiprogramacion;
 
 

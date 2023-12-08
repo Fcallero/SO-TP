@@ -278,7 +278,7 @@ void guardar_valor_en(int direccion_fisica, uint32_t valor_a_guardar, int pid){
 
 	int cod_op = recibir_operacion(socket_memoria);
 
-	if(cod_op == WRITE_MEMORY){
+	if(cod_op == WRITE_MEMORY_RESPUESTA){
 
 		// recibo el OK de memoria
 		char* mensaje = recibir_mensaje(socket_memoria);
@@ -332,7 +332,7 @@ uint32_t leer_valor(int direccion_fisica, int pid){
 	void* valor_leido_sin_realizar;
 	uint32_t valor_leido;
 
-	if(cod_op == READ_MEMORY){
+	if(cod_op == READ_MEMORY_RESPUESTA){
 		// recibo el valor leido de memoria
 		int size_recibido;
 		valor_leido_sin_realizar = recibir_buffer(&size_recibido, socket_memoria);

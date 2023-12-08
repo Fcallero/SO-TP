@@ -27,12 +27,12 @@ extern char* puerto_filesystem;
 
 void desbloquear_por_espera_a_fs(int pid, char* nombre_archivo);
 
-void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu);
-void enviar_a_fs_truncar_archivo(int socket_cpu);
-void reposicionar_puntero(int cliente_fd);
-void leer_archivo(int socket_cpu);
-void escribir_archivo(int socket_cpu);
-void cerrar_archivo(int cliente_fd);
+void enviar_a_fs_crear_o_abrir_archivo (int socket_cpu, t_contexto_ejec* contexto);
+void enviar_a_fs_truncar_archivo(int socket_cpu, t_contexto_ejec* contexto);
+void reposicionar_puntero(int cliente_fd, t_contexto_ejec* contexto);
+void leer_archivo(int socket_cpu, t_contexto_ejec* contexto);
+void escribir_archivo(int socket_cpu, t_contexto_ejec* contexto);
+void cerrar_archivo(int cliente_fd, t_contexto_ejec* contexto);
 
 void enviar_instruccion(t_instruccion* instruccion, int socket_a_enviar, int opcode);
 void actualizar_pcb(t_contexto_ejec* contexto, t_pcb* proceso_a_actualizar);

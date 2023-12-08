@@ -57,7 +57,7 @@ t_config* iniciar_config(void);
 t_log* iniciar_logger(void);
 void terminar_programa(t_log* logger, t_config* config);
 
-int conectar_fs(char* ip, char* puerto);
+int conectar_fs(char* ip, char* puerto, int *socket_filesystem);
 void manejar_pedidos_memoria(char* algoritmo_reemplazo,int retardo_respuesta,int tam_pagina,int tam_memoria);
 void *atender_cliente(void* args);
 

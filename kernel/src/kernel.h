@@ -41,7 +41,7 @@ t_config* iniciar_config(void);
 t_log* iniciar_logger(void);
 void terminar_programa(t_log* logger, t_config* config);
 int conectar_memoria(char* ip, char* puerto);
-int conectar_fs(char* ip, char* puerto);
+int conectar_fs(char *ip, char *puerto, int *socket_filesystem);
 int conectar_cpu_dispatch(char* ip, char* puerto);
 int conectar_cpu_interrupt(char* ip, char* puerto);
 //void levantar_consola();

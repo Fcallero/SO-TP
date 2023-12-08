@@ -6,6 +6,8 @@ int socket_memoria;
 int socket_kernel_client_fd;
 bool hay_interrupcion_pendiente = false;
 bool continuar_con_el_ciclo_instruccion = true;
+char* pid_a_desalojar = NULL;
+int pid_ejecutando;
 
 int main(int argc, char *argv[]) {
 
@@ -187,6 +189,7 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 	t_contexto_ejec *contexto_actual = recibir_contexto_de_ejecucion(socket_kernel);
 	continuar_con_el_ciclo_instruccion = true;
 
+	pid_ejecutando = contexto_actual->pid;
 	while (continuar_con_el_ciclo_instruccion) {
 
 		//FETCH
@@ -329,14 +332,16 @@ void manejar_peticion_al_cpu(int socket_kernel) {
 		}
 
 		//CHECK INTERRUPT
-		if (hay_interrupcion_pendiente) {
-			log_info(logger, "Atendiendo interrupcion y devuelvo a kernel");
+		if (hay_interrupcion_pendiente && pid_a_desalojar!=NULL &&string_equals_ignore_case(pid_a_desalojar, string_itoa(contexto_actual->pid))) {
+			log_info(logger, "Atendiendo interrupcion a %s y devuelvo a kernel", pid_a_desalojar);
 			continuar_con_el_ciclo_instruccion = false;
 			devolver_a_kernel(contexto_actual, INTERRUPCION, socket_kernel);
 			hay_interrupcion_pendiente = false;
-		} 
+			pid_a_desalojar = NULL;
+		}
 	}
 
+	pid_ejecutando = 0;
 	contexto_ejecucion_destroy(contexto_actual);
 }
 
@@ -346,10 +351,20 @@ void recibir_interrupcion(int socket_kernel) {
 
 	log_info(logger, "Interrupcion - Motivo: %s", mensaje);
 
+	char** array_mensaje = string_split(mensaje, " ");
+
+	pid_a_desalojar = string_array_pop(array_mensaje);//para comparar si es el pid del proceso a desalojar
+
 	hay_interrupcion_pendiente = true;
 
 	if(!continuar_con_el_ciclo_instruccion){//si no hay nadie ejecutando
+		hay_interrupcion_pendiente = false;
+		pid_a_desalojar = NULL;
 		enviar_mensaje("NO hay nadie", socket_kernel, INTERRUPCION);
+	}else if(pid_ejecutando && !string_equals_ignore_case(string_itoa(pid_ejecutando),pid_a_desalojar)){//si esta ejecutando otro proceso del que hay que desalojar
+		hay_interrupcion_pendiente = false;
+		pid_a_desalojar = NULL;
+		enviar_mensaje("El proceso ya fue desalojado, esta ejecutando otro proceso", socket_kernel, INTERRUPCION);
 	}
 
 }

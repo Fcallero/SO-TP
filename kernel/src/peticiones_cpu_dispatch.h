@@ -32,7 +32,7 @@ extern int cant_recursos;
 void manejar_sleep(int socket_cliente);
 void apropiar_recursos(int socket_cliente, char** recursos, int* recurso_disponible, int cantidad_de_recursos);
 void desalojar_recursos(int socket_cliente, char** recursos, int* recurso_disponible, int cantidad_de_recursos);
-void finalinzar_proceso(int socket_cliente);
+void finalinzar_proceso(int socket_cliente, t_contexto_ejec* contexto);
 void deteccion_de_deadlock();
 
 t_list *duplicar_lista_recursos(t_list *a_duplicar);

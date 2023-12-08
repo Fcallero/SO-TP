@@ -1,7 +1,6 @@
 #include "memoria.h"
 
 int socket_memoria;
-int socket_fs;
 void* espacio_usuario;
 int tam_pagina;
 char* path_instrucciones;
@@ -115,26 +114,25 @@ t_config* iniciar_config(void) {
 void terminar_programa(t_log *logger, t_config *config) {
 	log_destroy(logger);
 	config_destroy(config);
-	close(socket_fs);
 	close(socket_memoria);
 }
 
 //conexiones
-int conectar_fs(char *ip, char *puerto) {
+int conectar_fs(char *ip, char *puerto, int *socket_filesystem) {
 
-	socket_fs = crear_conexion(ip, puerto);
+	*socket_filesystem = crear_conexion(ip, puerto);
 
 	//enviar handshake
-	enviar_mensaje("OK", socket_fs, HANDSHAKE);
+	enviar_mensaje("OK", *socket_filesystem, HANDSHAKE);
 
-	op_code cod_op = recibir_operacion(socket_fs);
+	op_code cod_op = recibir_operacion(*socket_filesystem);
 
 	if (cod_op != HANDSHAKE) {
 		return -1;
 	}
 
 	int size;
-	char *buffer = recibir_buffer(&size, socket_fs);
+	char *buffer = recibir_buffer(&size, *socket_filesystem);
 
 	if (strcmp(buffer, "OK") != 0) {
 		return -1;
@@ -311,8 +309,8 @@ void finalizar_proceso(int cliente_fd){
 
 	list_iterate(situacion_marcos,marcarLibre);
 
-
-	int result_conexion_fs = conectar_fs(ip_filesystem, puerto_filesystem);
+	int socket_filesystem;
+	int result_conexion_fs = conectar_fs(ip_filesystem, puerto_filesystem, &socket_filesystem);
 
 	if (result_conexion_fs == -1) {
 		log_error(logger, "No se pudo conectar con el modulo Filesystem !!");
@@ -329,10 +327,10 @@ void finalizar_proceso(int cliente_fd){
 		agregar_a_paquete_sin_agregar_tamanio(paquete, &(punteros[i]), sizeof(uint32_t));
 	}
 
-	enviar_paquete(paquete, socket_fs);
+	enviar_paquete(paquete, socket_filesystem);
 
 	eliminar_paquete(paquete);
-	close(socket_fs);
+	close(socket_filesystem);
 	free(buffer);
 }
 
@@ -345,8 +343,8 @@ void crear_proceso(int cliente_fd){
 	memcpy(&tamanio,buffer,sizeof(int));
 	memcpy(&pid,buffer+sizeof(int),sizeof(int));
 
-
-	int result_conexion_fs = conectar_fs(ip_filesystem, puerto_filesystem);
+	int socket_filesystem;
+	int result_conexion_fs = conectar_fs(ip_filesystem, puerto_filesystem, &socket_filesystem);
 
 		if (result_conexion_fs == -1) {
 			log_error(logger, "No se pudo conectar con el modulo Filesystem !!");
@@ -359,18 +357,18 @@ void crear_proceso(int cliente_fd){
 
 	 agregar_a_paquete_sin_agregar_tamanio(paquete,&tamanio,sizeof(int));
 
-	 enviar_paquete(paquete,socket_fs);
+	 enviar_paquete(paquete,socket_filesystem);
 
 	 eliminar_paquete(paquete);
 
-	 int cod_op = recibir_operacion(socket_fs);
+	 int cod_op = recibir_operacion(socket_filesystem);
 
 	 if(cod_op!=INICIAR_PROCESO){
 		 log_error(logger, "No se pudo recibir bloques asignados. Terminando servidor");
 		 return;
 	 }
 
-	void* buffer_fs = recibir_buffer(&size, socket_fs);
+	void* buffer_fs = recibir_buffer(&size, socket_filesystem);
 	int desplazamiento = 0;
 	int cant_paginas;
 	t_list* lista_de_marcos_x_procesos=list_create();
@@ -401,7 +399,7 @@ void crear_proceso(int cliente_fd){
 	dictionary_put(paginas_por_PID,string_itoa(pid),lista_de_marcos_x_procesos);
 
 	enviar_mensaje("OK", cliente_fd, CREAR_PROCESO);
-	close(socket_fs);
+	close(socket_filesystem);
 	free(buffer);
 	free(buffer_fs);
 }
@@ -492,8 +490,8 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 
 	t_list* paginas_del_proceso =dictionary_get(paginas_por_PID,string_itoa(pid));
 	t_tabla_de_paginas* pagina_a_actualizar =list_get(paginas_del_proceso,numero_pagina);
-
-	int result_conexion_fs = conectar_fs(ip_filesystem, puerto_filesystem);
+	int socket_filesystem;
+	int result_conexion_fs = conectar_fs(ip_filesystem, puerto_filesystem, &socket_filesystem);
 
 		if (result_conexion_fs == -1) {
 			log_error(logger, "No se pudo conectar con el modulo Filesystem !!");
@@ -506,18 +504,18 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 
 	 agregar_a_paquete_sin_agregar_tamanio(paquete,&(pagina_a_actualizar->posicion_swap),sizeof(int));
 
-	 enviar_paquete(paquete,socket_fs);
+	 enviar_paquete(paquete,socket_filesystem);
 
 	 eliminar_paquete(paquete);
 
-	 int cod_op = recibir_operacion(socket_fs);
+	 int cod_op = recibir_operacion(socket_filesystem);
 
 	 if(cod_op!=LEER_CONTENIDO_PAGINA){
 		 log_error(logger, "No se pudo recibir el contenido del bloque. Terminando servidor ");
 		 return;
 	 }
 
-	 void* contenido_bloque = recibir_buffer(&size, socket_fs);
+	 void* contenido_bloque = recibir_buffer(&size, socket_filesystem);
 
 	if(memoria_llena()){
 		log_info(logger, "memoria llena, proceso a reemplazar por algun marco");//TODO borrar log
@@ -567,18 +565,18 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 			agregar_a_paquete_sin_agregar_tamanio(paquete, &(marco->posicion_swap), sizeof(uint32_t));
 			agregar_a_paquete_sin_agregar_tamanio(paquete, contenido_acutualizado, tam_pagina);
 
-			enviar_paquete(paquete, socket_fs);
+			enviar_paquete(paquete, socket_filesystem);
 
 			eliminar_paquete(paquete);
 
-			int cod_op = recibir_operacion(socket_fs);
+			int cod_op = recibir_operacion(socket_filesystem);
 
 			 if(cod_op!=ESCRIBIR_CONTENIDO_PAGINA){
 				 log_error(logger, "No se pudo actualizar el bloque swap de la pagina a reeemplazar");
 				 return;
 			 }
 
-			 char* mensaje = recibir_mensaje(socket_fs);
+			 char* mensaje = recibir_mensaje(socket_filesystem);
 			 log_info(logger, "Se recibio un %s de filesystem, procedo con el remplazo de pagina", mensaje);
 		}
 
@@ -612,7 +610,7 @@ void manejar_pagefault(char* algoritmo_reemplazo,int cliente_fd,int tam_pagina){
 	esperar_por(retardo_respuesta);
 
 	enviar_mensaje("OK",cliente_fd,PAGE_FAULT);
-	close(socket_fs);
+	close(socket_filesystem);
 }
 
 
@@ -785,7 +783,7 @@ void read_memory(int cliente_fd){
 	memcpy(contenido, espacio_usuario+direccion_fisica, tam_pagina);
 
 
-	t_paquete* paquete = crear_paquete(READ_MEMORY);
+	t_paquete* paquete = crear_paquete(READ_MEMORY_RESPUESTA);
 	agregar_a_paquete_sin_agregar_tamanio(paquete, contenido, tam_pagina);
 
 	esperar_por(retardo_respuesta);
@@ -841,7 +839,7 @@ void write_memory(int cliente_fd){
 
 	esperar_por(retardo_respuesta);
 
-	enviar_mensaje("OK",cliente_fd,WRITE_MEMORY);
+	enviar_mensaje("OK",cliente_fd,WRITE_MEMORY_RESPUESTA);
 
 
 	free(buffer);
@@ -890,7 +888,7 @@ void write_memory_fs(int cliente_fd){
 
 	esperar_por(retardo_respuesta);
 
-	enviar_mensaje("OK",cliente_fd,WRITE_MEMORY_FS);
+	enviar_mensaje("OK",cliente_fd,WRITE_MEMORY_FS_RESPUESTA);
 
 
 	free(buffer);
