@@ -13,6 +13,8 @@ void manejar_instruccion_set(t_contexto_ejec** contexto, t_instruccion* instrucc
 	char* registro = strdup(instruccion->parametros[0]);
 	uint32_t valor = atoi(instruccion->parametros[1]);
 	setear_registro(contexto, registro, valor);
+
+	free(registro);
 }
 
 void setear_registro(t_contexto_ejec** contexto, char* registro, uint32_t valor)
@@ -50,6 +52,7 @@ void manejar_instruccion_sum(t_contexto_ejec** contexto_actual,t_instruccion* in
 
 	 setear_registro(contexto_actual, registro_destino, valor_destino);
 	 free(registro_origen);
+	 free(registro_destino);
 }
 
 void manejar_instruccion_sub(t_contexto_ejec** contexto_actual,t_instruccion* instruccion)
@@ -64,6 +67,7 @@ void manejar_instruccion_sub(t_contexto_ejec** contexto_actual,t_instruccion* in
 
 	 setear_registro(contexto_actual, registro_destino, valor_destino);
 	 free(registro_origen);
+	 free(registro_destino);
 }
 
 void manejar_instruccion_jnz(t_contexto_ejec** contexto_actual, t_instruccion* instruccion){

@@ -370,6 +370,8 @@ void recibir_interrupcion(int socket_kernel) {
 		enviar_mensaje("El proceso ya fue desalojado, esta ejecutando otro proceso", socket_kernel, INTERRUPCION);
 	}
 
+	free(mensaje);
+	string_array_destroy(array_mensaje);
 }
 
 void devolver_a_kernel(t_contexto_ejec *contexto, op_code code,
